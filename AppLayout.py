@@ -17,7 +17,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-
+import logging
 import tkinter
 from tkinter import *
 from tkinter import ttk
@@ -57,7 +57,7 @@ class AppLayout:
 
     def __init__(self, main):
         """ Create the app window and styles """
-
+        self.logger = logging.getLogger(__name__)
         self.main = main
         self.window = tkinter.Tk()
         self.window.title("GeoFinder3")
@@ -85,15 +85,18 @@ class AppLayout:
         style.configure('Preferred.TButton', foreground=GOOD_COLOR)
 
         # Load images for buttons
-        self.search_image = tkinter.PhotoImage(file="images/search.gif")
-        self.map_image = tkinter.PhotoImage(file="images/map.gif")
-        self.verify_image = tkinter.PhotoImage(file="images/verify.gif")
-        self.save_image = tkinter.PhotoImage(file="images/save.gif")
-        self.skip_image = tkinter.PhotoImage(file="images/skip.gif")
-        self.help_image = tkinter.PhotoImage(file="images/help.gif")
-        self.exit_image = tkinter.PhotoImage(file="images/exit.gif")
-        self.load_image = tkinter.PhotoImage(file="images/play.gif")
-        self.folder_image = tkinter.PhotoImage(file="images/folder.gif")
+        try:
+            self.search_image = tkinter.PhotoImage(file="images/search.gif")
+            self.map_image = tkinter.PhotoImage(file="images/map.gif")
+            self.verify_image = tkinter.PhotoImage(file="images/verify.gif")
+            self.save_image = tkinter.PhotoImage(file="images/save.gif")
+            self.skip_image = tkinter.PhotoImage(file="images/skip.gif")
+            self.help_image = tkinter.PhotoImage(file="images/help.gif")
+            self.exit_image = tkinter.PhotoImage(file="images/exit.gif")
+            self.load_image = tkinter.PhotoImage(file="images/play.gif")
+            self.folder_image = tkinter.PhotoImage(file="images/folder.gif")
+        except Exception as e:
+            self.logger.debug(f'Missing Button Image files. {e}')
 
         self.window.update()
 
