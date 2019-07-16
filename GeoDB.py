@@ -70,7 +70,7 @@ class GeoDB:
 
     def create_tables(self):
         # name, country, admin1_id, admin2_id, lat, lon, f_code, geoid
-        sql_geodata_table = """CREATE TABLE IF NOT EXISTS geodata (
+        sql_geodata_table = """CREATE TABLE IF NOT EXISTS geodata    (
                 id           integer primary key autoincrement not null,
                 name     text,
                 country     text,
@@ -83,7 +83,7 @@ class GeoDB:
                                     );"""
 
         # name, country, admin1_id, admin2_id, lat, lon, f_code, geoid
-        sql_admin1_table = """CREATE TABLE IF NOT EXISTS admin1 (
+        sql_admin1_table = """CREATE TABLE IF NOT EXISTS admin1    (
                 id           integer primary key autoincrement not null,
                 name     text,
                 country     text,
@@ -96,7 +96,7 @@ class GeoDB:
                                     );"""
 
         # name, country, admin1_id, admin2_id, lat, lon, f_code, geoid
-        sql_admin2_table = """CREATE TABLE IF NOT EXISTS admin2 (
+        sql_admin2_table = """CREATE TABLE IF NOT EXISTS admin2    (
                 id           integer primary key autoincrement not null,
                 name     text,
                 country     text,

@@ -37,12 +37,6 @@ class Place:
         self.ct = Country.Country(None)
         self.ct.read()
 
-    """
-    def __str__(self):
-        return (f'Loc={self.city1},{self.admin2_name},{self.admin1_name} ADM1={self.admin1_id}'
-                f' ADM2={self.admin2_id}  iso={self.country_iso} ')
-    """
-
     def clear(self):
         # Place geo info
         self.name = ""

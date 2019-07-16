@@ -74,6 +74,7 @@ class DB:
         cur = self.conn.cursor()
         cur.execute(pragma)
         self.conn.commit()
+        self.logger.info(pragma)
 
     def create_table(self, create_table_sql: str):
         """ create a table from the create_table_sql statement
@@ -83,7 +84,7 @@ class DB:
             c = self.conn.cursor()
             c.execute(create_table_sql)
             self.conn.commit()
-            self.logger.info('created table')
+            self.logger.info(f'Create DB table {create_table_sql[27:37]}')   # Lazy attempt to get table name for logging
         except Exception as e:
             self.logger.error(e)
 
@@ -92,8 +93,8 @@ class DB:
             c = self.conn.cursor()
             c.execute(create_table_sql)
             self.conn.commit()
-        except Exception as e:
-            self.logger.error(e)
+        except sqlite3.OperationalError as e:
+            self.logger.debug(e)
 
     def delete_table(self, tbl):
         cur = self.conn.cursor()
@@ -138,6 +139,7 @@ class DB:
 
     def set_speed_pragmas(self):
         # Set DB pragmas for speed.  These can lead to corruption if there is power loss!
+        self.logger.info('Database pragmas set for Speed not integrity')
         for txt in ['PRAGMA temp_store = memory',
                     'PRAGMA journal_mode = wal',
                     'PRAGMA cache_size = -200',

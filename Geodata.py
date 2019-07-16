@@ -76,7 +76,7 @@ class Geodata:
         place.parse_place(place_name=location, geo_files=self.geo_files)
 
         if self.country_is_valid(place):
-            place.country_name = self.geo_files.country.get_name(place.country_iso)
+            #place.country_name = self.geo_files.country.get_name(place.country_iso)
             self.logger.debug(f'Find LOCATION Type=[{Place.place_type_name_dict[place.place_type]}] City=[{place.city1}] Adm2=[{place.admin2_name}]\
     Adm1=[{place.admin1_name}] Prefix=[{place.prefix}] iso=[{place.country_iso}]')
             # Lookup location
@@ -94,7 +94,7 @@ class Geodata:
             self.geo_files.geodb.get_geodata(row=place.georow_list[0], place=place)
 
         self.set_place_type(place=place)
-        place._status = f'{result_text_list.get(place.result_type)} {place.type_text} "{st.capwords(targ_name)}"'
+        place._status = f'{place.type_text} "{st.capwords(targ_name)}" {result_text_list.get(place.result_type)} '
 
     def set_place_type(self, place: Place.Place):
         if place.result_type == GeoKeys.Result.NO_COUNTRY:
@@ -169,10 +169,10 @@ class Geodata:
 
 
 result_text_list = {
-    GeoKeys.Result.EXACT_MATCH: 'Match!',
-    GeoKeys.Result.MULTIPLE_MATCHES: 'Not Unique.',
-    GeoKeys.Result.NO_MATCH: 'Not Found.',
-    GeoKeys.Result.NOT_SUPPORTED: 'Country not supported.',
-    GeoKeys.Result.NO_COUNTRY: 'No Country.',
-    GeoKeys.Result.PARTIAL_MATCH: 'Not Identical.'
+    GeoKeys.Result.EXACT_MATCH: 'matched! Click Save to accept:',
+    GeoKeys.Result.MULTIPLE_MATCHES: 'had multiple matches.  Select one and click Verify.',
+    GeoKeys.Result.NO_MATCH: 'not found.  Edit and click Verify.',
+    GeoKeys.Result.NOT_SUPPORTED: ' is not supported.',
+    GeoKeys.Result.NO_COUNTRY: 'No Country found.',
+    GeoKeys.Result.PARTIAL_MATCH: 'partial match.  Click Save to accept:'
 }

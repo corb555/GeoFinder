@@ -232,7 +232,10 @@ class GeodataFiles:
 
     def progress(self, msg, val):
         """ Update progress bar if there is one """
+        if val >80:
+            self.logger.info(f'{val:.1f}%  {msg}')
+        else:
+            self.logger.debug(f'{val:.1f}%  {msg}')
 
-        self.logger.debug(f'{val:.1f}%  {msg}')
         if self.progress_bar is not None:
             self.progress_bar.update_progress(val, msg)

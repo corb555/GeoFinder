@@ -167,6 +167,7 @@ class GeoFinder:
             # Parse the entry into Prefix, City, District2, District1, Country
             self.place.parse_place(place_name=town_entry, geo_files=self.geodata.geo_files)
             self.w.status.configure(style="Good.TLabel")
+            Widge.set_text(self.w.original_entry, self.place.name)
 
             # When we find an error, see if we have a fix (Global Replace) or Skip (ignore). Otherwise have user handle
             if self.global_replace.get(self.place.name) is not None:
@@ -180,8 +181,8 @@ class GeoFinder:
                 self.gedcom.write_lat_lon(lat=self.place.lat, lon=self.place.lon)
 
                 # Display status to user
-                Widge.set_text(self.w.user_edit, replacement)
-                Widge.set_text(self.w.status, "Applying previous change")
+                #Widge.set_text(self.w.user_edit, replacement)
+                Widge.set_text(self.w.status, "Applying change")
 
                 if self.shutdown_requested:
                     self.set_detail_text_line("Shutting down...")
@@ -195,21 +196,21 @@ class GeoFinder:
             elif self.skiplist.get(self.place.name) is not None:
                 # item is in skiplist - Skip it and go to next error
                 self.logger.debug('SkipList match found')
-                Widge.set_text(self.w.user_edit, self.place.name)
                 Widge.set_text(self.w.status, "Skipping")
                 self.gedcom.write(self.place.name)
                 continue
             else:
-                # Found a new item
+                # Found a new PLACE entry in GEDCOM
                 # See if its in our place database
                 self.geodata.find_location(town_entry, self.place)
 
                 if self.place.result_type in GeoKeys.successful_match:
                     # Found a match
-                    if self.user_accepted.get(self.place.name) is not None:
-                        # User has already accepted this match
+                    if self.user_accepted.get(self.place.name) is not None or self.place.result_type == GeoKeys.Result.EXACT_MATCH :
+                        # User has already accepted this match or it is an Exact match
                         # Write out line without user verification
-                        self.logger.debug('Accepted ')
+                        self.logger.debug('Accepted or Exact')
+                        Widge.set_text(self.w.status, "Scanning")
                         self.gedcom_output_place(self.place)
                         self.gedcom.write_lat_lon(self.place.lat, self.place.lon)
                         continue
@@ -220,7 +221,6 @@ class GeoFinder:
                     break
 
         # Have user review the result
-        Widge.set_text(self.w.original_entry, self.place.name)
         self.display_result(self.place)
 
     def verify_handler(self):
@@ -233,7 +233,6 @@ class GeoFinder:
             town_entry = self.w.listbox.get(self.w.listbox.curselection())
             # Update the user edit widget with the List selection item
             Widge.set_text(self.w.user_edit, town_entry)
-            # self.logger.debug(f'selection = {town_entry}')
             # Get unique match
             self.geodata.find_first_match(town_entry, self.place)
         else:
@@ -242,6 +241,87 @@ class GeoFinder:
             self.geodata.find_location(town_entry, self.place)
 
         self.display_result(self.place)
+
+    def display_result(self, place):
+        # Found an item that requires user intervention
+        # Enable buttons so user can either click Skip, or edit the item and Click Verify.
+        Widge.enable_buttons(self.w.review_buttons)
+        Widge.set_text(self.w.user_edit, place.name)
+        self.logger.debug(f'disp result.  list= {place.georow_list}')
+
+        # Found an error
+        if place.result_type == GeoKeys.Result.MULTIPLE_MATCHES or \
+                place.result_type == GeoKeys.Result.NO_MATCH or \
+                place.result_type == GeoKeys.Result.NO_COUNTRY:
+            # Disable the Save & Map button until user clicks Verify and item is found in gazeteer
+            self.disable_save(True)
+            self.w.verify_button.configure(style="Preferred.TButton")  # Make the Verify button the preferred selection
+            self.w.save_button.configure(style="TButton")  # Make the Save button normal
+        elif place.result_type == GeoKeys.Result.NOT_SUPPORTED or place.result_type == GeoKeys.Result.EXACT_MATCH or \
+                place.result_type == GeoKeys.Result.PARTIAL_MATCH:
+            # Found a match or Not supported
+            self.disable_save(False)  # Enable save button
+            self.w.verify_button.configure(style="TButton")  # Make the Verify button normal
+            self.w.save_button.configure(style="Preferred.TButton")  # Make the Save button the preferred selection
+        else:
+            self.logger.debug(f'unk typ={place.result_type}')
+
+        if place.result_type in GeoKeys.successful_match:
+            self.w.status.configure(style="Good.TLabel")
+        else:
+            self.w.status.configure(style="Error.TLabel")
+
+        self.set_status_text(place.get_status())
+        if len(place.prefix) > 0:
+            Widge.set_text(self.w.prefix, 'PREFIX= ' + place.prefix)
+        else:
+            Widge.set_text(self.w.prefix, ' ')
+
+        if len(place.georow_list) > 0:
+            # self.logger.debug(f'len={len(place.georow_list)}')
+            self.w.listbox.activate(0)
+            self.w.listbox.focus()
+            self.display_georow_list(place)
+        else:
+            self.w.user_edit.focus()  # Set focus to text edit widget
+            self.set_detail_text_line(place.status_detail)
+
+        # Display GED person and event
+        Widge.set_text(self.w.ged_event_info, f'{self.gedcom.get_name(self.gedcom.id)}: {self.gedcom.last_tag_name} {self.gedcom.date}')
+        self.w.window.update_idletasks()
+
+    def display_georow_list(self, place: Place.Place):
+        """ Display latest status or error detail """
+        # self.logger.debug(f'display georow list ')
+
+        # Load in list and display
+        self.w.listbox.delete(0, END)
+
+        """
+        # [(0 city, 1 country, 2 dist1, 3 dist2, ), (prefix, city, dist2, dist1, country)]
+        # Sort by Dist1, then Dist2, then city
+
+        for item in sorted(place.georow_list, key=itemgetter(2, 1, 0)):
+            tx = ', '.join(item)
+            self.w.listbox.insert(END, f"{tx}")
+        """
+        # Iterate list and lookup admin names and format
+        # Output to display
+        lkp_place = copy.copy(place)
+        output_list = []
+
+        for item in place.georow_list:
+            # self.logger.debug(f'{item}')
+            self.geodata.geo_files.geodb.get_geodata(item, lkp_place)
+            nm = lkp_place.get_placename()
+            output_list.append(f'{place.prefix}{nm}')
+
+        # Output to display
+        for item in output_list:
+            self.w.listbox.insert(END, item)
+            # self.logger.debug(f'display georow list {item}')
+
+        self.w.window.update_idletasks()
 
     def skip_handler(self):
         """ Write out original entry and skip any matches in future  """
@@ -323,86 +403,6 @@ class GeoFinder:
             Widge.set_text(self.w.status, "Click Open to load GEDCOM file")
             Widge.set_text(self.w.original_entry, self.cfg.get("gedcom_path"))
 
-    def display_result(self, place):
-        # Found an item that requires user intervention
-        self.w.user_edit.focus()  # Set focus to text edit widget
-
-        # Enable buttons so user can either click Skip, or edit the item and Click Verify.
-        Widge.enable_buttons(self.w.review_buttons)
-        Widge.set_text(self.w.user_edit, place.name)
-        self.logger.debug(f'disp result.  list= {place.georow_list}')
-
-        # Found an error
-        if place.result_type == GeoKeys.Result.MULTIPLE_MATCHES or \
-                place.result_type == GeoKeys.Result.NO_MATCH or \
-                place.result_type == GeoKeys.Result.NO_COUNTRY:
-            # Disable the Save & Map button until user clicks Verify and item is found in gazeteer
-            self.disable_save(True)
-            self.w.verify_button.configure(style="Preferred.TButton")  # Make the Verify button the preferred selection
-            self.w.save_button.configure(style="TButton")  # Make the Save button normal
-        elif place.result_type == GeoKeys.Result.NOT_SUPPORTED or place.result_type == GeoKeys.Result.EXACT_MATCH or \
-                place.result_type == GeoKeys.Result.PARTIAL_MATCH:
-            # Found a match or Not supported
-            self.disable_save(False)  # Enable save button
-            self.w.verify_button.configure(style="TButton")  # Make the Verify button normal
-            self.w.save_button.configure(style="Preferred.TButton")  # Make the Save button the preferred selection
-        else:
-            self.logger.debug(f'unk typ={place.result_type}')
-
-        if place.result_type in GeoKeys.successful_match:
-            self.w.status.configure(style="Good.TLabel")
-        else:
-            self.w.status.configure(style="Error.TLabel")
-
-        self.set_status_text(place.get_status())
-        if len(place.prefix) > 0:
-            Widge.set_text(self.w.prefix, 'PREFIX= ' + place.prefix)
-        else:
-            Widge.set_text(self.w.prefix, ' ')
-
-        if len(place.georow_list) > 0:
-            # self.logger.debug(f'len={len(place.georow_list)}')
-            self.display_georow_list(place)
-        else:
-            self.set_detail_text_line(place.status_detail)
-
-        # Display GED person and event
-        Widge.set_text(self.w.ged_event_info, f'{self.gedcom.get_name(self.gedcom.id)}: {self.gedcom.last_tag_name} {self.gedcom.date}')
-        self.w.window.update_idletasks()
-
-    def display_georow_list(self, place: Place.Place):
-        """ Display latest status or error detail """
-        # self.logger.debug(f'display georow list ')
-
-        # Load in list and display
-        self.w.listbox.delete(0, END)
-
-        """
-        # [(0 city, 1 country, 2 dist1, 3 dist2, ), (prefix, city, dist2, dist1, country)]
-        # Sort by Dist1, then Dist2, then city
-
-        for item in sorted(place.georow_list, key=itemgetter(2, 1, 0)):
-            tx = ', '.join(item)
-            self.w.listbox.insert(END, f"{tx}")
-        """
-        # Iterate list and lookup admin names and format
-        # Output to display
-        lkp_place = copy.copy(place)
-        output_list = []
-
-        for item in place.georow_list:
-            # self.logger.debug(f'{item}')
-            self.geodata.geo_files.geodb.get_geodata(item, lkp_place)
-            nm = lkp_place.get_placename()
-            output_list.append(f'{place.prefix}{nm}')
-
-        # Output to display
-        for item in output_list:
-            self.w.listbox.insert(END, item)
-            # self.logger.debug(f'display georow list {item}')
-
-        self.w.window.update_idletasks()
-
     def return_key_event_handler(self, event):
         """ User pressed Return accelerator key.  Call Verify data entry """
         self.verify_handler()
@@ -448,7 +448,7 @@ class GeoFinder:
     def setup_logging(self, msg):
         self.logger = logging.getLogger(__name__)
         fmt = "%(levelname)s %(name)s.%(funcName)s %(lineno)d: %(message)s"
-        logging.basicConfig(level=logging.DEBUG, format=fmt)
+        logging.basicConfig(level=logging.INFO, format=fmt)
         self.logger.info(msg)
 
     def gedcom_output_place(self, place: Place.Place):
@@ -486,6 +486,8 @@ class GeoFinder:
         self.w.status.state(["!readonly"])
         Widge.set_text(self.w.status, txt)
         self.w.status.state(["readonly"])
+
+
 
 
 r = GeoFinder()

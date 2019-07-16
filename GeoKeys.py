@@ -50,7 +50,6 @@ def cache_directory(path):
     """ Return the directory for cache files """
     return os.path.join(path, "cache")
 
-
 def semi_normalize(name) -> str:
     """ Strip spaces and normalize spelling for items such as Saint and County """
     # Replacement patterns to clean up entries
@@ -60,11 +59,31 @@ def semi_normalize(name) -> str:
     res = re.sub('township of ([^,]+)', r'\g<1> township', res)  # Normalize 'Township of X' to 'X Township'
     return res
 
+def strip_accents(s):
+   return ''.join(c for c in unicodedata.normalize('NFD', s)
+                  if unicodedata.category(c) != 'Mn')
 
-def normalize(name) -> str:
-    """ Strip commas. Also strip spaces and normalize spelling for items such as Saint and County """
-    normal = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore')
-    res = normal.decode("utf-8")
+def normalize(res) -> str:
+    """ Strip commas. Also strip spaces and normalize spelling for items such as Saint and County and chars   ø ß """
+    res = re.sub(r'ß', 'ss', res)  # Normalize ss
+    res = re.sub(r'ø', 'o', res)  # Normalize    ’
+    res = re.sub(r"Ø", "O", res)  # Normalize    ’  \u0153   Ø
+    res = re.sub(r"’", "'", res)  # Normalize    ’
+    res = re.sub(r"\u0153", "oe", res)  # Normalize    ’  \u0153
+    res = re.sub(r"\u0142", "l", res)  # Normalize    ’  \u142   Ø
+    res = strip_accents(res)
+
+    """
+    try:
+        res = res.encode('ASCII', 'strict')
+    except UnicodeEncodeError as e:
+    
+            print(e)
+        print(res)
+    """
+
+    res = res.encode('ASCII', 'ignore')
+    res = res.decode("utf-8")
 
     # remove all punctuation
     res = str(res).lower()

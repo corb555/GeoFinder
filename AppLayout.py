@@ -198,9 +198,8 @@ class AppLayout:
         self.prog.bar.grid(column=TXT_COL, row=1, padx=0, pady=5, sticky="EW", columnspan=2)
         self.original_entry.grid(column=TXT_COL, row=2, padx=0, pady=5, sticky="EWS", columnspan=2)
         self.user_edit.grid(column=TXT_COL, row=3, padx=0, pady=0, sticky="EWN", columnspan=2)
-        self.status.grid(column=TXT_COL, row=4, padx=0, pady=0, sticky="EW", columnspan=2)
-        self.prefix.grid(column=TXT_COL, row=5, padx=0, pady=0, sticky="EW", columnspan=2)
-
+        self.prefix.grid(column=TXT_COL, row=4, padx=0, pady=0, sticky="EW", columnspan=2)
+        self.status.grid(column=TXT_COL, row=5, padx=0, pady=0, sticky="EW", columnspan=2)
         self.listbox.grid(column=TXT_COL, row=6, padx=0, pady=5, sticky="EW")
         self.footnote.grid(column=TXT_COL, row=12, padx=0, pady=5, sticky="EW")
 
