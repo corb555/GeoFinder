@@ -30,12 +30,6 @@ class Progress:
         self.window = window
 
         style: ttk.Style = ttk.Style()
-        """
-        style.configure("bar.Horizontal.TProgressbar", foreground='white',
-                        background='royalblue3', troughcolor='gray97', bordercolor='gray97',
-                        lightcolor='gray97', darkcolor='gray97', arrowcolor='white')
-        """
-
         style.configure("bar.Horizontal.TProgressbar",
                         troughcolor=trough_color, bordercolor='white',
                         background=bar_color, lightcolor=bar_color, darkcolor=bar_color)
@@ -50,9 +44,6 @@ class Progress:
             self.window.update()  # Still in startup mode.  Use stronger window.update
         else:
             self.window.update_idletasks()
-
-    # def grid(self, row, column, padx, pady):
-    # self.bar.grid(row=row, column=column, padx=padx, pady=pady)
 
     def update_progress(self, progress: int, stage: str):
         if progress < 2:

@@ -50,7 +50,7 @@ class Geodata:
         """
         # todo add unit test
         place.parse_place(place_name=location, geo_files=self.geo_files)
-        place.country_name = self.geo_files.country.get_name(place.country_iso)
+        place.country_name = self.geo_files.geodb.get_country_name(place.country_iso)
 
         place.country_iso = place.country_iso
 
@@ -78,7 +78,7 @@ class Geodata:
         if self.country_is_valid(place):
             #place.country_name = self.geo_files.country.get_name(place.country_iso)
             self.logger.debug(f'Find LOCATION Type=[{Place.place_type_name_dict[place.place_type]}] City=[{place.city1}] Adm2=[{place.admin2_name}]\
-    Adm1=[{place.admin1_name}] Prefix=[{place.prefix}] iso=[{place.country_iso}]')
+    Adm1=[{place.admin1_name}] Prefix=[{place.prefix}] cname=[{place.country_name}] iso=[{place.country_iso}]')
             # Lookup location
             self.geo_files.geodb.lookup_place(place=place)
         else:
@@ -131,10 +131,10 @@ class Geodata:
         """ Read in geo name files which contain place names and their lat/lon.
             Return True if error
         """
-        err: bool = self.geo_files.country.read()
-        if err:
-            self.status = "country country_iso list error"
-            return True
+        #err: bool = self.geo_files.country.read()
+        #if err:
+        #    self.status = "country country_iso list error"
+        #    return True
 
         err = self.geo_files.read()
         if err:
@@ -161,12 +161,12 @@ class Geodata:
             is_valid = False
         elif place.country_iso not in self.geo_files.supported_countries_dct:
             place.result_type = GeoKeys.Result.NOT_SUPPORTED
+            place.place_type = Place.PlaceType.COUNTRY
             is_valid = False
         else:
             is_valid = True
 
         return is_valid
-
 
 result_text_list = {
     GeoKeys.Result.EXACT_MATCH: 'matched! Click Save to accept:',
@@ -176,3 +176,5 @@ result_text_list = {
     GeoKeys.Result.NO_COUNTRY: 'No Country found.',
     GeoKeys.Result.PARTIAL_MATCH: 'partial match.  Click Save to accept:'
 }
+
+

@@ -18,6 +18,7 @@
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 import logging
+import tkinter.font
 import tkinter
 from tkinter import *
 from tkinter import ttk
@@ -42,6 +43,7 @@ ERR_COLOR = 'red2'
 GOOD_COLOR = 'green4'
 
 FNT = 'Helvetica'
+FNT_SIZE_SM = 8
 FNT_SIZE_MD = 14
 FNT_SIZE_LG = 18
 FNT_SIZE_XL = 24
@@ -60,7 +62,7 @@ class AppLayout:
         self.logger = logging.getLogger(__name__)
         self.main = main
         self.window = tkinter.Tk()
-        self.window.title("GeoFinder3")
+        self.window.title("GeoFinder")
         self.window["padx"] = 0
         self.window["pady"] = 20
         self.window.configure(background=BG_COLOR)
@@ -80,6 +82,7 @@ class AppLayout:
         style.configure('Info.TLabel', foreground=FG_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_MD))
         style.configure('Large.TLabel', foreground=HIGH_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_XL))
         style.configure('Light.TLabel', borderwidth=3, foreground=LT_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_MD))
+        style.configure('Tiny.TLabel', borderwidth=3, foreground=LT_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_SM))
         style.configure('TEntry', foreground=FG_COLOR)
         style.configure('TButton', foreground=FG_COLOR)
         style.configure('Preferred.TButton', foreground=GOOD_COLOR)
@@ -105,7 +108,7 @@ class AppLayout:
         self.pad: ttk.Label = ttk.Label(self.window, text=" ", width=2, style='Light.TLabel')
 
         self.title: ttk.Label = ttk.Label(self.window, text="Geo Finder", width=30, style='Large.TLabel')
-        self.line_number_label: ttk.Label = ttk.Label(self.window, text="", width=BTN_WID, style='Light.TLabel')
+        self.line_number_label: ttk.Label = ttk.Label(self.window, text="", width=BTN_WID, style='Tiny.TLabel')
 
         self.original_entry: ttk.Label = ttk.Label(self.window, text=" ", width=50, style='Info.TLabel')
         self.status: ttk.Label = ttk.Label(self.window, width=TXT_WID, style='Good.TLabel')

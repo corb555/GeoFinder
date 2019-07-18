@@ -21,8 +21,9 @@ import logging
 import string as st
 from typing import List, Tuple
 
-import Country
 import GeoKeys
+
+great_britain = ['scotland', 'england', 'wales', 'northern ireland']
 
 
 class Place:
@@ -34,8 +35,8 @@ class Place:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.clear()
-        self.ct = Country.Country(None)
-        self.ct.read()
+        #self.ct = Country.Country(None)
+        #self.ct.read()
 
     def clear(self):
         # Place geo info
@@ -82,31 +83,49 @@ class Place:
         # Parse City, Admin2, Admin2, Country based on number of tokens.  When there are more tokens, we capture more fields
         # Place type is the leftmost item we found - either City, Admin2, Admin2, or Country
 
-        #  COUNTRY - must be right-most token
+        #  COUNTRY - right-most token should be country
         if token_count > 0:
             #  Format: Country
             self.place_type = PlaceType.COUNTRY
             country = tokens[-1].strip(' ').lower()
             self.country_name = country
 
-            # If in Great Britain, append GB
-            if geo_files.country.in_great_britain(country):
-                # User entered a GB country - Append Great Britain
+            ''' If in Great Britain, append GB
+            if self.in_great_britain(country):
+                # User entered a GB country - Append United Kingdom
                 # todo add test case
-                tokens.append('great britain')
+                tokens.append('united kingdom')
                 country = tokens[-1].strip(' ').lower()
+                self.country_name = country
                 token_count = len(tokens)
+                '''
 
             # Validate country
-            self.country_iso = geo_files.country.get_iso(country)  # Get Country country_iso
-            if self.country_iso is None:
-                self.place_type = PlaceType.CITY
-                self.result_type = GeoKeys.Result.NO_COUNTRY
-                self.country_iso = ''
+            self.country_iso = geo_files.geodb.get_country_iso(self)  # Get Country country_iso
+            if self.country_iso is '':
+                # See if rightmost token is actually Admin1 (state/province)
+                save_admin1 = self.admin1_name
+                self.admin1_name = self.country_name
+
+                # Lookup.  This will fill in country ISO if found
+                geo_files.geodb.get_admin1_id(self)
+                self.admin1_name = save_admin1   # Restore Admin1
+
+                if self.country_iso is not None:
+                    # We found the country.  Append it to token list
+                    tokens.append(geo_files.geodb.get_country_name(self.country_iso))
+                    country = tokens[-1].strip(' ').lower()
+                    self.country_name = country
+                    token_count = len(tokens)
+                else:
+                    self.logger.debug('no country found')
+                    self.place_type = PlaceType.CITY
+                    self.result_type = GeoKeys.Result.NO_COUNTRY
+                    self.country_iso = ''
 
             self.target = country
 
-        self.logger.debug(f"**** PARSE [{place_name}] tokens={token_count} ****")
+        #self.logger.debug(f"**** PARSE [{place_name}] tokens={token_count} ****")
 
         if token_count > 1:
             #  Format: Admin1, Country.
@@ -139,8 +158,8 @@ class Place:
             for item in tokens[0:-4]:
                 self.prefix += item + ','
 
-        self.logger.debug(f"  City1 [{self.city1}] Adm2 [{self.admin2_name}]"
-                          f"  Adm1 [{self.admin1_name}] Typ={place_type_name_dict[self.place_type]}")
+        self.logger.debug(f"*** PARSE  City [{self.city1}] Adm2 [{self.admin2_name}]"
+                          f"  Adm1 [{self.admin1_name}] Cntry [{self.country_name}] Typ={place_type_name_dict[self.place_type]}")
         return
 
     def get_status(self) -> str:
@@ -165,6 +184,13 @@ class Place:
             nm = f"{st.capwords(self.city1)}, {st.capwords(self.admin2_name)}," \
                 f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
         return nm
+
+    @staticmethod
+    def in_great_britain(country) -> bool:
+        """ Determine if country is in Great Britain """
+        return country in great_britain
+
+
 
 
 # What type of entity is this place?

@@ -36,6 +36,11 @@ import SetupCountriesFrame
 import SetupErrorFrame
 import SetupFeatureFrame
 
+try:
+    import unidecode
+except ModuleNotFoundError:
+    print('PIP3 install unidecode')
+
 
 # Setup and modify config for geonames
 class ReviewWindow:
@@ -79,7 +84,7 @@ class ReviewWindow:
             os.makedirs(self.directory)
 
         # Create App window
-        self.create_app_window("GeoFinder3 Setup")
+        self.create_app_window("GeoFinder Setup")
 
         # Verify config -  test to see if gedcom file accessible 
         self.get_config()
@@ -167,9 +172,9 @@ class ReviewWindow:
 
         if self.country_list.is_dirty() or self.feature_list.is_dirty():
             # Delete geoname.pkl so GeoFinder3 will rebuild it with new country list or feature list
-            for fname in ['name_to_geoid.pkl', 'geodata.pkl', 'district1_id.pkl', 'district2_id.pkl', 'geoid_to_name.pkl']:
+            for fname in ['geodata.db']:
                 path = os.path.join(self.cache_dir, fname)
-                self.logger.debug(f'Quit - delete file {path}')
+                self.logger.debug(f'Quit - DELETING FILE {path}')
                 if os.path.exists(path):
                     os.remove(path)
                 else:
@@ -188,7 +193,7 @@ class ReviewWindow:
 
         path = self.cache_dir
         if not os.path.exists(path):
-            self.logger.info(f'Pickle folder not found {path}.  Creating')
+            self.logger.info(f'Data folder not found {path}.  Creating')
 
             os.makedirs(path)
 

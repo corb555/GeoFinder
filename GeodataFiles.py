@@ -66,7 +66,6 @@ class GeodataFiles:
         self.cache_changed: bool = False
         sub_dir = GeoKeys.cache_directory(self.directory)
 
-        self.country = Country.Country(self.progress_bar)
         self.feature_code_list_cd = CachedDictionary.CachedDictionary(sub_dir, "feature_list.pkl")
         self.feature_code_list_cd.read()
         self.feature_code_list_dct: Dict[str, str] = self.feature_code_list_cd.dict
@@ -128,6 +127,7 @@ class GeodataFiles:
 
         # DB  is stale or not available, rebuild it
         self.geodb = GeoDB.GeoDB(os.path.join(cache_dir, 'geodata.db'))
+        self.country = Country.Country(self.progress_bar, geodb=self.geodb)
 
         # walk thru list of files ending in .txt e.g US.txt, FR.txt, all_countries.txt, etc
         self.logger.debug(f'{fullpath} not new.  Building db ')
@@ -136,6 +136,10 @@ class GeodataFiles:
         # Clear out all geo_data data since we are rebuilding
         self.geodb.clear_geoname_data()
 
+        # Add in country data
+        self.country.read()
+
+        # Read in geonames file data
         for fname in glob.glob(os.path.join(self.directory, "*.txt")):
             # Read all geoname files except the  Admin files and add to db
             if os.path.basename(fname) not in ["admin2Codes.txt", "admin1CodesASCII.txt", "geodata.db",
@@ -223,10 +227,13 @@ class GeodataFiles:
         """ Convert list of supported countries into sorted string """
         nm_list = []
         nm_msg = ""
+        """
+        todo fix get country names
         for iso in self.supported_countries_dct:
-            nm_list.append(self.country.get_name(iso))
+            nm_list.append(self.geodb.get_country_name(iso))
         for nm in sorted(nm_list):
             nm_msg += "{}\n".format(nm)
+        """
 
         return nm_msg, len(self.supported_countries_dct)
 

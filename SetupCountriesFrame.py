@@ -22,6 +22,7 @@ from tkinter import *
 from tkinter import ttk
 from tkinter.ttk import *
 
+import Country
 import GeodataFiles
 import ListboxFrame
 from Widge import Widge
@@ -46,10 +47,11 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
         self.scrollbar2 = Scrollbar(frame)
         self.listbox_all_countries = Listbox(frame, width=80, height=15, bg='gray92', selectmode=MULTIPLE,
                                              yscrollcommand=self.scrollbar2.set)
+        self.country_dict = {}
         super().__init__(frame, title, cache_dir, cache_filename)
 
         self.geoFiles = GeodataFiles.GeodataFiles(dir_name, None)
-        self.geoFiles.country.read()
+
         self.load_handler_all()
 
     def configure_widgets(self, frm):
@@ -69,11 +71,9 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
     def load_handler_all(self):
         # Load in list of all countries and display
         self.listbox_all_countries.delete(0, END)
-        for item in sorted(self.geoFiles.country.country_dict):
-            if len(self.geoFiles.country.country_dict[item]) > 1:
-                self.listbox_all_countries.insert(END, f"{item}{self.separator}{self.geoFiles.country.country_dict[item]}")
-            else:
-                self.listbox_all_countries.insert(END, f"{item}")
+        for name in sorted(Country.country_dict):
+            row = Country.country_dict[name]
+            self.listbox_all_countries.insert(END, f"{name.lower()}{self.separator}{row[0].lower()}")
 
     def add_handler(self):
         # Add items user selected to supported list

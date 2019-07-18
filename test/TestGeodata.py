@@ -31,6 +31,13 @@ import Place
 class TestGeodata(unittest.TestCase):
     geodata = None
 
+    """
+    6155128	St. Andrews	St. Andrews		46.38341	-62.84866	P	PPLL	CA		09				0
+    6155129	St. Andrews	St. Andrews		45.55614	-61.88909	P	PPL	    CA		07				0
+    6155132	St. Andrews	St. Andrews		50.0714	    -96.98393	P	PPLL	CA		03				0
+    6137411	Saint Andrews	Saint Andrews		45.0737	-67.05312	P	PPL	CA		04	1302
+    """
+
     @classmethod
     def setUpClass(cls):
         logger = logging.getLogger(__name__)
@@ -78,246 +85,281 @@ class TestGeodata(unittest.TestCase):
     NOT_IDENTICAL = 7 xx
     """
 
+    # TEST RESULT CODES
     def test_good_name38(self):
-        test = "Test38 Good name, upper lowercase"
+        test = "City.  Good.  upper lowercase"
         lat: float = self.run_test(test, "AlbAnel,, Quebec, CanAda")
         self.assertEqual(GeoKeys.Result.EXACT_MATCH, self.place.result_type, test)
 
     def test_dup_name07(self):
-        test = "Test16 Dup name, Alberton  Ontario"
+        test = "City - multiple matches"
         lat: float = self.run_test(test, "Alberton,, Ontario, Canada")
         self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, test)
 
     def test_good_name15(self):
-        test = "Test15 Good county wrong Province, Halifax, Alberta"
+        test = "County - Good.  wrong Province"
         lat: float = self.run_test(test, "Halifax County, Alberta, Canada")
         self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, test)
 
     def test_good_name25(self):
-        test = "Test15 Good city wrong Province, Halifax, Alberta"
+        test = "city - Good. wrong Province"
         lat: float = self.run_test(test, "Halifax, ,Alberta, Canada")
         self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, test)
 
     def test_bad_county03(self):
-        test = "bad county3 multiple county not unique"
+        test = "multiple county - not unique"
         lat: float = self.run_test(test, "St Andrews,,,Canada")
         self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, test)
 
-    def test_bad_name37(self):
-        test = "Test37 Bad name, Alberton, ,,Germany "
-        lat: float = self.run_test(test, "Alberton, ,,Germany")
-        self.assertEqual(GeoKeys.Result.NO_MATCH, self.place.result_type, test)
-
-    def test_wrong_country1(self):
-        test = "Test51 wrong country"
-        lat: float = self.run_test(test, '')
-        self.assertEqual(GeoKeys.Result.NO_COUNTRY, self.place.result_type, test)
-
-    def test_bad_country03(self):
-        test = "Test53 bad country: squid"
-        lat: float = self.run_test(test, "squid")
-        self.assertEqual(GeoKeys.Result.NO_COUNTRY, self.place.result_type, test)
-
-    def test_bad_country04(self):
-        test = "Test54 bad country: Japan"
-        lat: float = self.run_test(test, "Tokyo,,,Japan")
-        self.assertEqual(GeoKeys.Result.NOT_SUPPORTED, self.place.result_type, test)
-
     def test_good_name27(self):
-        test = "Test27 Good city wrong province, Natuashish, Alberta"
+        test = "City - good. wrong province"
         lat: float = self.run_test(test, "Natuashish, ,Alberta, Canada")
         self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, test)
 
     def test_good_name28(self):
-        test = "Test28 Good city wrong county, Natuashish, Alberta"
+        test = "City - good. wrong county"
         lat: float = self.run_test(test, "Natuashish, Alberta, ,Canada")
         self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, test)
 
-    #  Test County Alias
-    def test_county_alias01(self):
-        test = "Test1 Test Newfoundland alias"
-        lat: float = self.run_test(test, "Albanel, ,Quebec, Canada")
-        self.assertEqual(48.88324, lat, test)
+    def test_bad_name37(self):
+        test = "City - Bad"
+        lat: float = self.run_test(test, "Alberton, ,,Germany")
+        self.assertEqual(GeoKeys.Result.NO_MATCH, self.place.result_type, test)
 
-    def test_wrong_province26(self):
-        test = "Test15 Good county wrong Province, Halifax, Alberta"
-        lat: float = self.run_test(test, "Halifax, Alberta, Canada")
-        self.assertAlmostEqual(-63.71541, float(self.place.lon))
+    def test_wrong_country1(self):
+        test = "Country - blank"
+        lat: float = self.run_test(test, '')
+        self.assertEqual(GeoKeys.Result.NO_COUNTRY, self.place.result_type, test)
 
-    def test_county_alias02(self):
-        test = "Test country alias 2 Test Name,Country"
-        lat: float = self.run_test(test, "Alberta, Canada")
-        self.assertEqual(52.28333, lat, test)
+    # Country
 
-    def test_county_alias03(self):
-        test = "Test3 Test Name,extra, county, Country"
-        lat: float = self.run_test(test, "Albanel, Zill, Quebec, Canada")
-        self.assertEqual(48.88324, lat, test)
-
-    def test_county45(self):
-        test = "Test3 Test county 45,County of Athabasca, Alberta"
-        lat: float = self.run_test(test, "County of Athabasca , Alberta, Canada")
-        self.assertEqual(54.73298, lat, test)
-
-    def test_county_alias04(self):
-        test = "Test51 Test Albert County"
-        lat: float = self.run_test(test, "Albert County, New Brunswick, Canada")
-        self.assertEqual(45.83346, lat, test)
-
-    def test_county_alias05(self):
-        test = "Test52 Test Albert Co."
-        lat: float = self.run_test(test, "Albert Co., New Brunswick, Canada")
-        self.assertEqual(45.83346, lat, test)
-
-    # Test Good name
-    def test_good_name02(self):
-        test = "good_name02, upper lowercase"
-        lat: float = self.run_test(test, "AlbAnel,, Quebec, CanAda")
-        self.assertEqual(48.88324, lat, test)
-
-    def test_good_name03(self):
-        test = "good_name03"
-        lat: float = self.run_test(test, "Albanel,, Quebec, CanAda")
-        self.assertEqual(48.88324, lat, test)
-
-    def test_good_wildcard01(self):
-        test = "good_wildcard01"
-        lat: float = self.run_test(test, "Alb*el,, Quebec, CanAda")
-        self.assertEqual(48.88324, lat, test)
-
-    def test_good_name55(self):
-        test = "Test55 300+ matches"
-        lat: float = self.run_test(test, "er,,, CanAda")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, test)
+    def test_bad_country03(self):
+        test = "Country - bad"
+        lat: float = self.run_test(test, "squid")
+        self.assertEqual(GeoKeys.Result.NO_COUNTRY, self.place.result_type, test)
 
     def test_no_country56(self):
-        test = "Test56 No Country - Natuashish"
+        test = "No Country - Natuashish"
         lat: float = self.run_test(test, "Natuashish,, ")
         self.assertEqual(GeoKeys.Result.NO_COUNTRY, self.place.result_type, test)
 
     def test_no_country57(self):
-        test = "Test57 No Country - Berlin"
+        test = "No Country - Berlin"
         lat: float = self.run_test(test, "Berlin,,, ")
         self.assertEqual(GeoKeys.Result.NO_COUNTRY, self.place.result_type, test)
 
+    def test_bad_country04(self):
+        test = "Country - not supported"
+        lat: float = self.run_test(test, "Tokyo,,,Japan")
+        self.assertEqual(GeoKeys.Result.NOT_SUPPORTED, self.place.result_type, test)
+
+    # TEST LOOKUP PERMUTATIONS
+
+    # COUNTRY -------------
+    def test_good_country29(self):
+        test = "Country -  good"
+        lat: float = self.run_test(test, "Canada")
+        self.assertEqual('canada', self.place.country_name, test)
+
+    def test_good_country67(self):
+        test = "Country -  bad"
+        lat: float = self.run_test(test, "xyzzy")
+        self.assertEqual('', self.place.country_iso, test)
+
+    # PROVINCE -------------
+    def test_county_alias02(self):
+        test = "Province - Good"
+        lat: float = self.run_test(test, "Alberta, Canada")
+        self.assertEqual(52.28333, lat, test)
+
+    def test_good_name36(self):
+        test = "Province - Partial "
+        lat: float = self.run_test(test, "new brunswick,Canada")
+        self.assertEqual(46.5001, lat, test)
+
+    def test_good_name46(self):
+        test = "Province - bad name"
+        lat: float = self.run_test(test, "xyzzy,Canada")
+        self.assertEqual('', self.place.admin1_id, test)
+
+    # COUNTY ---------------
+    def test_county45(self):
+        test = "County - good"
+        lat: float = self.run_test(test, "County of Athabasca , Alberta, Canada")
+        self.assertEqual(54.73298, lat, test)
+
+    def test_county_alias04(self):
+        test = "County - good"
+        lat: float = self.run_test(test, "Albert County, New Brunswick, Canada")
+        self.assertEqual(45.83346, lat, test)
+
+    def test_county_alias05(self):
+        test = "County - Abbreviated good"
+        lat: float = self.run_test(test, "Albert Co., New Brunswick, Canada")
+        self.assertEqual(45.83346, lat, test)
+
+    def test_good_name14(self):
+        test = "County - good.  Halifax city vs County"
+        lat: float = self.run_test(test, "Halifax, Nova Scotia, Canada")
+        self.assertEqual(44.86685, lat, test)
+
+    # CITY -------------------
+
+    def test_good_name02(self):
+        test = "City - good. upper lowercase"
+        lat: float = self.run_test(test, "AlbAnel,, Quebec, CanAda")
+        self.assertEqual(48.88324, lat, test)
+
+    def test_good_name03(self):
+        test = "City - good, no county"
+        lat: float = self.run_test(test, "Albanel,, Quebec, CanAda")
+        self.assertEqual(48.88324, lat, test)
+
+    def test_good_name06(self):
+        test = "City - Good name, Saint"
+        lat: float = self.run_test(test, "Saint Andrews,,Nova Scotia,Canada")
+        self.assertEqual(45.55614, lat, test)
+
     def test_good_name04(self):
-        """
-        6155128	St. Andrews	St. Andrews		46.38341	-62.84866	P	PPLL	CA		09				0
-        6155129	St. Andrews	St. Andrews		45.55614	-61.88909	P	PPL	    CA		07				0
-        6155132	St. Andrews	St. Andrews		50.0714	    -96.98393	P	PPLL	CA		03				0
-        6137411	Saint Andrews	Saint Andrews		45.0737	-67.05312	P	PPL	CA		04	1302
-        """
-        test = "Test13 Good name, St Andrews Canada"
+        test = "City - Good name, St "
         lat: float = self.run_test(test, "St Andrews,,Nova Scotia,Canada")
         self.assertEqual(45.55614, lat, test)
 
     def test_good_name05(self):
-        test = "Test14 Good name, St."
+        test = "City - Good name, St. "
         lat: float = self.run_test(test, "St. Andrews,,Nova Scotia,Canada")
         self.assertEqual(45.55614, lat, test)
 
-    def test_good_name37(self):
-        test = "Test14 wildcard name, full county and province"
-        lat: float = self.run_test(test, "St. Andr,Charlotte County,new brunswick,Canada")
-        self.assertEqual(45.0737, lat, test)
-
     def test_good_name35(self):
-        test = "Test14 Good name, St."
+        test = "City - Good name, St. with county and province"
         lat: float = self.run_test(test, "St. Andrews,Charlotte County,new brunswick,Canada")
         self.assertEqual(45.0737, lat, test)
 
-    def test_good_name36(self):
-        test = "Test14 Good name, St."
-        lat: float = self.run_test(test, "new brunswick,Canada")
-        self.assertEqual(46.5001, lat, test)
-
-    def test_good_name06(self):
-        test = "Test15 Good name, Saint"
-        lat: float = self.run_test(test, "Saint Andrews,,Nova Scotia,Canada")
-        self.assertEqual(45.55614, lat, test)
-
     def test_good_name08(self):
-        test = "Test17 Good name, Alberton PEI similar lat"
+        test = "City - Good , Alberton PEI vs Alberton Ontario"
         lat: float = self.run_test(test, "Alberton,,Prince Edward Island, Canada")
         self.assertEqual(46.81685, lat, test)
 
     def test_dup_name09(self):
-        test = "Dup name9, Alberton Ontario similar lat"
+        test = "City - Good , Alberton Ontario vs Alberton PEI"
         lat: float = self.run_test(test, "Alberton,Rainy River District,Ontario, Canada")
         self.assertEqual(48.58318, lat, test)
 
     def test_good_name10(self):
-        test = "Test10 Good name, Halifax, Nova Scotia"
+        test = "City - Good , Halifax, Nova Scotia"
         lat: float = self.run_test(test, "Halifax,, Nova Scotia, Canada")
         self.assertEqual(44.646, lat, test)
 
     def test_good_name11(self):
-        test = "Test11 Good city in 4th position, Oak Street, Halifax, Nova Scotia"
+        test = "City - Good - with prefix"
         lat: float = self.run_test(test, "Oak Street, Halifax, ,Nova Scotia, Canada")
         self.assertEqual(44.646, lat, test)
 
     def test_good_name12(self):
-        test = "Test12 Good city in 4th position, Halifax,aaa,"
+        test = "City - Good - with prefix and wrong county"
         lat: float = self.run_test(test, "Oak Street, Halifax, aaa, Nova Scotia, Canada")
         self.assertEqual(44.646, lat, test)
 
     def test_good_name13(self):
-        test = "Test13 Good city in 2nd position, "
+        test = "City -  Good - no county"
         lat: float = self.run_test(test, "St Andrews,,Nova Scotia,Canada")
         self.assertEqual(45.55614, lat, test)
 
-    def test_good_name14(self):
-        test = "Test14 County in 3rd, Halifax, Nova Scotia"
-        lat: float = self.run_test(test, "Halifax, Nova Scotia, Canada")
-        self.assertEqual(44.86685, lat, test)
+    def test_county_alias01(self):
+        test = "County - no County"
+        lat: float = self.run_test(test, "Albanel, ,Quebec, Canada")
+        self.assertEqual(48.88324, lat, test)
+
+    def test_county_alias03(self):
+        test = "County - Wrong county"
+        lat: float = self.run_test(test, "Albanel, Zxzzy, Quebec, Canada")
+        self.assertEqual(48.88324, lat, test)
+
+    def test_wrong_province26(self):
+        test = "City - good - Wrong Province"
+        lat: float = self.run_test(test, "Halifax, Alberta, Canada")
+        self.assertAlmostEqual(-63.71541, float(self.place.lon))
 
     def test_good_name16(self):
-        test = "Test16 Good city in 4th, Natuashish"
+        test = "City - Good "
         lat: float = self.run_test(test, "Natuashish, ,, Canada")
         self.assertEqual(55.91564, lat, test)
-
-    def test_good_name17(self):
-        test = "Test17 Good city in 3rd, Natuashish"
-        lat: float = self.run_test(test, "Natuashish, ,, Canada")
-        self.assertEqual(55.91564, lat, test)
-
-    def test_good_country29(self):
-        test = "Test52 good country - Canada "
-        lat: float = self.run_test(test, "Canada")
-        self.assertEqual('canada', self.place.country_name, test)
 
     def test_good_county02(self):
-        test = "Test54 wrong county but single match"
+        test = "City -  wrong county but single match"
         lat: float = self.run_test(test, "Agassiz,, british columbia, Canada")
         self.assertEqual(49.23298, lat, test)
 
+    def test_good_name72(self):
+        test = "City - good. No Country"
+        lat: float = self.run_test(test, "Albanel,,Quebec")
+        self.assertEqual(48.88324, lat, test)
+
+    # WILDCARD ----------------
+    def test_wild_country29(self):
+        test = "Country - wildcard country"
+        lat: float = self.run_test(test, "C*da")
+        self.assertEqual('canada', self.place.country_name, test)
+
+    def test_county_alias73(self):
+        test = "Province - wildcard province"
+        lat: float = self.run_test(test, "Al*ta, Canada")
+        self.assertEqual(52.28333, lat, test)
+
+    def test_good_name37(self):
+        test = "City - good - wildcard city, full county and province"
+        lat: float = self.run_test(test, "St. Andr,Charlotte County,new brunswick,Canada")
+        self.assertEqual(45.0737, lat, test)
+
+    def test_good_wildcard01(self):
+        test = "City - good - wildcard city, no county"
+        lat: float = self.run_test(test, "Alb*el,, Quebec, CanAda")
+        self.assertEqual(48.88324, lat, test)
+
+    def test_good_wildcard81(self):
+        test = "City - good - wildcard city, no county, wild province"
+        lat: float = self.run_test(test, "Alb*el,, Queb*, CanAda")
+        self.assertEqual(48.88324, lat, test)
+
+    def test_good_wildcard82(self):
+        test = "City - good - wildcard city, no county, wild province, wild country"
+        lat: float = self.run_test(test, "Alb*el,, Queb*, Can*a")
+        self.assertEqual(48.88324, lat, test)
+
+    def test_good_name55(self):
+        test = "City - Wildcard - 300+ matches"
+        lat: float = self.run_test(test, "er,,, CanAda")
+        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, test)
+
+    # TEST ADMIN ID
+
     def test_good_county03(self):
-        test = "good cty 03, Rainy River District,Ontario, Canada"
+        test = "Admin2 ID - good "
         lat: float = self.run_test(test, "Alberton,Rainy River District,Ontario, Canada")
         self.assertEqual('3559', self.place.admin2_id, test)
 
     def test_good_admin01(self):
-        test = "good admin1"
+        test = "Admin1 ID - good "
         lat: float = self.run_test(test, "Nova Scotia,Canada")
         self.assertEqual('07', self.place.admin1_id, test)
 
     def test_good_admin02(self):
-        test = "good admin2"
+        test = "Admin1 ID - good - abbreviated "
         lat: float = self.run_test(test, "Baden, Germany")
         self.assertEqual('01', self.place.admin1_id, test)
 
     def test_good_admin03(self):
-        test = "good admin3"
+        test = "Admin1 ID - good.  With non-ASCII"
         lat: float = self.run_test(test, "Baden-Württemberg Region, Germany")
         self.assertEqual('01', self.place.admin1_id, test)
 
     def test_partial_admin0(self):
-        test = "partial admin1"
+        test = "Admin1 ID - good - abbreviated "
         lat: float = self.run_test(test, "Nova,Canada")
         self.assertEqual('07', self.place.admin1_id, test)
 
     def test_partial_admin1(self):
-        test = "partial admin2"
+        test = "Admin1 ID - good - abbreviated, non-ASCII "
         lat: float = self.run_test(test, "Baden-Württemberg, Germany")
         self.assertEqual('01', self.place.admin1_id, test)
 

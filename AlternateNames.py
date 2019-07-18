@@ -29,6 +29,8 @@ AltNameRow = namedtuple('AltNameRow', 'name lang geo_id')
 GeoDict = defaultdict(typing.List)
 
 
+# NOT CURRENTLY USED
+
 class AlternateNames(FileReader):
     """
     Read in alternate names file and add appropriate entries to geoname dictionary

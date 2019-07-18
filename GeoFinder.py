@@ -350,6 +350,7 @@ class GeoFinder:
         self.gedcom_output_place(self.place)
 
         # Get next error
+        Widge.set_text(self.w.user_edit,'')
         self.handle_place_entry()
 
     @staticmethod

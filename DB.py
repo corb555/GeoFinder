@@ -149,6 +149,7 @@ class DB:
     @staticmethod
     def convert_wildcard(lookup_target):
         # Create SQL wildcard pattern (convert * to %).  Add % on end
-        pattern = re.sub(r"\*", "%", lookup_target)
+        pattern = re.sub(r"b\Srg", "b_rg", lookup_target)   # Convert berg, burg, borg to b%rg
+        pattern = re.sub(r"\*", "%", pattern)
         pattern = pattern + '%'
         return re.sub("%%", "%", pattern)

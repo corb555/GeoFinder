@@ -55,8 +55,8 @@ class GeoDB:
         self.db.set_params(select_str='name, country, admin1_id, admin2_id, lat, lon, f_code', order_str='', limit_str='LIMIT 300')
 
     def insert(self, geo_row: (), feat_code: str):
-        # We split the data into 3 separate tables, ADM1, ADM2 data, and general data
-        if feat_code == 'ADM1':
+        # We split the data into 3 separate tables, a) ADM0/ADM1, b) ADM2 data, and c) general data
+        if feat_code == 'ADM1' or feat_code == 'ADM0':
             sql = ''' INSERT OR IGNORE INTO admin1(name,country, admin1_id,admin2_id,lat,lon,f_code, geoid)
                       VALUES(?,?,?,?,?,?,?,?) '''
         elif feat_code == 'ADM2':
@@ -224,11 +224,11 @@ class GeoDB:
 
         # Try each query until we find a match - each query gets less exact
         query_list = [
-            Query(where="name = ? AND country = ? ",
-                  args=(lookup_target, place.country_iso),
+            Query(where="name = ? AND country = ? AND f_code = ? ",
+                  args=(lookup_target, place.country_iso, 'ADM1'),
                   result=Result.EXACT_MATCH),
-            Query(where="name LIKE ? AND country = ? ",
-                  args=(self.db.convert_wildcard(lookup_target), place.country_iso),
+            Query(where="name LIKE ? AND country = ?  AND f_code = ? ",
+                  args=(self.db.convert_wildcard(lookup_target), place.country_iso, 'ADM1'),
                   result=Result.PARTIAL_MATCH)]
 
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.admin1', query_list=query_list)
@@ -241,17 +241,22 @@ class GeoDB:
 
         # Try each query until we find a match - each query gets less exact
         query_list = [
-            Query(where="name = ? AND country = ?",
-                  args=(lookup_target, place.country_iso),
+            Query(where="name = ? AND country = ? AND f_code = ? ",
+                  args=(lookup_target, place.country_iso, 'ADM1'),
                   result=Result.EXACT_MATCH),
-            Query(where="name LIKE ? AND country = ?",
-                  args=(self.db.convert_wildcard(lookup_target), place.country_iso),
+            Query(where="name LIKE ? AND country = ?  AND f_code = ?",
+                  args=(self.db.convert_wildcard(lookup_target), place.country_iso, 'ADM1'),
+                  result=Result.PARTIAL_MATCH),
+            Query(where="name = ?  AND f_code = ?",
+                  args=(lookup_target, 'ADM1'),
                   result=Result.PARTIAL_MATCH)]
 
         row_list, res = self.db.process_query_list(from_tbl='main.admin1', query_list=query_list)
 
         if len(row_list) == 1:
             place.admin1_id = row_list[0][Entry.ADM1]
+            if place.country_iso == '':
+                place.country_iso = row_list[0][Entry.ISO]
 
     def get_admin2_id(self, place: Place):
         """Search for Admin1 entry"""
@@ -282,8 +287,8 @@ class GeoDB:
 
         # Try each query until we find a match - each query gets less exact
         query_list = [
-            Query(where="admin1_id = ? AND country = ? ",
-                  args=(lookup_target, place.country_iso),
+            Query(where="admin1_id = ? AND country = ?  AND f_code = ? ",
+                  args=(lookup_target, place.country_iso, 'ADM1'),
                   result=Result.EXACT_MATCH)
         ]
         row_list, res = self.db.process_query_list(from_tbl='main.admin1', query_list=query_list)
@@ -322,10 +327,61 @@ class GeoDB:
             return ''
 
     def select_country(self, place: Place):
-        """Search for country entry - Countries are not in DB so we create a fake response"""
-        place.result_type = Result.EXACT_MATCH
-        place.georow_list.append(self.dummy_georow(name=place.name, adm1='0', adm2='0'))
-        self.build_result_list(place.georow_list)
+        """Search for Admin1 entry"""
+        lookup_target = place.country_iso
+        if len(lookup_target) == 0:
+            return
+
+        # Try each query until we find a match - each query gets less exact
+        query_list = [
+            Query(where="country = ? AND f_code = ? ",
+                          args=(place.country_iso,  'ADM0'),
+                          result=Result.EXACT_MATCH)]
+
+        place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.admin1', query_list=query_list)
+
+    def get_country_name(self, iso: str) -> str:
+        """ return country name for specified ISO code """
+        if len(iso) == 0:
+            return ''
+
+        # Try each query until we find a match - each query gets less exact
+        query_list = [
+            Query(where="country = ? AND f_code = ? ",
+                          args=(iso,  'ADM0'),
+                          result=Result.EXACT_MATCH)]
+
+        row_list, res = self.db.process_query_list(from_tbl='main.admin1', query_list=query_list)
+
+        if len(row_list) > 0:
+            res = row_list[0][Entry.NAME]
+        return res
+
+    def get_country_iso(self, place: Place) -> str:
+        """ Return ISO code for specified country"""
+        lookup_target = place.country_name
+        if len(lookup_target) == 0:
+            return ''
+
+        # Try each query until we find a match - each query gets less exact
+        query_list = [
+            Query(where="name = ? AND f_code = ? ",
+                          args=(lookup_target,  'ADM0'),
+                          result=Result.EXACT_MATCH),
+            Query(where="name LIKE ?  AND f_code = ? ",
+                  args=(self.db.convert_wildcard(lookup_target), 'ADM0'),
+                  result=Result.PARTIAL_MATCH)]
+
+        row_list, result_code = self.db.process_query_list(from_tbl='main.admin1', query_list=query_list)
+
+        if len(row_list) > 0:
+            res = row_list[0][Entry.ISO]
+            if len(row_list) == 1:
+                place.country_name = row_list[0][Entry.NAME]
+        else:
+            res = ''
+
+        return res
 
     def get_geodata(self, row, place: Place):
         # Copy data from DB row into Place
@@ -395,9 +451,9 @@ class GeoDB:
         self.db.create_index(create_table_sql='CREATE INDEX admin1_idx ON admin2(admin1_id)')
 
     @staticmethod
-    def dummy_georow(name: str, adm1: str, adm2: str) -> ():
+    def dummy_georow(name: str, adm1: str, adm2: str, lat:float, lon:float, feat:str) -> ():
         # Return a dummy geo-row
-        res = (name, '', adm1, adm2, 99.0, 99.0, 'ADM0', 'A1')
+        res = (name, '', adm1, adm2, lat, lon, feat, 'A1')
         return res
 
     def get_stats(self) -> int:

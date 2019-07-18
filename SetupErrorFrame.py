@@ -97,9 +97,9 @@ class SetupErrorFrame:
 
         if not alt_found:
             # Alternate Names file is missing
-            self.error_dict["alternateNamesV2.txt not found"] = ""
-            self.logger.warning('alternateNamesV2.txt not found')
-            self.file_error = True
+            #self.error_dict["Optional alternateNamesV2.txt not found"] = ""
+            self.logger.warning('optional alternateNamesV2.txt not found')
+            #self.file_error = True
 
         self.logger.debug(f'geoname file count={count}')
         if count == 0:
