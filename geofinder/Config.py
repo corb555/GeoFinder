@@ -21,8 +21,8 @@ import logging
 import os
 import pickle
 
-import CachedDictionary
-from Widge import Widge
+from geofinder import CachedDictionary
+from geofinder.Widge import Widge
 
 
 class Config:

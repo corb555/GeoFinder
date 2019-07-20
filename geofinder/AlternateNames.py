@@ -20,10 +20,9 @@ import typing
 from collections import namedtuple, defaultdict
 
 # The tab separated columns in geoname.org file rows are as follows
-import GeoKeys
-import GeodataFiles
-from FileReader import FileReader
-from Place import Place
+from geofinder import GeodataFiles, GeoKeys
+from geofinder.FileReader import FileReader
+from geofinder.Place import Place
 
 AltNameRow = namedtuple('AltNameRow', 'name lang geo_id')
 GeoDict = defaultdict(typing.List)

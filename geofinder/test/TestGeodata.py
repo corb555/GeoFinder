@@ -23,9 +23,7 @@ import time
 import unittest
 from pathlib import Path
 
-import GeoKeys
-import Geodata
-import Place
+from geofinder import Geodata, GeoKeys, Place
 
 
 class TestGeodata(unittest.TestCase):

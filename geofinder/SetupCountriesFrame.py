@@ -22,10 +22,8 @@ from tkinter import *
 from tkinter import ttk
 from tkinter.ttk import *
 
-import Country
-import GeodataFiles
-import ListboxFrame
-from Widge import Widge
+from geofinder import Country, GeodataFiles, ListboxFrame
+from geofinder.Widge import Widge
 
 
 class SetupCountriesFrame(ListboxFrame.ListboxFrame):

@@ -41,7 +41,7 @@ result_type_text = {
     Result.EXACT_MATCH: 'Match!',
     Result.PARTIAL_MATCH: 'Partial match.',
     Result.MULTIPLE_MATCHES: 'Multiple Matches.',
-    Result.NOT_SUPPORTED: "Country not supported. SKIP or Run Setup.py.",
+    Result.NOT_SUPPORTED: "Country not supported. SKIP or Run GeoUtil.py.",
     Result.NO_COUNTRY: "Country not found."
 }
 

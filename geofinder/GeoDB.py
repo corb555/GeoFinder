@@ -21,9 +21,8 @@ import re
 import time
 from operator import itemgetter
 
-import DB
-import Place
-from GeoKeys import Query, Result
+from geofinder import DB, Place
+from geofinder.GeoKeys import Query, Result
 
 
 class Entry:

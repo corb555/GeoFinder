@@ -25,14 +25,10 @@ from pathlib import Path
 from tkinter import filedialog, END
 from tkinter import messagebox
 
-import AppLayout
-import Gedcom
-import GeoKeys
-import Geodata
-import Place
-from CachedDictionary import CachedDictionary
-from Config import Config
-from Widge import Widge
+from geofinder import AppLayout, Gedcom, Geodata, GeoKeys, Place
+from geofinder.CachedDictionary import CachedDictionary
+from geofinder.Config import Config
+from geofinder.Widge import Widge
 
 
 class GeoFinder:
@@ -51,7 +47,7 @@ class GeoFinder:
 
     Main classes:
 
-    GeoFinder - The main GUI
+    geofinder - The main GUI
     GeoData - The geonames data model routines
     GeoDB -  Database insert/lookup routines
     GEDCOM - routines to read and write GEDCOM files
@@ -61,13 +57,13 @@ class GeoFinder:
     """
 
     def __init__(self):
-        print('GeoFinder')
+        print('geofinder')
         self.shutdown_requested: bool = False  # Flag to indicate user requested shutdown
         self.save_enabled = False  # Only allow SAVE when we have an item that was matched in geonames
         self.user_selected_list = False  # Indicates whether user selected a list entry or text edit entry
         self.err_count = 0
 
-        self.logger = self.setup_logging('GeoFinder Init')
+        self.logger = self.setup_logging('geofinder Init')
         # Save our base directory and cache directory
         self.directory: str = os.path.join(str(Path.home()), Geodata.Geodata.get_directory_name())
         self.cache_dir = GeoKeys.cache_directory(self.directory)
@@ -103,7 +99,7 @@ class GeoFinder:
         self.geodata = Geodata.Geodata(directory_name=self.directory, progress_bar=self.w.prog)
         error = self.geodata.read()
         if error:
-            Widge.fatal_error("Missing Files.  Run Setup.py and correct in Files Tab")
+            Widge.fatal_error("Missing Files.  Run GeoUtil.py and correct in Files Tab")
 
         # If the list of supported countries is unusually short, display note to user
         num = self.display_country_note()
@@ -112,9 +108,9 @@ class GeoFinder:
         # Read in Geoname Gazeteer file - city names, lat/long, etc.
         error = self.geodata.read_geonames()
         if error:
-            Widge.fatal_error("Missing Files.  Run Setup.py and correct in Files Tab")
+            Widge.fatal_error("Missing Files.  Run GeoUtil.py and correct in Files Tab")
         self.logger.info(f'Geoname dictionary has {self.geodata.geo_files.geodb.get_stats()} entries')
-        self.w.window.update()
+        self.w.root.update()
         self.w.prog.update_progress(100, " ")
 
         # Prompt user to click Open for GEDCOM file
@@ -129,7 +125,7 @@ class GeoFinder:
 
         # Flag to indicate whether we are in startup or in Window loop.  Determines how window idle is called
         self.startup = False
-        self.w.window.mainloop()  # ENTER MAIN LOOP and Wait for user to click on load button
+        self.w.root.mainloop()  # ENTER MAIN LOOP and Wait for user to click on load button
 
     def load_handler(self):
         """
@@ -143,13 +139,13 @@ class GeoFinder:
         ged_path = self.cfg.get("gedcom_path")
         self.gedcom = Gedcom.Gedcom(in_path=ged_path, out_path=ged_path + '.new.ged', cache_dir=self.cache_dir,
                                     progress=self.w.prog)  # Routines to open and parse GEDCOM file
-        self.w.window.update()
+        self.w.root.update()
         if self.gedcom.error:
-            Widge.fatal_error(f"GEDCOM file {ged_path} not found.  Run Setup.py and correct in Config Tab")
+            Widge.fatal_error(f"GEDCOM file {ged_path} not found.  Run GeoUtil.py and correct in Config Tab")
 
         # Add GEDCOM filename to Title
         path_parts = os.path.split(ged_path)  # Extract filename from full path
-        Widge.set_text(self.w.title, f'GeoFinder - {path_parts[1]}')
+        Widge.set_text(self.w.title, f'geofinder - {path_parts[1]}')
 
         # Read GEDCOM file, find each place entry and handle it.
         self.handle_place_entry()
@@ -157,7 +153,10 @@ class GeoFinder:
     def handle_place_entry(self):
         """ Get next PLACE  in users GEDCOM File.  Replace it, skip it, or have user correct it. """
         Widge.set_text(self.w.original_entry, "")
-        Widge.set_text(self.w.status, "Scanning...")
+        if self.shutdown_requested:
+            self.periodic_update("Shutting down...")
+        else:
+            self.periodic_update("Scanning")
         self.clear_detail_text(self.place)
 
         while True:
@@ -180,7 +179,6 @@ class GeoFinder:
                 # todo - must handle prefix
                 if replacement[0] == '@':
                     tokens = replacement.split('@')
-                    self.logger.debug(f'rep = {tokens}')
                     self.geodata.find_geoid(tokens[1], self.place)
                     self.place.place_type = Place.PlaceType.CITY
                     if len(tokens) > 2:
@@ -197,14 +195,15 @@ class GeoFinder:
                 self.gedcom_output_place(self.place)
 
                 # Display status to user
-                self.periodic_update("Applying change")
-
                 if self.shutdown_requested:
-                    self.set_detail_text_line("Shutting down...")
+                    self.periodic_update("Shutting down...")
+                else:
+                    self.periodic_update("Applying change")
+
                 continue
             elif self.shutdown_requested:
                 # User requested shutdown.  Finish up going thru file, then shut down
-                self.set_detail_text_line("Shutting Down...")
+                self.periodic_update("Shutting Down...")
                 Widge.set_text(self.w.original_entry, " ")
                 self.gedcom.write(self.place.name)
                 continue
@@ -225,7 +224,10 @@ class GeoFinder:
                     if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
                         # User has already accepted this match or it is an Exact match
                         # Write out line without user verification
-                        self.periodic_update("Scanning")
+                        if self.shutdown_requested:
+                            self.periodic_update("Shutting down...")
+                        else:
+                            self.periodic_update("Scanning")
                         # Add to global replace list
                         self.global_replace.set(town_entry, '@' + self.place.geoid)
                         self.global_replace.write()
@@ -304,7 +306,7 @@ class GeoFinder:
 
         # Display GEDCOM person and event that this location refers to
         Widge.set_text(self.w.ged_event_info, f'{self.gedcom.get_name(self.gedcom.id)}: {self.gedcom.last_tag_name} {self.gedcom.date}')
-        self.w.window.update_idletasks()
+        self.w.root.update_idletasks()
 
     def display_georow_list(self, place: Place.Place):
         """ Display list of matches in listbox """
@@ -319,7 +321,7 @@ class GeoFinder:
             self.geodata.geo_files.geodb.copy_georow_to_place(geo_row, temp_place)
             self.w.listbox.insert(END, f'{place.prefix}{temp_place.format_full_name()}')
 
-        self.w.window.update_idletasks()
+        self.w.root.update_idletasks()
 
     def skip_handler(self):
         """ Write out original entry as-is and skip any matches in future  """
@@ -441,14 +443,14 @@ class GeoFinder:
     def display_country_note(self) -> int:
         """ display warning if only a small number of countries are enabled """
         countries, num = self.geodata.geo_files.get_supported_countries()
-        self.w.window.update()
+        self.w.root.update()
         if num == 0:
-            Widge.fatal_error("No countries enabled.\n\nUse Setup.py Country Tab to change country list\n")
+            Widge.fatal_error("No countries enabled.\n\nUse GeoUtil.py Country Tab to change country list\n")
 
         if num < 20:
             messagebox.showinfo("Info", "{}{}{}".format("Loaded geocode data for the following countries:\n\n",
                                                         countries,
-                                                        "\n\nUse Setup.py Country Tab to change country list\n"))
+                                                        "\n\nUse GeoUtil.py Country Tab to change country list\n"))
         return num
 
     @staticmethod
@@ -468,14 +470,14 @@ class GeoFinder:
 
     def shutdown(self):
         """ Shutdown - write out Gbl Replace and skip file and exit """
-        self.w.window.update_idletasks()
+        self.w.root.update_idletasks()
         self.skiplist.write()
         self.global_replace.write()
         self.user_accepted.write()
         self.cfg.write()
         if self.gedcom is not None:
             self.gedcom.close()
-        self.w.window.quit()
+        self.w.root.quit()
         sys.exit()
 
     def disable_save_button(self, disable: bool):
@@ -512,7 +514,7 @@ class GeoFinder:
             Widge.set_text(self.w.status, msg)
             self.w.status.configure(style="Good.TLabel")
             Widge.set_text(self.w.original_entry, self.place.name)  # Display place
-            self.w.window.update_idletasks()  # Let GUI update
+            self.w.root.update_idletasks()  # Let GUI update
 
     def set_verify_as_preferred(self, set_verify_preferred: bool):
         if set_verify_preferred:

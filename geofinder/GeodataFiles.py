@@ -25,11 +25,7 @@ import time
 from collections import namedtuple
 from typing import Dict
 
-import CachedDictionary
-import Country
-import GeoDB
-import GeoKeys
-import Place
+from geofinder import CachedDictionary, Country, GeoDB, GeoKeys, Place
 
 
 class GeodataFiles:
@@ -51,7 +47,7 @@ class GeodataFiles:
     pickle file.  On the next startup the pickle file is read rather than the original geonames files unless the directory has
     been updated.
          
-         There is a separate Setup.py utility which allows users to:
+         There is a separate GeoUtil.py utility which allows users to:
              1. set country list config file.  Only entries for those countries will be read.    "country_list.pkl"
              2. set the feature list for features to include
              3. if files or the above are changed, the utility deletes the cache file and we rebuild it here
@@ -105,7 +101,7 @@ class GeodataFiles:
         # The db only contains important fields and only for supported countries
         # This file is much smaller and faster to read than the geoname files
         # If the db doesn't exist, read the geonames.org files and build it.
-        # the Setup.py allows user changes to config parameters and then requires rebuild of db
+        # the GeoUtil.py allows user changes to config parameters and then requires rebuild of db
         # if the user loads a new geonames.org file, we also need to rebuild the db
 
         # Use db if it exists and is newer than the geonames directory

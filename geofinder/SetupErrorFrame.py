@@ -25,9 +25,8 @@ from tkinter import ttk
 from tkinter.ttk import *
 from typing import Dict
 
-import CachedDictionary
-import GeoKeys
-from Widge import Widge
+from geofinder import CachedDictionary, GeoKeys
+from geofinder.Widge import Widge
 
 
 class SetupErrorFrame:

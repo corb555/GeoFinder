@@ -19,7 +19,7 @@
 import logging
 import sqlite3
 
-from GeoKeys import Query, Result
+from geofinder.GeoKeys import Query, Result
 
 
 class DB:

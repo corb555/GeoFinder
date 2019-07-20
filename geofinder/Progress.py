@@ -20,7 +20,7 @@
 from tkinter import ttk
 from tkinter.ttk import Progressbar
 
-from Widge import Widge
+from geofinder.Widge import Widge
 
 
 class Progress:

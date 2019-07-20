@@ -21,7 +21,7 @@ import logging
 import string as st
 from typing import List, Tuple
 
-import GeoKeys
+from geofinder import GeoKeys
 
 great_britain = ['scotland', 'england', 'wales', 'northern ireland']
 
@@ -35,8 +35,6 @@ class Place:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.clear()
-        #self.ct = Country.Country(None)
-        #self.ct.read()
 
     def clear(self):
         # Place geo info
@@ -57,22 +55,18 @@ class Place:
         self.geoid = ''
 
         # Lookup result info
-        self._status: str = ""
+        self.status: str = ""
         self.status_detail: str = ""
         self.result_type: int = GeoKeys.Result.NO_MATCH  # Result type of lookup
-        self.type_text: str = ''  # Text version of result type
+        self.result_type_text: str = ''  # Text version of result type
         self.georow_list: List[Tuple] = [()]  # List of items that matched this location
+
         self.georow_list.clear()
 
     def parse_place(self, place_name: str, geo_files):
         """
-        Given a comma separated place name, parse into its city, AdminID, and country_iso.
-        <any>,city,admin2,admin1,country
-        If 1 token it must be country
-        If 2 tokens it is admin1, country
-        If 3 or more tokens admin1 is 2nd to last.  City is 4th to last token or 3rd to last token (City2)
-        Converts Admin to Admin ID
-        Place is filled out with city,  admin1_id, admin2_id, country_iso country code
+        Given a comma separated place name, parse into its city, AdminID, country_iso and type of entity (city, country etc)
+        Expected format: prefix,city,admin2,admin1,country
         Place.status has Result status code
         """
         self.clear()
@@ -81,42 +75,38 @@ class Place:
         tokens = place_name.split(",")
         token_count = len(tokens)
 
-        # Parse City, Admin2, Admin2, Country based on number of tokens.  When there are more tokens, we capture more fields
+        # Parse City, Admin2, Admin2, Country scanning from the right.  When there are more tokens, we capture more fields
         # Place type is the leftmost item we found - either City, Admin2, Admin2, or Country
 
         #  COUNTRY - right-most token should be country
         if token_count > 0:
             #  Format: Country
             self.place_type = PlaceType.COUNTRY
-            country = tokens[-1].strip(' ').lower()
-            self.country_name = country
+            self.country_name = tokens[-1].strip(' ').lower()
 
             # Validate country
             self.country_iso = geo_files.geodb.get_country_iso(self)  # Get Country country_iso
             if self.country_iso is '':
-                # See if rightmost token is actually Admin1 (state/province)
+                # Not found.  See if rightmost token is actually Admin1 (state/province).  Look up admin1 and derive its country
                 save_admin1 = self.admin1_name
-                self.admin1_name = self.country_name
+                self.admin1_name = GeoKeys.normalize(self.country_name)
 
-                # Lookup.  This will fill in country ISO if found
+                # Lookup last token as admin1.  This will fill in country ISO if admin1 is found
                 geo_files.geodb.get_admin1_id(self)
                 self.admin1_name = save_admin1   # Restore Admin1
 
                 if self.country_iso is not None:
-                    # We found the country.  Append it to token list
+                    # We found the country.  Append it to token list so we now have xx,admin1, country
                     tokens.append(geo_files.geodb.get_country_name(self.country_iso))
-                    country = tokens[-1].strip(' ').lower()
-                    self.country_name = country
+                    self.country_name = tokens[-1].strip(' ').lower()
                     token_count = len(tokens)
                 else:
-                    self.logger.debug('no country found')
+                    # No country found for this
                     self.place_type = PlaceType.CITY
                     self.result_type = GeoKeys.Result.NO_COUNTRY
                     self.country_iso = ''
 
-            self.target = country
-
-        #self.logger.debug(f"**** PARSE [{place_name}] tokens={token_count} ****")
+            self.target = self.country_name
 
         if token_count > 1:
             #  Format: Admin1, Country.
@@ -154,7 +144,7 @@ class Place:
         return
 
     def get_status(self) -> str:
-        return self._status
+        return self.status
 
     def format_full_name(self):
         """ Take the parts of a Place and build fullname.  e.g. city,adm2,adm1,country name """
@@ -163,7 +153,7 @@ class Place:
         if self.admin2_name is None:
             self.admin2_name = ''
 
-        #self.logger.debug(f'{self.city1}, {self.admin2_name}, {self.admin1_name}, {self.country_name} type={self.place_type}')
+        # self.logger.debug(f'{self.city1}, {self.admin2_name}, {self.admin1_name}, {self.country_name} type={self.place_type}')
 
         if self.place_type == PlaceType.ADMIN1:
             nm = f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
@@ -179,10 +169,9 @@ class Place:
         return nm
 
     @staticmethod
-    def in_great_britain(country) -> bool:
+    def in_great_britainZZZ(country) -> bool:
         """ Determine if country is in Great Britain """
         return country in great_britain
-
 
 
 
@@ -196,7 +185,7 @@ class PlaceType:
 
 place_type_name_dict = {
     PlaceType.COUNTRY: 'Country',
-    PlaceType.ADMIN1: 'Admin1',
+    PlaceType.ADMIN1: 'State/Province',
     PlaceType.ADMIN2: 'County',
     PlaceType.CITY: 'City'
 }

@@ -20,9 +20,7 @@ import copy
 import logging
 import string as st
 
-import GeoKeys
-import GeodataFiles
-import Place
+from geofinder import GeodataFiles, GeoKeys, Place
 
 
 class Geodata:
@@ -102,24 +100,24 @@ class Geodata:
 
     def process_result(self, place: Place.Place, targ_name) -> None:
         # Copy geodata to place record and Put together status text
-        self.logger.debug(f'**PROCESS RESULT:  Type={place.type_text}.  Geoid_list={place.georow_list}')
+        self.logger.debug(f'**PROCESS RESULT:  Type={place.result_type_text}.  Geoid_list={place.georow_list}')
         if place.result_type in GeoKeys.successful_match:
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
 
         self.set_place_type(place=place)
-        place._status = f'{place.type_text} "{st.capwords(targ_name)}" {result_text_list.get(place.result_type)} '
+        place.status = f'{place.result_type_text} "{st.capwords(targ_name)}" {result_text_list.get(place.result_type)} '
 
     def set_place_type(self, place: Place.Place):
         if place.result_type == GeoKeys.Result.NO_COUNTRY:
-            place.type_text = 'Country'
+            place.result_type_text = 'Country'
         if place.place_type == Place.PlaceType.CITY:
-            place.type_text = GeoKeys.type_names.get(place.feature)
-            if place.type_text is None:
-                place.type_text = 'City/Place'
+            place.result_type_text = GeoKeys.type_names.get(place.feature)
+            if place.result_type_text is None:
+                place.result_type_text = 'City/Place'
         elif place.place_type == Place.PlaceType.ADMIN1:
-            place.type_text = self.get_district1_type(place.country_iso)
+            place.result_type_text = self.get_district1_type(place.country_iso)
         else:
-            place.type_text = Place.place_type_name_dict[place.place_type]
+            place.result_type_text = Place.place_type_name_dict[place.place_type]
 
     @staticmethod
     def get_district1_type(iso) -> str:
@@ -180,7 +178,7 @@ result_text_list = {
     GeoKeys.Result.EXACT_MATCH: 'matched! Click Save to accept:',
     GeoKeys.Result.MULTIPLE_MATCHES: 'had multiple matches.  Select one and click Verify.',
     GeoKeys.Result.NO_MATCH: 'not found.  Edit and click Verify.',
-    GeoKeys.Result.NOT_SUPPORTED: ' is not supported. Skip or add in Setup.py',
+    GeoKeys.Result.NOT_SUPPORTED: ' is not supported. Skip or add in GeoUtil.py',
     GeoKeys.Result.NO_COUNTRY: 'No Country found.',
     GeoKeys.Result.PARTIAL_MATCH: 'partial match.  Click Save to accept:'
 }

@@ -21,8 +21,8 @@ import logging
 from typing import Dict
 
 # special help to simplify entering UK items
-import GeoDB
-import GeoKeys
+from geofinder import GeoDB, GeoKeys
+
 
 class C_Row:
     ISO = 0

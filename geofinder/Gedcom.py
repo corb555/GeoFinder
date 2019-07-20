@@ -22,8 +22,8 @@ import os
 import re
 from typing import Match, Union, Tuple
 
-import Progress
-from CachedDictionary import CachedDictionary
+from geofinder import Progress
+from geofinder.CachedDictionary import CachedDictionary
 
 
 class Gedcom:

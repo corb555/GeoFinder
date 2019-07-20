@@ -28,18 +28,12 @@ from tkinter import ttk
 from tkinter.ttk import *
 from typing import List
 
-import CachedDictionary
-import GeoKeys
-import Geodata
-import ListboxFrame
-import SetupCountriesFrame
-import SetupErrorFrame
-import SetupFeatureFrame
+from geofinder import CachedDictionary, Geodata, GeoKeys, ListboxFrame, SetupCountriesFrame, SetupErrorFrame, SetupFeatureFrame
 
 try:
     import unidecode
 except ModuleNotFoundError:
-    print('Unidecode missing.  Please run "PIP3 install unidecode" from command line')
+    print('Unidecode missing.')
 
 
 # Setup and modify config for geonames
@@ -84,7 +78,7 @@ class ReviewWindow:
             os.makedirs(self.directory)
 
         # Create App window
-        self.create_app_window("GeoFinder Setup")
+        self.create_app_window("geoUtil")
 
         # Verify config -  test to see if gedcom file accessible 
         self.get_config()

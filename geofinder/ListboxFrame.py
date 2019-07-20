@@ -21,8 +21,8 @@ from tkinter import *
 from tkinter import ttk
 from tkinter.ttk import *
 
-import CachedDictionary
-from Widge import Widge
+from geofinder import CachedDictionary
+from geofinder.Widge import Widge
 
 BUTTON_WIDTH = 6
 
