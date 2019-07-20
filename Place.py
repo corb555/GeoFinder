@@ -90,16 +90,6 @@ class Place:
             country = tokens[-1].strip(' ').lower()
             self.country_name = country
 
-            ''' If in Great Britain, append GB
-            if self.in_great_britain(country):
-                # User entered a GB country - Append United Kingdom
-                # todo add test case
-                tokens.append('united kingdom')
-                country = tokens[-1].strip(' ').lower()
-                self.country_name = country
-                token_count = len(tokens)
-                '''
-
             # Validate country
             self.country_iso = geo_files.geodb.get_country_iso(self)  # Get Country country_iso
             if self.country_iso is '':
@@ -165,8 +155,8 @@ class Place:
     def get_status(self) -> str:
         return self._status
 
-    def get_placename(self):
-        # todo - add test case
+    def format_full_name(self):
+        """ Take the parts of a Place and build fullname.  e.g. city,adm2,adm1,country name """
         if self.admin1_name is None:
             self.admin1_name = ''
         if self.admin2_name is None:

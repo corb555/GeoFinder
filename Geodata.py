@@ -48,7 +48,6 @@ class Geodata:
         Then look it up in the place db
         Update place with -- lat, lon, district, city, country_iso, result code
         """
-        # todo add unit test
         place.parse_place(place_name=location, geo_files=self.geo_files)
         place.country_name = self.geo_files.geodb.get_country_name(place.country_iso)
 
@@ -76,13 +75,21 @@ class Geodata:
         place.parse_place(place_name=location, geo_files=self.geo_files)
 
         if self.country_is_valid(place):
-            #place.country_name = self.geo_files.country.get_name(place.country_iso)
+            # place.country_name = self.geo_files.country.get_name(place.country_iso)
             self.logger.debug(f'Find LOCATION Type=[{Place.place_type_name_dict[place.place_type]}] City=[{place.city1}] Adm2=[{place.admin2_name}]\
     Adm1=[{place.admin1_name}] Prefix=[{place.prefix}] cname=[{place.country_name}] iso=[{place.country_iso}]')
             # Lookup location
             self.geo_files.geodb.lookup_place(place=place)
         else:
             place.target = place.country_name
+            # No country - try city lookup without country
+            if len(place.admin1_name) > 0 and place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
+                place.city1 = place.admin1_name
+                place.target = place.admin1_name
+                place.place_type = Place.PlaceType.CITY
+                self.geo_files.geodb.lookup_place(place=place)
+                if len(place.georow_list) == 0:
+                    place.result_type = GeoKeys.Result.NO_COUNTRY
 
         # Process the results
         self.process_result(place=place, targ_name=place.target)
@@ -91,7 +98,7 @@ class Geodata:
         # Copy geodata to place record and Put together status text
         self.logger.debug(f'**PROCESS RESULT:  Type={place.type_text}.  Geoid_list={place.georow_list}')
         if place.result_type in GeoKeys.successful_match:
-            self.geo_files.geodb.get_geodata(row=place.georow_list[0], place=place)
+            self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
 
         self.set_place_type(place=place)
         place._status = f'{place.type_text} "{st.capwords(targ_name)}" {result_text_list.get(place.result_type)} '
@@ -131,8 +138,8 @@ class Geodata:
         """ Read in geo name files which contain place names and their lat/lon.
             Return True if error
         """
-        #err: bool = self.geo_files.country.read()
-        #if err:
+        # err: bool = self.geo_files.country.read()
+        # if err:
         #    self.status = "country country_iso list error"
         #    return True
 
@@ -168,13 +175,12 @@ class Geodata:
 
         return is_valid
 
+
 result_text_list = {
     GeoKeys.Result.EXACT_MATCH: 'matched! Click Save to accept:',
     GeoKeys.Result.MULTIPLE_MATCHES: 'had multiple matches.  Select one and click Verify.',
     GeoKeys.Result.NO_MATCH: 'not found.  Edit and click Verify.',
-    GeoKeys.Result.NOT_SUPPORTED: ' is not supported.',
+    GeoKeys.Result.NOT_SUPPORTED: ' is not supported. Skip or add in Setup.py',
     GeoKeys.Result.NO_COUNTRY: 'No Country found.',
     GeoKeys.Result.PARTIAL_MATCH: 'partial match.  Click Save to accept:'
 }
-
-

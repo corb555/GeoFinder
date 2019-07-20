@@ -39,7 +39,7 @@ import SetupFeatureFrame
 try:
     import unidecode
 except ModuleNotFoundError:
-    print('PIP3 install unidecode')
+    print('Unidecode missing.  Please run "PIP3 install unidecode" from command line')
 
 
 # Setup and modify config for geonames

@@ -65,6 +65,7 @@ class GeodataFiles:
         self.line_num = 0
         self.cache_changed: bool = False
         sub_dir = GeoKeys.cache_directory(self.directory)
+        self.country = None
 
         self.feature_code_list_cd = CachedDictionary.CachedDictionary(sub_dir, "feature_list.pkl")
         self.feature_code_list_cd.read()
@@ -180,6 +181,8 @@ class GeodataFiles:
                 self.progress("Loading {}".format(file), 2)  # initialize progress bar
                 start_time = time.time()
                 reader = csv.reader(geofile, delimiter='\t')
+                self.geodb.db.begin()
+
                 # Map line from csv reader into GeonameData namedtuple
                 for line in reader:
                     self.line_num += 1
@@ -199,7 +202,7 @@ class GeodataFiles:
                         self.insert_line(geoname_row)
 
             self.progress("Write Database", 90)
-            self.geodb.db.commit()
+            self.geodb.db.commitZ()
             self.progress("Create Indices", 95)
             self.geodb.create_indices()
             self.logger.debug(f'Elapsed ={time.time() - start_time}')
@@ -225,21 +228,13 @@ class GeodataFiles:
 
     def get_supported_countries(self) -> [str, int]:
         """ Convert list of supported countries into sorted string """
-        nm_list = []
+        # todo implement list of names of supported countries
         nm_msg = ""
-        """
-        todo fix get country names
-        for iso in self.supported_countries_dct:
-            nm_list.append(self.geodb.get_country_name(iso))
-        for nm in sorted(nm_list):
-            nm_msg += "{}\n".format(nm)
-        """
-
         return nm_msg, len(self.supported_countries_dct)
 
     def progress(self, msg, val):
         """ Update progress bar if there is one """
-        if val >80:
+        if val > 80:
             self.logger.info(f'{val:.1f}%  {msg}')
         else:
             self.logger.debug(f'{val:.1f}%  {msg}')

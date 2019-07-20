@@ -50,6 +50,7 @@ class Country:
         # This also includes some common aliases
 
         # name, iso2, iso3,CC,lat,lon
+        self.geodb.db.begin()
 
         #  create lowercase dictionary and reverse dictionary - iso to name
         for ky, row in country_dict.items():
@@ -66,6 +67,9 @@ class Country:
             geo_row[GeoDB.Entry.ID] = '9'
 
             self.geodb.insert(geo_row=geo_row, feat_code='ADM0')
+
+        self.geodb.db.commitZ()
+
 
         return False
 
@@ -309,6 +313,7 @@ country_dict = {
     'United Arab Emirates': ('AE', 'ARE', '784', '24', '54'),
     'United Kingdom': ('GB', 'GBR', '826', '54', '-2'),
     'United States': ('US', 'USA', '840', '38', '-97'),
+    'U.S.A.': ('US', 'USA', '840', '38', '-97'),
     'United States Minor Outlying Islands': ('UM', 'UMI', '581', '19.2833', '166.6'),
     'Uruguay': ('UY', 'URY', '858', '-33', '-56'),
     'Uzbekistan': ('UZ', 'UZB', '860', '41', '64'),

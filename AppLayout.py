@@ -80,6 +80,9 @@ class AppLayout:
         style.configure('Error.TLabel', foreground=ERR_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_LG))
         style.configure('Good.TLabel', foreground=GOOD_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_LG))
         style.configure('Info.TLabel', foreground=FG_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_MD))
+        style.configure('Info.TLabel', foreground=FG_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_MD))
+        style.configure('Highlight.TLabel', foreground=HIGH_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_MD))
+
         style.configure('Large.TLabel', foreground=HIGH_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_XL))
         style.configure('Light.TLabel', borderwidth=3, foreground=LT_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_MD))
         style.configure('Tiny.TLabel', borderwidth=3, foreground=LT_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_SM))
@@ -162,7 +165,7 @@ class AppLayout:
         self.original_entry: ttk.Label = ttk.Label(self.window, text="   ", width=TXT_WID, style='Light.TLabel')
         self.user_edit: ttk.Entry = ttk.Entry(self.window, text="   ", width=TXT_WID, font=(FNT, 14))
         self.status: ttk.Label = ttk.Label(self.window, width=TXT_WID, style='Good.TLabel')
-        self.prefix: ttk.Label = ttk.Label(self.window, width=TXT_WID, style='Info.TLabel')
+        self.prefix: ttk.Label = ttk.Label(self.window, width=TXT_WID, style='Highlight.TLabel')
 
         self.scrollbar = ttk.Scrollbar(self.window)
         self.listbox = tkinter.Listbox(self.window, height=15, bg=LT_GRAY, borderwidth=0, selectmode=SINGLE)

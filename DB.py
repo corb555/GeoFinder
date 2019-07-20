@@ -17,7 +17,6 @@
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 import logging
-import re
 import sqlite3
 
 from GeoKeys import Query, Result
@@ -34,6 +33,7 @@ class DB:
         self.select_str = '*'
         self.order_str = ''
         self.limit_str = ''
+        self.cur = None
 
         # create a database connection
         self.conn = self.connect(db_filename=db_filename)
@@ -43,6 +43,7 @@ class DB:
             raise ValueError('Cannot open database')
         else:
             self.err = False
+            self.conn.isolation_level = None
 
     def connect(self, db_filename: str):
         """ create a database connection to the SQLite database
@@ -65,10 +66,6 @@ class DB:
         self.order_str = order_str
         self.limit_str = limit_str
 
-    def commit(self):
-        # Commit transaction
-        self.conn.commit()
-
     def set_pragma(self, pragma: str):
         # Set PRAGMA e.g. temp_store = memory;
         cur = self.conn.cursor()
@@ -84,7 +81,7 @@ class DB:
             c = self.conn.cursor()
             c.execute(create_table_sql)
             self.conn.commit()
-            self.logger.info(f'Create DB table {create_table_sql[27:37]}')   # Lazy attempt to get table name for logging
+            self.logger.info(f'Create DB table {create_table_sql[27:37]}')  # Lazy attempt to get table name for logging
         except Exception as e:
             self.logger.error(e)
 
@@ -110,10 +107,20 @@ class DB:
         self.logger.debug(f'Count = {count}')
         return count
 
+    def begin(self):
+        self.cur = self.conn.cursor()
+        self.cur.execute('BEGIN')
+
     def execute(self, sql, args):
-        cur = self.conn.cursor()
-        cur.execute(sql, args)
-        return cur.lastrowid
+        # cur = self.conn.cursor()
+        self.cur.execute(sql, args)
+        return self.cur.lastrowid
+
+    def commitZ(self):
+        # Commit transaction
+        self.cur.execute("commit")
+
+        # self.conn.commit()
 
     def select(self, where, from_tbl, args):
         cur = self.conn.cursor()
@@ -141,15 +148,7 @@ class DB:
         # Set DB pragmas for speed.  These can lead to corruption if there is power loss!
         self.logger.info('Database pragmas set for Speed not integrity')
         for txt in ['PRAGMA temp_store = memory',
-                    'PRAGMA journal_mode = wal',
-                    'PRAGMA cache_size = -200',
+                    'PRAGMA journal_mode = off',
+                    'PRAGMA cache_size = -300',
                     'PRAGMA synchronous = 0']:
             self.set_pragma(txt)
-
-    @staticmethod
-    def convert_wildcard(lookup_target):
-        # Create SQL wildcard pattern (convert * to %).  Add % on end
-        pattern = re.sub(r"b\Srg", "b_rg", lookup_target)   # Convert berg, burg, borg to b%rg
-        pattern = re.sub(r"\*", "%", pattern)
-        pattern = pattern + '%'
-        return re.sub("%%", "%", pattern)

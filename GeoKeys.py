@@ -23,7 +23,7 @@ import re
 try:
     import unidecode
 except ModuleNotFoundError:
-    print('PIP3 install unidecode')
+    print('Unidecode missing.  Please run "PIP3 install unidecode" from command line')
 
 
 class Result:
@@ -64,9 +64,10 @@ def semi_normalize(name) -> str:
     res = re.sub('township of ([^,]+)', r'\g<1> township', res)  # Normalize 'Township of X' to 'X Township'
     return res
 
+
 def normalize(res) -> str:
     """ Strip commas. Also strip spaces and normalize spelling for items such as Saint and County and chars   ø ß """
-    res =  unidecode.unidecode(res)
+    res = unidecode.unidecode(res)
 
     # remove all punctuation
     res = str(res).lower()
