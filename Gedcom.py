@@ -100,7 +100,7 @@ class Gedcom:
 
         # Calculate info for progress bar
         prog = int(self.infile.tell() * 100 / self.filesize)
-        if self.line_num % 100 == 1:
+        if self.line_num % 1000 == 1:
             self.progress(f"Scanning ", prog)
 
         if line == "":
@@ -246,6 +246,8 @@ class Gedcom:
 
     def write_lat_lon(self, lat: float, lon: float):
         """ Write out a GEDCOM PLACE MAP entry with latitude and longitude. """
+        return
+        # todo enable lat lon output
         if self.out_path is not None:
             map_level: int = self.level + 1
             lati_level: int = self.level + 2

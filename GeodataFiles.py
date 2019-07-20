@@ -202,7 +202,7 @@ class GeodataFiles:
                         self.insert_line(geoname_row)
 
             self.progress("Write Database", 90)
-            self.geodb.db.commitZ()
+            self.geodb.db.commit()
             self.progress("Create Indices", 95)
             self.geodb.create_indices()
             self.logger.debug(f'Elapsed ={time.time() - start_time}')

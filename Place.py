@@ -54,6 +54,7 @@ class Place:
         self.feature: str = ''  # Geoname feature code
         self.place_type: int = PlaceType.COUNTRY  # Is this a Country , Admin1 ,admin2 or city?
         self.target: str = ''  # Target for lookup
+        self.geoid = ''
 
         # Lookup result info
         self._status: str = ""
@@ -161,6 +162,8 @@ class Place:
             self.admin1_name = ''
         if self.admin2_name is None:
             self.admin2_name = ''
+
+        #self.logger.debug(f'{self.city1}, {self.admin2_name}, {self.admin1_name}, {self.country_name} type={self.place_type}')
 
         if self.place_type == PlaceType.ADMIN1:
             nm = f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"

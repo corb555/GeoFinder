@@ -71,6 +71,8 @@ class ListboxFrame:
         # Display data
         self.load_handler()
 
+#todo fix disply of global replace db lookup
+
     def load_handler(self):
         # Load in list and display
         self.listbox.delete(0, END)

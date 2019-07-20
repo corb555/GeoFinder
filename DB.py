@@ -99,7 +99,6 @@ class DB:
         cur.execute(f'DELETE FROM {tbl}')
 
     def get_row_count(self):
-        # count = 0
         cur = self.conn.cursor()
         cur.execute('SELECT COUNT(*) FROM main.geodata')
         res = cur.fetchall()
@@ -112,15 +111,12 @@ class DB:
         self.cur.execute('BEGIN')
 
     def execute(self, sql, args):
-        # cur = self.conn.cursor()
         self.cur.execute(sql, args)
         return self.cur.lastrowid
 
-    def commitZ(self):
+    def commit(self):
         # Commit transaction
         self.cur.execute("commit")
-
-        # self.conn.commit()
 
     def select(self, where, from_tbl, args):
         cur = self.conn.cursor()
@@ -135,17 +131,20 @@ class DB:
         res = Result.NO_MATCH
         for query in query_list:
             row_list = self.select(query.where, from_tbl, query.args)
+            #self.logger.debug(f'select x from {from_tbl}  where {query.where} val={query.args}')
             if len(row_list) == 1:
                 res = query.result  # Set specified success code
+                # Found match.  Break out of loop
                 break
             elif len(row_list) > 1:
                 res = Result.MULTIPLE_MATCHES
+                # Found match.  Break out of loop
                 break
 
         return row_list, res
 
     def set_speed_pragmas(self):
-        # Set DB pragmas for speed.  These can lead to corruption if there is power loss!
+        # Set DB pragmas for speed.  These can lead to corruption!
         self.logger.info('Database pragmas set for Speed not integrity')
         for txt in ['PRAGMA temp_store = memory',
                     'PRAGMA journal_mode = off',

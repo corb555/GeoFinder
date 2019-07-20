@@ -64,11 +64,11 @@ class Country:
             geo_row[GeoDB.Entry.LAT] = row[C_Row.LAT]
             geo_row[GeoDB.Entry.LON] = row[C_Row.LON]
             geo_row[GeoDB.Entry.FEAT] = 'ADM0'
-            geo_row[GeoDB.Entry.ID] = '9'
+            geo_row[GeoDB.Entry.ID] = row[C_Row.ISO].lower()
 
             self.geodb.insert(geo_row=geo_row, feat_code='ADM0')
 
-        self.geodb.db.commitZ()
+        self.geodb.db.commit()
 
 
         return False

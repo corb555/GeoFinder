@@ -149,7 +149,7 @@ class GeoFinder:
 
         # Add GEDCOM filename to Title
         path_parts = os.path.split(ged_path)  # Extract filename from full path
-        Widge.set_text(self.w.title, f'GeoFinder3 - {path_parts[1]}')
+        Widge.set_text(self.w.title, f'GeoFinder - {path_parts[1]}')
 
         # Read GEDCOM file, find each place entry and handle it.
         self.handle_place_entry()
@@ -164,24 +164,36 @@ class GeoFinder:
             self.err_count += 1
             # Find the next PLACE entry in GEDCOM file
             # Process it and keep looping until we need user input
+            self.place.clear()
             town_entry, eof = self.gedcom.scan_for_tag('PLAC')
 
             if eof:
                 self.end_of_file_shutdown()
 
-            # Parse the entry into Prefix, City, Admin2, Admin1, Country
-            # todo - only call parse when needed
-            self.place.parse_place(place_name=town_entry, geo_files=self.geodata.geo_files)
-
             # When we find an error, see if we have a fix (Global Replace) or Skip (ignore).
             # Otherwise have user handle it
-            if self.global_replace.get(self.place.name) is not None:
+            if self.global_replace.get(town_entry) is not None:
                 # There is a global change that we can apply to this line.  Get the replacement text
                 replacement = self.global_replace.get(town_entry)
 
                 # get lat long and write out to gedcom output file
-                # todo - dont look up each time
-                self.geodata.find_location(replacement, self.place)
+                # todo - must handle prefix
+                if replacement[0] == '@':
+                    tokens = replacement.split('@')
+                    self.logger.debug(f'rep = {tokens}')
+                    self.geodata.find_geoid(tokens[1], self.place)
+                    self.place.place_type = Place.PlaceType.CITY
+                    if len(tokens) > 2:
+                        self.place.prefix = tokens[2]
+                else:
+                    # Parse the entry into Prefix, City, Admin2, Admin1, Country
+                    self.logger.debug('old gbl rep')
+                    self.place.parse_place(place_name=town_entry, geo_files=self.geodata.geo_files)
+                    self.geodata.find_location(replacement, self.place)
+                    # TODO Remove temp copy!!!!
+                    self.global_replace.set(key=town_entry, val='@' + self.place.geoid + '@' + self.place.prefix)
+                    self.global_replace.write()
+
                 self.gedcom_output_place(self.place)
 
                 # Display status to user
@@ -196,22 +208,28 @@ class GeoFinder:
                 Widge.set_text(self.w.original_entry, " ")
                 self.gedcom.write(self.place.name)
                 continue
-            elif self.skiplist.get(self.place.name) is not None:
+            elif self.skiplist.get(town_entry) is not None:
                 # item is in skiplist - Write out as-is and go to next error
                 self.periodic_update("Skipping")
-                self.gedcom.write(self.place.name)
+                self.gedcom.write(town_entry)
                 continue
             else:
                 # Found a new PLACE entry
                 # See if it is in our place database
+                # Parse the entry into Prefix, City, Admin2, Admin1, Country
+                self.place.parse_place(place_name=town_entry, geo_files=self.geodata.geo_files)
                 self.geodata.find_location(town_entry, self.place)
 
                 if self.place.result_type in GeoKeys.successful_match:
                     # Found a match
-                    if self.user_accepted.get(self.place.name) is not None or self.place.result_type == GeoKeys.Result.EXACT_MATCH:
+                    if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
                         # User has already accepted this match or it is an Exact match
                         # Write out line without user verification
                         self.periodic_update("Scanning")
+                        # Add to global replace list
+                        self.global_replace.set(town_entry, '@' + self.place.geoid)
+                        self.global_replace.write()
+
                         self.gedcom_output_place(self.place)
                         continue
                     else:
@@ -256,13 +274,11 @@ class GeoFinder:
                 place.result_type == GeoKeys.Result.NO_COUNTRY:
             # Disable the Save & Map button until user clicks Verify and item is found
             self.disable_save_button(True)
-            self.w.verify_button.configure(style="Preferred.TButton")  # Make the Verify button the preferred selection
-            self.w.save_button.configure(style="TButton")  # Make the Save button normal
+            self.set_verify_as_preferred(True)
         else:
             # Found a match or Not supported - enable save and verify
             self.disable_save_button(False)  # Enable save button
-            self.w.verify_button.configure(style="TButton")  # Make the Verify button normal
-            self.w.save_button.configure(style="Preferred.TButton")  # Make the Save button the preferred selection
+            self.set_verify_as_preferred(False)  # Make Save button in highlighted style
 
         # Display status and color based on success
         self.set_status_text(place.get_status())
@@ -317,12 +333,13 @@ class GeoFinder:
         self.handle_place_entry()
 
     def save_handler(self):
-        """ Save the Place as user updated it.  Add Place to global replace list and replace if we see it again. """
+        """ Save the Place.  Add Place to global replace list and replace if we see it again. """
 
         # Add item to global replace list if user made a change.  This will be cached to disk.
         if Widge.get_text(self.w.original_entry) != Widge.get_text(self.w.user_edit):
             # User made a change - save it
-            self.global_replace.set(Widge.get_text(self.w.original_entry), Widge.get_text(self.w.user_edit))
+            self.global_replace.set(Widge.get_text(self.w.original_entry), '@' + self.place.geoid + '@' + self.place.prefix)
+
             # Save fix for future runs
             self.global_replace.write()
         else:
@@ -438,12 +455,14 @@ class GeoFinder:
     def setup_logging(msg):
         logger = logging.getLogger(__name__)
         fmt = "%(levelname)s %(name)s.%(funcName)s %(lineno)d: %(message)s"
-        logging.basicConfig(level=logging.INFO, format=fmt)
+        logging.basicConfig(level=logging.DEBUG, format=fmt)
         logger.info(msg)
         return logger
 
     def gedcom_output_place(self, place: Place.Place):
         # Write out location and lat/lon to gedcom file
+        # self.logger.debug(f'place {place.city1}, {place.admin2_name}, {place.admin1_name},'
+        #                 f' {place.country_name} {place.lat} {place.lon}')
         self.gedcom.write(place.prefix + place.format_full_name())
         self.gedcom.write_lat_lon(lat=place.lat, lon=place.lon)
 
@@ -494,6 +513,14 @@ class GeoFinder:
             self.w.status.configure(style="Good.TLabel")
             Widge.set_text(self.w.original_entry, self.place.name)  # Display place
             self.w.window.update_idletasks()  # Let GUI update
+
+    def set_verify_as_preferred(self, set_verify_preferred: bool):
+        if set_verify_preferred:
+            self.w.verify_button.configure(style="Preferred.TButton")  # Make the Verify button normal style
+            self.w.save_button.configure(style="TButton")  # Make the Save button the preferred selection
+        else:
+            self.w.verify_button.configure(style="TButton")  # Make the Verify button normal style
+            self.w.save_button.configure(style="Preferred.TButton")  # Make the Save button the preferred selection
 
 
 r = GeoFinder()

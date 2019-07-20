@@ -53,7 +53,7 @@ class GeoDB:
             self.create_tables()
 
         self.db.set_speed_pragmas()
-        self.db.set_params(select_str='name, country, admin1_id, admin2_id, lat, lon, f_code', order_str='', limit_str='LIMIT 300')
+        self.db.set_params(select_str='name, country, admin1_id, admin2_id, lat, lon, f_code, geoid', order_str='', limit_str='LIMIT 300')
 
     def insert(self, geo_row: (), feat_code: str):
         # We split the data into 3 separate tables, 1) Admin: ADM0/ADM1/ADM2,  and 2) city data
@@ -127,6 +127,7 @@ class GeoDB:
         """
         Search for  entry - try the most exact match first, then less exact matches
         """
+        self.logger.debug(f'sel city {place.target}')
         from_tbl = 'main.geodata'
         lookup_target = place.target
         if len(lookup_target) == 0:
@@ -144,7 +145,7 @@ class GeoDB:
                 place.result_type = Result.EXACT_MATCH
             return
 
-        if len(place.georow_list) == 0 and len(place.admin1_name) > 0 and len(place.admin2_name) > 0:
+        if len(place.admin1_name) > 0 and len(place.admin2_name) > 0:
             # Try fully qualified lookup with admin1 and with admin2
             where = 'name = ? AND country= ? AND admin1_id = ? AND admin2_id = ?'
             place.georow_list = self.db.select(where, from_tbl, (lookup_target, place.country_iso, place.admin1_id, place.admin2_id))
@@ -168,7 +169,7 @@ class GeoDB:
             place.georow_list = self.db.select(where, from_tbl, (pattern, place.country_iso, place.admin1_id))
 
         if len(place.georow_list) == 0:
-            # No match - Try exact name without adm1 or adm2
+            # Try exact name without adm1 or adm2
             where = 'name = ? AND country = ? '
             place.georow_list = self.db.select(where, from_tbl, (lookup_target, place.country_iso))
             if len(place.georow_list) == 1 and len(place.admin1_name) == 0 and len(place.admin2_name) == 0:
@@ -182,6 +183,17 @@ class GeoDB:
 
         self.build_result_list(place.georow_list)
         return
+
+    def lookup_geoid(self, place: Place):
+        """Search for GEOID"""
+        query_list = [
+            Query(where="geoid = ? ",
+                  args=(place.target,),
+                  result=Result.EXACT_MATCH)
+        ]
+
+        place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
+
 
     def select_admin2(self, place: Place):
         """Search for Admin2 entry"""
@@ -304,7 +316,6 @@ class GeoDB:
         if len(row_list) == 1:
             row = row_list[0]
             place.admin1_name = row[Entry.NAME]
-            # self.logger.debug(f'adm1 nm = {place.admin1_name}')
             return place.admin1_name
         else:
             return ''
@@ -401,6 +412,7 @@ class GeoDB:
         place.lat = row[Entry.LAT]
         place.lon = row[Entry.LON]
         place.feature = row[Entry.FEAT]
+        place.geoid = row[Entry.ID]
 
         place.admin1_name = self.get_admin1_name(place)
         place.admin2_name = self.get_admin2_name(place)
@@ -451,6 +463,7 @@ class GeoDB:
         self.db.create_index(create_table_sql='CREATE INDEX name_idx ON geodata(name)')
         self.db.create_index(create_table_sql='CREATE INDEX country_idx ON geodata(country)')
         self.db.create_index(create_table_sql='CREATE INDEX admin1_idx ON geodata(admin1_id)')
+        self.db.create_index(create_table_sql='CREATE INDEX geoid_idx ON geodata(geoid)')
 
         self.db.create_index(create_table_sql='CREATE INDEX name_idx ON admin(name)')
         self.db.create_index(create_table_sql='CREATE INDEX country_idx ON admin(country)')

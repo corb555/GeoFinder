@@ -65,6 +65,12 @@ class Geodata:
 
         self.process_result(place=place, targ_name=place.target)
 
+    def find_geoid(self, geoid: str, place: Place.Place):
+        place.target = geoid
+        self.geo_files.geodb.lookup_geoid(place=place)
+        if len(place.georow_list) > 0:
+            self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
+
     def find_location(self, location: str, place: Place.Place):
         """
         Find a location in the geoname dictionary.
@@ -114,7 +120,6 @@ class Geodata:
             place.type_text = self.get_district1_type(place.country_iso)
         else:
             place.type_text = Place.place_type_name_dict[place.place_type]
-        # self.logger.debug(f'Set Type feat={place.feature} Type={place.type_text}')
 
     @staticmethod
     def get_district1_type(iso) -> str:
@@ -138,11 +143,6 @@ class Geodata:
         """ Read in geo name files which contain place names and their lat/lon.
             Return True if error
         """
-        # err: bool = self.geo_files.country.read()
-        # if err:
-        #    self.status = "country country_iso list error"
-        #    return True
-
         err = self.geo_files.read()
         if err:
             return True
