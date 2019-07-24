@@ -20,36 +20,18 @@
 import logging
 import tkinter
 import tkinter.font
-from tkinter import *
 from tkinter import ttk
 from typing import List
 
 import pkg_resources
 
+import geofinder.GFStyle as GFStyle
 from geofinder import Progress, Tooltip
-from geofinder.Widge import Widge
+import geofinder.Widge
 
-TXT_WID = 65
-BTN_WID = 5
-BTN_WID_WD = 6
-BTN_PADX = 50
-PAD_PADX = 25
-
-LT_GRAY = 'gray97'
-LT_COLOR = 'gray50'
-FG_COLOR = 'gray29'
-BG_COLOR = "white"
-HIGH_COLOR = 'royalblue3'
-ERR_COLOR = 'red2'
-GOOD_COLOR = 'green4'
-
-FNT = 'Helvetica'
-FNT_SIZE_SM = 8
-FNT_SIZE_MD = 14
-FNT_SIZE_LG = 18
-FNT_SIZE_XL = 24
-
-# Columns for widgets
+# Columns for widgets:
+# [0 PADDING]  [1 TEXT    with span 2]  [3 Buttons]
+#                       [2 Scroll Bar]
 PAD_COL = 0
 TXT_COL = 1
 SCRL_COL = 2
@@ -62,11 +44,11 @@ class AppLayout:
         """ Create the app window and styles """
         self.logger = logging.getLogger(__name__)
         self.main = main
+
         self.root = tkinter.Tk()
         self.root.title("geofinder")
         self.root["padx"] = 0
         self.root["pady"] = 20
-        self.root.configure(background=BG_COLOR)
 
         # Set column/row weight for responsive resizing
         self.root.columnconfigure(0, weight=1)
@@ -74,30 +56,14 @@ class AppLayout:
             self.root.rowconfigure(rw, weight=1)
 
         # Setup styles
-        style = ttk.Style()
-        style.theme_use("clam")
-        style.configure('.', font=(FNT, FNT_SIZE_MD))  # Default button font
-
-        style.configure('Large.TLabel', foreground=HIGH_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_XL))
-
-        style.configure('Error.TLabel', foreground=ERR_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_LG))
-        style.configure('Good.TLabel', foreground=GOOD_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_LG))
-
-        style.configure('Info.TLabel', foreground=FG_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_MD))
-        style.configure('Highlight.TLabel', foreground=HIGH_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_MD))
-        style.configure('Light.TLabel', borderwidth=3, foreground=LT_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_MD))
-
-        style.configure('Tiny.TLabel', borderwidth=3, foreground=LT_COLOR, background=BG_COLOR, font=(FNT, FNT_SIZE_SM))
-
-        style.configure('TEntry', foreground=FG_COLOR)
-
-        style.configure('TButton', foreground=FG_COLOR)
-        style.configure('Preferred.TButton', foreground=GOOD_COLOR)
+        self.root.configure(background=GFStyle.BG_COLOR)
+        GFStyle.GFStyle()
 
         # Load images for buttons
         self.images = {}
-        for icon_name in ("map","verify", "save", "skip", "help", "exit", "play", "folder", "search"):
-            self.images[icon_name] = tkinter.PhotoImage(pkg_resources.resource_filename(__name__, f'images/{icon_name}.gif'))
+        for icon_name in ("map", "verify", "save", "skip", "help", "exit", "play", "folder", "search"):
+            path = pkg_resources.resource_filename(__name__, f'images/{icon_name}.gif')
+            self.images[icon_name] = tkinter.PhotoImage(file=path)
 
         self.root.update()
 
@@ -105,19 +71,19 @@ class AppLayout:
         """ Create the  widgets for display during initialization  (GEDCOM File open)  """
         self.pad: ttk.Label = ttk.Label(self.root, text=" ", width=2, style='Light.TLabel')
         self.title: ttk.Label = ttk.Label(self.root, text="Geo Finder", width=30, style='Large.TLabel')
-        self.line_number_label: ttk.Label = ttk.Label(self.root, text="", width=BTN_WID, style='Tiny.TLabel')
+        self.line_number_label: ttk.Label = ttk.Label(self.root, text="", width=GFStyle.BTN_WID, style='Tiny.TLabel')
         self.original_entry: ttk.Label = ttk.Label(self.root, text=" ", width=50, style='Info.TLabel')
-        self.status: ttk.Label = ttk.Label(self.root, width=TXT_WID, style='Good.TLabel')
-        self.prog: Progress.Progress = Progress.Progress(self.root, bar_color=HIGH_COLOR, trough_color=LT_GRAY, status=self.status)
+        self.status: ttk.Label = ttk.Label(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
+        self.prog: Progress.Progress = Progress.Progress(self.root, bar_color=GFStyle.HIGH_COLOR, trough_color=GFStyle.LT_GRAY, status=self.status)
         self.quit_button: ttk.Button = ttk.Button(self.root, text="quit", command=self.main.shutdown,
-                                                  width=BTN_WID_WD, image=self.images['exit'], compound="left")
+                                                  width=GFStyle.BTN_WID_WD, image=self.images['exit'], compound="left")
         self.load_button: ttk.Button = ttk.Button(self.root, text="open", command=self.main.load_handler,
-                                                  width=BTN_WID_WD, style='Preferred.TButton', image=self.images['play'], compound="left")
+                                                  width=GFStyle.BTN_WID_WD, style='Preferred.TButton', image=self.images['play'], compound="left")
         self.change_button: ttk.Button = ttk.Button(self.root, text="choose", command=self.main.filename_handler,
-                                                    width=BTN_WID_WD, image=self.images['folder'], compound="left")
+                                                    width=GFStyle.BTN_WID_WD, image=self.images['folder'], compound="left")
 
         # Set grid layout for padding column widget - just pads out left column
-        self.pad.grid(column=PAD_COL, row=0, padx=PAD_PADX, pady=0, sticky="EW")
+        self.pad.grid(column=PAD_COL, row=0, padx=GFStyle.PAD_PADX, pady=0, sticky="EW")
 
         # Set grid for text widgets
         self.original_entry.grid(column=TXT_COL, row=2, padx=7, pady=5, sticky="EW")
@@ -136,7 +102,7 @@ class AppLayout:
         self.root.update()
 
         self.initialization_buttons: List[ttk.Button] = [self.quit_button, self.load_button, self.change_button]
-        Widge.disable_buttons(button_list=self.initialization_buttons)
+        geofinder.Widge.Widge.disable_buttons(button_list=self.initialization_buttons)
 
     def remove_initialization_widgets(self):
         self.load_button.destroy()
@@ -152,40 +118,40 @@ class AppLayout:
         self.pad: ttk.Label = ttk.Label(self.root, text=" ", width=2, style='Light.TLabel')
         self.title: ttk.Label = ttk.Label(self.root, text="Geo Finder", width=30, style='Large.TLabel')
 
-        self.original_entry: ttk.Label = ttk.Label(self.root, text="   ", width=TXT_WID, style='Light.TLabel')
-        self.user_edit: ttk.Entry = ttk.Entry(self.root, text="   ", width=TXT_WID, font=(FNT, 14))
-        self.status: ttk.Label = ttk.Label(self.root, width=TXT_WID, style='Good.TLabel')
-        self.prefix: ttk.Label = ttk.Label(self.root, width=TXT_WID, style='Highlight.TLabel')
+        self.original_entry: ttk.Label = ttk.Label(self.root, text="   ", width=GFStyle.TXT_WID, style='Light.TLabel')
+        self.user_edit: geofinder.Widge.CEntry = geofinder.Widge.CEntry(self.root, text="   ", width=GFStyle.TXT_WID, font=(GFStyle.FNT_NAME, 14))
+        self.status: ttk.Label = ttk.Label(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
+        self.prefix: ttk.Label = ttk.Label(self.root, width=GFStyle.TXT_WID, style='Highlight.TLabel')
 
         self.scrollbar = ttk.Scrollbar(self.root)
-        self.listbox = tkinter.Listbox(self.root, height=15, bg=LT_GRAY, borderwidth=0, selectmode=SINGLE)
+        self.listbox = tkinter.Listbox(self.root, height=15, bg=GFStyle.LT_GRAY, borderwidth=0, selectmode='single')
         self.listbox.config(yscrollcommand=self.scrollbar.set)
         self.scrollbar.config(command=self.listbox.yview)
 
-        self.ged_event_info: ttk.Label = ttk.Label(self.root, text=" ", width=TXT_WID, style='Light.TLabel')
+        self.ged_event_info: ttk.Label = ttk.Label(self.root, text=" ", width=GFStyle.TXT_WID, style='Light.TLabel')
         self.line_number_label: ttk.Label = ttk.Label(self.root, text="", width=6, style='Light.TLabel')
         self.footnote: ttk.Label = ttk.Label(self.root, text="Data is from GeoNames.org.  Hover for details",
-                                             width=TXT_WID, style='Light.TLabel')
+                                             width=GFStyle.TXT_WID, style='Light.TLabel')
 
-        self.prog: Progress.Progress = Progress.Progress(self.root, bar_color=HIGH_COLOR, trough_color=LT_GRAY, status=self.status)
+        self.prog: Progress.Progress = Progress.Progress(self.root, bar_color=GFStyle.HIGH_COLOR, trough_color=GFStyle.LT_GRAY, status=self.status)
 
         self.search_button: ttk.Button = ttk.Button(self.root, text="search", command=self.main.search_handler,
-                                                    width=BTN_WID, image=self.images['search'], compound="left")
+                                                    width=GFStyle.BTN_WID, image=self.images['search'], compound="left")
         self.map_button: ttk.Button = ttk.Button(self.root, text="map", command=self.main.map_handler,
-                                                 width=BTN_WID, image=self.images['map'], compound="left")
+                                                 width=GFStyle.BTN_WID, image=self.images['map'], compound="left")
         self.verify_button: ttk.Button = ttk.Button(self.root, text="verify", command=self.main.verify_handler,
-                                                    width=BTN_WID, image=self.images['verify'], compound="left")
+                                                    width=GFStyle.BTN_WID, image=self.images['verify'], compound="left")
         self.save_button: ttk.Button = ttk.Button(self.root, text="save", command=self.main.save_handler,
-                                                  width=BTN_WID, image=self.images['save'], compound="left")
-        self.skip_button: ttk.Button = ttk.Button(self.root, text="skip", command=self.main.skip_handler, width=BTN_WID,
+                                                  width=GFStyle.BTN_WID, image=self.images['save'], compound="left")
+        self.skip_button: ttk.Button = ttk.Button(self.root, text="skip", command=self.main.skip_handler, width=GFStyle.BTN_WID,
                                                   image=self.images['skip'], compound="left")
         self.help_button: ttk.Button = ttk.Button(self.root, text="help", command=self.main.help_handler,
-                                                  width=BTN_WID, image=self.images['help'], compound="left")
+                                                  width=GFStyle.BTN_WID, image=self.images['help'], compound="left")
         self.quit_button: ttk.Button = ttk.Button(self.root, text=" quit", command=self.main.quit_handler,
-                                                  width=BTN_WID, image=self.images['exit'], compound="left")
+                                                  width=GFStyle.BTN_WID, image=self.images['exit'], compound="left")
 
         # Set grid layout for padding column widget - just pads out left column
-        self.pad.grid(column=PAD_COL, row=0, padx=PAD_PADX, pady=0, sticky="EW")
+        self.pad.grid(column=PAD_COL, row=0, padx=GFStyle.PAD_PADX, pady=0, sticky="EW")
 
         # Set grid layout for column 0 (TXT_COL) Widgets
         # The first 8 are set span to 2 columns because the listbox has a scrollbar next to it
@@ -204,13 +170,13 @@ class AppLayout:
         self.scrollbar.grid(column=SCRL_COL, row=6, padx=0, pady=5, sticky='WNS')
 
         # Column 2 Widgets
-        self.search_button.grid(column=BTN_COL, row=2, padx=BTN_PADX, pady=6, sticky="E")
-        self.verify_button.grid(column=BTN_COL, row=3, padx=BTN_PADX, pady=6, sticky="E")
-        self.save_button.grid(column=BTN_COL, row=4, padx=BTN_PADX, pady=6, sticky="E")
-        self.map_button.grid(column=BTN_COL, row=5, padx=BTN_PADX, pady=6, sticky="NE")
-        self.skip_button.grid(column=BTN_COL, row=6, padx=BTN_PADX, pady=6, sticky="E")
-        self.help_button.grid(column=BTN_COL, row=8, padx=BTN_PADX, pady=5, sticky="E")
-        self.quit_button.grid(column=BTN_COL, row=12, padx=BTN_PADX, pady=6, sticky="SE")
+        self.search_button.grid(column=BTN_COL, row=2, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
+        self.verify_button.grid(column=BTN_COL, row=3, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
+        self.save_button.grid(column=BTN_COL, row=4, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
+        self.map_button.grid(column=BTN_COL, row=5, padx=GFStyle.BTN_PADX, pady=6, sticky="NE")
+        self.skip_button.grid(column=BTN_COL, row=6, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
+        self.help_button.grid(column=BTN_COL, row=8, padx=GFStyle.BTN_PADX, pady=5, sticky="E")
+        self.quit_button.grid(column=BTN_COL, row=12, padx=GFStyle.BTN_PADX, pady=6, sticky="SE")
 
         # Set accelerator keys for Verify, listbox, and Save
         self.user_edit.bind("<Return>", self.main.return_key_event_handler)
@@ -238,3 +204,4 @@ class AppLayout:
                                                  self.skip_button, self.map_button, self.help_button]
 
         self.root.update()
+

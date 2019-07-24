@@ -23,8 +23,6 @@ from typing import List, Tuple
 
 from geofinder import GeoKeys
 
-great_britain = ['scotland', 'england', 'wales', 'northern ireland']
-
 
 class Place:
     """
@@ -82,7 +80,7 @@ class Place:
         if token_count > 0:
             #  Format: Country
             self.place_type = PlaceType.COUNTRY
-            self.country_name = tokens[-1].strip(' ').lower()
+            self.country_name = GeoKeys.normalize(tokens[-1])
 
             # Validate country
             self.country_iso = geo_files.geodb.get_country_iso(self)  # Get Country country_iso
@@ -102,7 +100,11 @@ class Place:
                     token_count = len(tokens)
                 else:
                     # No country found for this
-                    self.place_type = PlaceType.CITY
+                    # Append blank to token list so we now have xx,admin1, blank_country
+                    self.logger.debug(f'didnt find last tkn as adm1 {self.admin1_name}')
+                    tokens.append('')
+                    self.country_name = ''
+                    token_count = len(tokens)
                     self.result_type = GeoKeys.Result.NO_COUNTRY
                     self.country_iso = ''
 
@@ -122,9 +124,12 @@ class Place:
             self.admin2_name = GeoKeys.normalize(tokens[-3])
             if len(self.admin2_name) > 0:
                 self.place_type = PlaceType.ADMIN2
+                if self.admin2_name == 'london':
+                    # Change to Greater London
+                    self.admin2_name = 'greater london'
                 self.target = self.admin2_name
-            else:
-                self.place_type = PlaceType.CITY
+            #else:
+            #    self.place_type = PlaceType.CITY
 
         if token_count > 3:
             # Format: Prefix, City, Admin2, Admin1, Country
@@ -140,39 +145,45 @@ class Place:
                 self.prefix += item + ','
 
         self.logger.debug(f"*** PARSE  City [{self.city1}] Adm2 [{self.admin2_name}]"
-                          f"  Adm1 [{self.admin1_name}] Cntry [{self.country_name}] Typ={place_type_name_dict[self.place_type]}")
+                          f"  Adm1 [{self.admin1_name}] Cntry [{self.country_name}] Pref={self.prefix} Typ={place_type_name_dict[self.place_type]}")
         return
+
+    def set_place_type(self):
+        self.place_type = PlaceType.CITY
+        if len(self.country_name) > 0:
+            self.place_type = PlaceType.COUNTRY
+        if len(self.admin1_name) > 0:
+            self.place_type = PlaceType.ADMIN1
+        if len(self.admin2_name) > 0:
+            self.place_type = PlaceType.ADMIN2
+        if len(self.city1) > 0:
+            self.place_type = PlaceType.CITY
 
     def get_status(self) -> str:
         return self.status
 
     def format_full_name(self):
-        """ Take the parts of a Place and build fullname.  e.g. city,adm2,adm1,country name """
+        """ Take the parts of a Place and build fullname.  e.g. pref, city,adm2,adm1,country name """
         if self.admin1_name is None:
             self.admin1_name = ''
         if self.admin2_name is None:
             self.admin2_name = ''
 
-        # self.logger.debug(f'{self.city1}, {self.admin2_name}, {self.admin1_name}, {self.country_name} type={self.place_type}')
-
         if self.place_type == PlaceType.ADMIN1:
             nm = f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
-            self.logger.debug(f'{nm}')
+            if len(self.prefix) > 0:
+                self.prefix = self.prefix + ', , '
         elif self.place_type == PlaceType.COUNTRY:
             nm = f"{st.capwords(self.country_name)}"
         elif self.place_type == PlaceType.ADMIN2:
             nm = f"{st.capwords(self.admin2_name)}," \
                 f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
+            if len(self.prefix) > 0:
+                self.prefix = self.prefix + ', '
         else:
             nm = f"{st.capwords(self.city1)}, {st.capwords(self.admin2_name)}," \
                 f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
         return nm
-
-    @staticmethod
-    def in_great_britainZZZ(country) -> bool:
-        """ Determine if country is in Great Britain """
-        return country in great_britain
-
 
 
 # What type of entity is this place?
@@ -185,7 +196,7 @@ class PlaceType:
 
 place_type_name_dict = {
     PlaceType.COUNTRY: 'Country',
-    PlaceType.ADMIN1: 'State/Province',
-    PlaceType.ADMIN2: 'County',
-    PlaceType.CITY: 'City'
+    PlaceType.ADMIN1: 'STATE/PROVINCE',
+    PlaceType.ADMIN2: 'COUNTY',
+    PlaceType.CITY: ' '
 }

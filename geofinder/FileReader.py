@@ -50,12 +50,12 @@ class FileReader:
                 for row in file:
                     line_num += 1
                     file_pos += len(row)
-                    if line_num % 10000 == 1:
+                    if line_num % 80000 == 1:
                         # Periodically update progress
                         prog = file_pos * 100 / fsize
                         self.progress(f"Loading {self.fname} {prog:.0f}%", prog)
 
-                    count = self.handle_line(count, line_num, row)
+                    self.handle_line(line_num, row)
 
             self.cache_changed = True
             self.progress("", 100)
@@ -65,8 +65,8 @@ class FileReader:
             self.logger.error(f'Unable to open {path}')
             return True
 
-    def handle_line(self, count: int, line_num: int, row: str) -> int:
-        return count
+    def handle_line(self,  line_num: int, row: str) -> int:
+        pass
 
     def progress(self, msg, val):
         """ Update progress bar if there is one """

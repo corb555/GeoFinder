@@ -30,6 +30,7 @@ from geofinder.CachedDictionary import CachedDictionary
 from geofinder.Config import Config
 from geofinder.Widge import Widge
 
+MISSING_FILES = 'Missing Files.  Please run GeoUtil.py and correct errors in Errors Tab'
 
 class GeoFinder:
     """
@@ -76,7 +77,10 @@ class GeoFinder:
             self.logger.warning(f'error reading {self.cache_dir} config.pkl')
 
         pathname = self.cfg.get("gedcom_path")  # Get saved config setting for GEDCOM file
-        out_path = pathname + "new.ged"
+        if pathname is not None:
+            out_path = pathname + "new.ged"
+        else:
+            out_path = 'unk.new.ged'
         cdir = self.cache_dir
 
         # Initialize routines to read/write GEDCOM file
@@ -99,7 +103,7 @@ class GeoFinder:
         self.geodata = Geodata.Geodata(directory_name=self.directory, progress_bar=self.w.prog)
         error = self.geodata.read()
         if error:
-            Widge.fatal_error("Missing Files.  Run GeoUtil.py and correct in Files Tab")
+            Widge.fatal_error(MISSING_FILES)
 
         # If the list of supported countries is unusually short, display note to user
         num = self.display_country_note()
@@ -108,8 +112,8 @@ class GeoFinder:
         # Read in Geoname Gazeteer file - city names, lat/long, etc.
         error = self.geodata.read_geonames()
         if error:
-            Widge.fatal_error("Missing Files.  Run GeoUtil.py and correct in Files Tab")
-        self.logger.info(f'Geoname dictionary has {self.geodata.geo_files.geodb.get_stats()} entries')
+            Widge.fatal_error(MISSING_FILES)
+        self.logger.info(f'Geoname dictionary has {self.geodata.geo_files.geodb.get_row_count()} entries')
         self.w.root.update()
         self.w.prog.update_progress(100, " ")
 
@@ -141,7 +145,7 @@ class GeoFinder:
                                     progress=self.w.prog)  # Routines to open and parse GEDCOM file
         self.w.root.update()
         if self.gedcom.error:
-            Widge.fatal_error(f"GEDCOM file {ged_path} not found.  Run GeoUtil.py and correct in Config Tab")
+            Widge.fatal_error(f"GEDCOM file {ged_path} not found.")
 
         # Add GEDCOM filename to Title
         path_parts = os.path.split(ged_path)  # Extract filename from full path
@@ -174,23 +178,37 @@ class GeoFinder:
             if self.global_replace.get(town_entry) is not None:
                 # There is a global change that we can apply to this line.  Get the replacement text
                 replacement = self.global_replace.get(town_entry)
+                self.logger.debug(f'Found GblRep {replacement} for {town_entry}')
 
                 # get lat long and write out to gedcom output file
-                # todo - must handle prefix
-                if replacement[0] == '@':
-                    tokens = replacement.split('@')
-                    self.geodata.find_geoid(tokens[1], self.place)
-                    self.place.place_type = Place.PlaceType.CITY
-                    if len(tokens) > 2:
-                        self.place.prefix = tokens[2]
+                tokens = replacement.split('@')
+                self.geodata.find_geoid(tokens[1], self.place)
+
+                # Get prefix if there was one
+                if len(tokens) > 2:
+                    self.place.prefix = tokens[2]
+
+                self.gedcom_output_place(self.place)
+
+                # Display status to user
+                if self.shutdown_requested:
+                    self.periodic_update("Shutting down...")
                 else:
-                    # Parse the entry into Prefix, City, Admin2, Admin1, Country
-                    self.logger.debug('old gbl rep')
-                    self.place.parse_place(place_name=town_entry, geo_files=self.geodata.geo_files)
-                    self.geodata.find_location(replacement, self.place)
-                    # TODO Remove temp copy!!!!
-                    self.global_replace.set(key=town_entry, val='@' + self.place.geoid + '@' + self.place.prefix)
-                    self.global_replace.write()
+                    self.periodic_update("Applying change")
+
+                continue
+            elif self.user_accepted.get(town_entry) is not None:
+                # There is an accepted  change that we can use for this line.  Get the replacement text
+                replacement = self.user_accepted.get(town_entry)
+                self.logger.debug(f'Found Accept {replacement} for {town_entry}')
+
+                # get lat long and write out to gedcom output file
+                tokens = replacement.split('@')
+                self.geodata.find_geoid(tokens[1], self.place)
+
+                # Get prefix if there was one
+                if len(tokens) > 2:
+                    self.place.prefix = tokens[2]
 
                 self.gedcom_output_place(self.place)
 
@@ -209,6 +227,7 @@ class GeoFinder:
                 continue
             elif self.skiplist.get(town_entry) is not None:
                 # item is in skiplist - Write out as-is and go to next error
+                self.logger.debug(f'Found Skip for {town_entry}')
                 self.periodic_update("Skipping")
                 self.gedcom.write(town_entry)
                 continue
@@ -222,23 +241,30 @@ class GeoFinder:
                 if self.place.result_type in GeoKeys.successful_match:
                     # Found a match
                     if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
-                        # User has already accepted this match or it is an Exact match
+                        # Exact match
                         # Write out line without user verification
                         if self.shutdown_requested:
                             self.periodic_update("Shutting down...")
                         else:
                             self.periodic_update("Scanning")
                         # Add to global replace list
-                        self.global_replace.set(town_entry, '@' + self.place.geoid)
+                        res = '@' + self.place.geoid + '@' + self.place.prefix
+
+                        self.global_replace.set(town_entry, res)
+                        self.logger.debug(f'Found Exact Match for {town_entry} res= {res} Setting DICT')
                         self.global_replace.write()
 
                         self.gedcom_output_place(self.place)
                         continue
                     else:
+                        self.logger.debug(f'User review for {town_entry}')
+
                         self.w.status.configure(style="Good.TLabel")
                         Widge.set_text(self.w.original_entry, self.place.name)  # Display place
                         break  # Have user review the match
                 else:
+                    self.logger.debug(f'User2 review for {town_entry}')
+
                     self.w.status.configure(style="Good.TLabel")
                     Widge.set_text(self.w.original_entry, self.place.name)  # Display place
                     # Have user review the match
@@ -285,7 +311,10 @@ class GeoFinder:
         # Display status and color based on success
         self.set_status_text(place.get_status())
         if place.result_type in GeoKeys.successful_match:
-            self.w.status.configure(style="Good.TLabel")
+            if place.place_type == Place.PlaceType.ADMIN1 or place.place_type == Place.PlaceType.ADMIN2:
+                self.w.status.configure(style="GoodCounty.TLabel")
+            else:
+                self.w.status.configure(style="Good.TLabel")
         else:
             self.w.status.configure(style="Error.TLabel")
 
@@ -319,12 +348,15 @@ class GeoFinder:
         # Get geodata for each item and add to listbox output
         for geo_row in place.georow_list:
             self.geodata.geo_files.geodb.copy_georow_to_place(geo_row, temp_place)
-            self.w.listbox.insert(END, f'{place.prefix}{temp_place.format_full_name()}')
+            nm = temp_place.format_full_name()
+            self.w.listbox.insert(END, f'{temp_place.prefix}{nm}')
 
         self.w.root.update_idletasks()
 
     def skip_handler(self):
         """ Write out original entry as-is and skip any matches in future  """
+        self.logger.debug(f'Skip for {Widge.get_text(self.w.original_entry)}  Updating SKIP dict')
+
         self.skiplist.set(Widge.get_text(self.w.original_entry), " ")
         self.gedcom.write(Widge.get_text(self.w.original_entry))
 
@@ -336,17 +368,18 @@ class GeoFinder:
 
     def save_handler(self):
         """ Save the Place.  Add Place to global replace list and replace if we see it again. """
+        ky = Widge.get_text(self.w.original_entry)
+        res = '@' + self.place.geoid + '@' + self.place.prefix
 
         # Add item to global replace list if user made a change.  This will be cached to disk.
         if Widge.get_text(self.w.original_entry) != Widge.get_text(self.w.user_edit):
             # User made a change - save it
-            self.global_replace.set(Widge.get_text(self.w.original_entry), '@' + self.place.geoid + '@' + self.place.prefix)
-
-            # Save fix for future runs
+            self.global_replace.set(ky, res)
             self.global_replace.write()
+            self.logger.debug(f'SAVE SetGblRep for {ky} res={res} Updating DICT')
         else:
-            # User accepted the item as is.
-            self.user_accepted.set(Widge.get_text(self.w.original_entry), "")
+            # User accepted the item as is.  Add to accept list
+            self.user_accepted.set(ky, res)
             self.user_accepted.write()
 
         # Write out corrected item to GEDCOM output file
@@ -436,7 +469,6 @@ class GeoFinder:
         place.georow_list.clear()
 
     def set_detail_text_line(self, txt):
-        self.logger.debug(f'display detail txt [{txt}]')
         self.w.listbox.delete(0, END)
         self.w.listbox.insert(END, txt)
 
@@ -448,7 +480,7 @@ class GeoFinder:
             Widge.fatal_error("No countries enabled.\n\nUse GeoUtil.py Country Tab to change country list\n")
 
         if num < 20:
-            messagebox.showinfo("Info", "{}{}{}".format("Loaded geocode data for the following countries:\n\n",
+            messagebox.showinfo("Info", "{}{}{}".format("Loading geocode data for the following ISO country codes:\n\n",
                                                         countries,
                                                         "\n\nUse GeoUtil.py Country Tab to change country list\n"))
         return num
@@ -465,7 +497,8 @@ class GeoFinder:
         # Write out location and lat/lon to gedcom file
         # self.logger.debug(f'place {place.city1}, {place.admin2_name}, {place.admin1_name},'
         #                 f' {place.country_name} {place.lat} {place.lon}')
-        self.gedcom.write(place.prefix + place.format_full_name())
+        nm = place.format_full_name()
+        self.gedcom.write(place.prefix + nm)
         self.gedcom.write_lat_lon(lat=place.lat, lon=place.lon)
 
     def shutdown(self):

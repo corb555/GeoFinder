@@ -54,6 +54,9 @@ class CachedDictionary:
                 return False
         else:
             self.logger.error("Missing {}".format(path))
+            # Create empty file
+            with open(path, 'wb') as file:
+                pickle.dump(self.dict, file)
             self.error = True
             return True
 

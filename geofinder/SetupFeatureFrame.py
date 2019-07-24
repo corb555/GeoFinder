@@ -23,9 +23,9 @@ from tkinter import ttk
 from geofinder import ListboxFrame
 from geofinder.Widge import Widge
 
-default = ["ADM1", "ADM2", "ADM3", "ADM4", "CH", "CSTL", "CMTY", "EST ", "HSP",
-           "HSTS", "ISL", "MT", "MUS", "PAL", "PPL", "PPLA", "PPLA2", "PPLA3", "PPLA4",
-           "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "RUIN", "SQR", "VAL"]
+default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF","CH", "CSTL", "CMTY", "EST ", "HSP",
+           "HSTS", "ISL", "MSQE", "MSTY","MT", "MUS", "PAL", "PPL", "PPLA", "PPLA2", "PPLA3", "PPLA4",
+           "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "RUIN", "RLG","STG", "SQR", "SYG","VAL"]
 
 
 class SetupFeatureFrame(ListboxFrame.ListboxFrame):
@@ -43,9 +43,9 @@ class SetupFeatureFrame(ListboxFrame.ListboxFrame):
     def __init__(self, frame, title, dir_name, cache_filename):
         self.logger = logging.getLogger(__name__)
 
-        # Add these in addition to the standard widgets in ListBoxFrame
+        # Add these in addition to the standard widgets we inherit from ListBoxFrame
         self.add_button = ttk.Button(frame, text="add", command=self.add_handler, width=ListboxFrame.BUTTON_WIDTH)
-        self.feature_label = ttk.Label(frame, text="Enter Geoname Feature below and click on Add button to add")
+        self.feature_label = ttk.Label(frame, text="Enter Geoname Feature below and click on Add button to add",style='Info.TLabel')
         self.feature_entry: ttk.Entry = ttk.Entry(frame, text="   ", width=15)  # , style='Info.TLabel')
         super().__init__(frame, title, dir_name, cache_filename)
 

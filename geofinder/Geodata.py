@@ -39,6 +39,53 @@ class Geodata:
         self.progress_bar = progress_bar  # progress_bar
         self.geo_files = GeodataFiles.GeodataFiles(self.directory, progress_bar=self.progress_bar)  # , geo_district=self.geo_district)
 
+    def find_location(self, location: str, place: Place.Place):
+        """
+        Find a location in the geoname dictionary.
+        First parse the location into <prefix>, city, <district2>, district1, country.
+        Then look it up in the place dictionary
+        Update place with -- lat, lon, district, city, country_iso, result code
+        """
+        place.parse_place(place_name=location, geo_files=self.geo_files)
+
+        if self.country_is_valid(place):
+            self.logger.debug(f'Find LOCATION Type=[{Place.place_type_name_dict[place.place_type]}] City=[{place.city1}] Adm2=[{place.admin2_name}]\
+    Adm1=[{place.admin1_name}] Prefix=[{place.prefix}] cname=[{place.country_name}] iso=[{place.country_iso}]')
+            # Lookup location
+            self.geo_files.geodb.lookup_place(place=place)
+        else:
+            place.target = place.country_name
+            # No country - try city lookup without country
+            if len(place.admin1_name) > 0 and place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
+                self.geo_files.geodb.lookup_place(place=place)
+                if len(place.georow_list) == 0:
+                    place.result_type = GeoKeys.Result.NO_COUNTRY
+
+        # Process the results
+        self.process_result(place=place, targ_name=place.target)
+        self.logger.debug(f'Status={place.status}')
+
+    def process_result(self, place: Place.Place, targ_name) -> None:
+        # Copy geodata to place record and Put together status text
+        self.logger.debug(f'**PROCESS RESULT:  Res={place.result_type}  Geoid_list={place.georow_list}')
+        if place.result_type in GeoKeys.successful_match:
+            self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
+
+        self.set_place_type_text(place=place)
+        place.status = f'{place.result_type_text} "{st.capwords(targ_name)}" {result_text_list.get(place.result_type)} '
+
+    def set_place_type_text(self, place: Place.Place):
+        if place.result_type == GeoKeys.Result.NO_COUNTRY:
+            place.result_type_text = 'Country'
+        if place.place_type == Place.PlaceType.CITY:
+            place.result_type_text = GeoKeys.type_names.get(place.feature)
+            if place.result_type_text is None:
+                place.result_type_text = ' '
+        elif place.place_type == Place.PlaceType.ADMIN1:
+            place.result_type_text = self.get_district1_type(place.country_iso)
+        else:
+            place.result_type_text = Place.place_type_name_dict[place.place_type]
+
     def find_first_match(self, location: st, place: Place.Place):
         """
         Find the first match for this location in the geoname dictionary.
@@ -67,75 +114,27 @@ class Geodata:
         place.target = geoid
         self.geo_files.geodb.lookup_geoid(place=place)
         if len(place.georow_list) > 0:
+            # Copy geo row to Place
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
-
-    def find_location(self, location: str, place: Place.Place):
-        """
-        Find a location in the geoname dictionary.
-        First parse the location into <prefix>, city, <district2>, district1, country.
-        Then look it up in the place dictionary
-        Update place with -- lat, lon, district, city, country_iso, result code
-        """
-        place.parse_place(place_name=location, geo_files=self.geo_files)
-
-        if self.country_is_valid(place):
-            # place.country_name = self.geo_files.country.get_name(place.country_iso)
-            self.logger.debug(f'Find LOCATION Type=[{Place.place_type_name_dict[place.place_type]}] City=[{place.city1}] Adm2=[{place.admin2_name}]\
-    Adm1=[{place.admin1_name}] Prefix=[{place.prefix}] cname=[{place.country_name}] iso=[{place.country_iso}]')
-            # Lookup location
-            self.geo_files.geodb.lookup_place(place=place)
-        else:
-            place.target = place.country_name
-            # No country - try city lookup without country
-            if len(place.admin1_name) > 0 and place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
-                place.city1 = place.admin1_name
-                place.target = place.admin1_name
-                place.place_type = Place.PlaceType.CITY
-                self.geo_files.geodb.lookup_place(place=place)
-                if len(place.georow_list) == 0:
-                    place.result_type = GeoKeys.Result.NO_COUNTRY
-
-        # Process the results
-        self.process_result(place=place, targ_name=place.target)
-
-    def process_result(self, place: Place.Place, targ_name) -> None:
-        # Copy geodata to place record and Put together status text
-        self.logger.debug(f'**PROCESS RESULT:  Type={place.result_type_text}.  Geoid_list={place.georow_list}')
-        if place.result_type in GeoKeys.successful_match:
-            self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
-
-        self.set_place_type(place=place)
-        place.status = f'{place.result_type_text} "{st.capwords(targ_name)}" {result_text_list.get(place.result_type)} '
-
-    def set_place_type(self, place: Place.Place):
-        if place.result_type == GeoKeys.Result.NO_COUNTRY:
-            place.result_type_text = 'Country'
-        if place.place_type == Place.PlaceType.CITY:
-            place.result_type_text = GeoKeys.type_names.get(place.feature)
-            if place.result_type_text is None:
-                place.result_type_text = 'City/Place'
-        elif place.place_type == Place.PlaceType.ADMIN1:
-            place.result_type_text = self.get_district1_type(place.country_iso)
-        else:
-            place.result_type_text = Place.place_type_name_dict[place.place_type]
+        place.set_place_type()
 
     @staticmethod
     def get_district1_type(iso) -> str:
         # Return the local country term for Admin1 district
         if iso in ["al", "ie"]:
-            return "County"
+            return "COUNTY"
         elif iso in ["us", "at", "bm", "br", "de"]:
-            return "State"
+            return "STATE"
         elif iso in ["ac", "an", 'ao', 'bb', 'bd']:
-            return "Parish"
+            return "PARISH"
         elif iso in ["ae"]:
-            return "Emirate"
+            return "EMIRATE"
         elif iso in ["bc", "bf", "bh", "bl", "bn"]:
-            return "District"
+            return "DISTRICT"
         elif iso in ["gb"]:
             return "Country"
         else:
-            return "Province"
+            return "PROVINCE"
 
     def read(self) -> bool:
         """ Read in geo name files which contain place names and their lat/lon.

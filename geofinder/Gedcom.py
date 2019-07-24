@@ -38,9 +38,7 @@ class Gedcom:
         self.build = False
         self.logger = logging.getLogger(__name__)
         self.progress_bar = progress
-
-        # Gedcom regex:          Digits for level,   @  for label,   text for tag,   text for value
-        self.regex = re.compile(r"^(?P<level>\d+)\s+(?P<label>@\S+@)?\s*(?P<tag>\S+)\s+(?P<value>.*)")
+        self.output_latlon = False    # todo enable lat lon output
 
         # Parts of GEDCOM line - Level label tag value
         self.level: int = 0
@@ -80,6 +78,9 @@ class Gedcom:
         if err:
             # File is not there.  Build it - it is a dictionary of GED Name_IDs to Names
             self.build_person_dictionary()
+
+        if self.output_latlon is False:
+            self.logger.warning('### OUTPUT OF LAT/LON IS DISABLED ###')
 
     def open(self, in_path) -> bool:
         # Open GEDCOM file
@@ -135,8 +136,11 @@ class Gedcom:
                     self.outfile.write(line)
 
     def parse_gedcom(self, line: str):
+        # Gedcom file regex:          Digits for level,   @  for label,   text for tag,   text for value
+        regex = re.compile(r"^(?P<level>\d+)\s+(?P<label>@\S+@)?\s*(?P<tag>\S+)\s+(?P<value>.*)")
+
         """ Parse GEDCOM line to Level, Label (if present), Tag, Value. """
-        matches: Match = self.regex.match(line)
+        matches: Match = regex.match(line)
 
         if matches is not None:
             self.tag = matches.group('tag')  # GEDCOM tag
@@ -151,7 +155,7 @@ class Gedcom:
             self.label = ''
 
     def collect_event_details(self):
-        """Keep track of details for event - last name, event date, and tag in GEDCOM file."""
+        """ Collect details for event - last name, event date, and tag in GEDCOM file."""
 
         # Text for event tags
         event_names = {'DEAT': 'Death', 'CHR': 'Christening', 'BURI': 'Burial', 'BIRT': 'Birth',
@@ -170,26 +174,24 @@ class Gedcom:
                     self.last_tag_name = self.tag
                 else:
                     self.logger.info(f'NO label line {self.line_num} tag {self.tag}')
-
-        if self.tag == 'NAME':
-            self.name = self.value
-
-        if self.tag == 'HUSB':
-            # We cheat on the Family tag and just use the Husbands name
-            self.name = self.value
-
-        if self.tag == 'DATE':
-            self.date = self.value
-
-        # Store name of events that have Locations
-        if self.tag in event_names:
-            self.last_tag_name = event_names[self.tag]
+        elif self.level == 1:
             self.date = ''
-        elif self.tag == 'TYPE':
-            self.last_tag_name = self.value
-            self.date = ''
-        elif self.tag != 'DATE' and self.tag != 'PLAC':
-            self.last_tag_name = self.tag
+            if self.tag == 'NAME':
+                self.name = self.value
+            if self.tag == 'HUSB':
+                # We cheat on the Family tag and just use the Husbands name
+                self.name = self.value
+            # Store name of events that have Locations
+            if self.tag in event_names:
+                self.last_tag_name = event_names[self.tag]
+                self.date = ''
+            elif self.tag == 'TYPE':
+                self.last_tag_name = self.value
+            elif self.tag != 'DATE' and self.tag != 'PLAC':
+                self.last_tag_name = self.tag
+        elif self.level == 2:
+            if self.tag == 'DATE':
+                self.date = self.value
 
     def build_person_dictionary(self):
         """
@@ -216,7 +218,6 @@ class Gedcom:
 
     def get_name(self, nam: str, depth: int = 0) -> str:
         # Get name of person we are currently on
-        self.logger.debug(f'Get name {nam}')
         nm = self.person_cd.dict.get(self.id)
         if nm is not None:
             if nm[0] == '@' and depth < 4:
@@ -246,8 +247,9 @@ class Gedcom:
 
     def write_lat_lon(self, lat: float, lon: float):
         """ Write out a GEDCOM PLACE MAP entry with latitude and longitude. """
-        return
-        # todo enable lat lon output
+        if self.output_latlon is False:
+            return
+
         if self.out_path is not None:
             map_level: int = self.level + 1
             lati_level: int = self.level + 2

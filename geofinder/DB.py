@@ -132,12 +132,8 @@ class DB:
         for query in query_list:
             row_list = self.select(query.where, from_tbl, query.args)
             #self.logger.debug(f'select x from {from_tbl}  where {query.where} val={query.args}')
-            if len(row_list) == 1:
+            if len(row_list) >0:
                 res = query.result  # Set specified success code
-                # Found match.  Break out of loop
-                break
-            elif len(row_list) > 1:
-                res = Result.MULTIPLE_MATCHES
                 # Found match.  Break out of loop
                 break
 

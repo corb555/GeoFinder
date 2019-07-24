@@ -16,19 +16,16 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-import typing
-from collections import namedtuple, defaultdict
 
 # The tab separated columns in geoname.org file rows are as follows
-from geofinder import GeodataFiles, GeoKeys
+from geofinder import GeodataFiles, GeoKeys, GeoDB
 from geofinder.FileReader import FileReader
 from geofinder.Place import Place
 
-AltNameRow = namedtuple('AltNameRow', 'name lang geo_id')
-GeoDict = defaultdict(typing.List)
+ALT_GEOID = 1
+ALT_LANG = 2
+ALT_NAME = 3
 
-
-# NOT CURRENTLY USED
 
 class AlternateNames(FileReader):
     """
@@ -40,37 +37,41 @@ class AlternateNames(FileReader):
 
     def __init__(self, directory_name: str, filename: str, progress_bar, geo_files: GeodataFiles):
         super().__init__(directory_name, filename, progress_bar)
-
         self.cache_changed: bool = False
         self.sub_dir = GeoKeys.cache_directory(self.directory)
         self.geo_files: GeodataFiles.GeodataFiles = geo_files
+        self.place = Place()
 
-    def handle_line(self, count, line_num, row):
-        place = Place()
+    def read(self) -> bool:
+        self.geo_files.geodb.db.begin()
+        res = super().read()
+        self.geo_files.geodb.db.commit()
+        return res
 
-        lang_list = ['en']  # Languages we want to support for alternate names
-
+    def handle_line(self, line_num, row):
         alt_tokens = row.split('\t')
         if len(alt_tokens) != 10:
             self.logger.debug(f'Incorrect number of tokens: {alt_tokens} line {line_num}')
             return
-        alt_data = AltNameRow(lang=alt_tokens[2], name=alt_tokens[3], geo_id=alt_tokens[1])
+
         # Alternate names are in multiple languages.  Only add if item is an 'en' lang
-        if alt_data.lang in lang_list:
+        if alt_tokens[ALT_LANG] in ['en']:
             # Add this alias to geoname db if there is already an entry (geoname DB is filtered based on feature)
-            geo_rowlist = self.geo_files.get_lookup(alt_data.geo_id)
-            if geonames_key is not None:
-                typ, iso, name, admin1 = GeoKeys.split_key(geonames_key)
-                self.geo_files.get_geodata(geo_id=alt_data.geo_id, place=place)
-                # create new key by replacing place name and keeping the rest of the key
-                new_key = modify_key(geonames_key=geonames_key, new_name=alt_data.name)
-                lat: float = float(place.lat)
-                lon: float = float(place.lon)
-                new_row = GeodataFiles.GeoRow(name=place.name,
-                                              lat=lat, lon=lon, admin1_id=place.admin1_id,
-                                              admin2_id=place.admin2_id, f_code=place.feature,
-                                              geo_id=place.id)
-                if new_row is not None:
-                    self.geo_files.add_to_geoname_dict(key=new_key, new_row=new_row, geo_id=alt_data.geo_id, iso=iso)
-                    count += 1
-        return count
+            # See if item has a primary entry with same GEOID in Admin DB
+            dbid = self.geo_files.geodb.geoid_admin_dict.get(alt_tokens[ALT_GEOID])
+            if dbid is not None:
+                self.place.target = dbid
+                self.geo_files.geodb.lookup_admin_dbid(place=self.place)
+
+            # See if item has a primary entry with same GEOID in Main DB
+            dbid = self.geo_files.geodb.geoid_main_dict.get(alt_tokens[ALT_GEOID])
+            if dbid is not None:
+                self.place.target = dbid
+                self.geo_files.geodb.lookup_main_dbid(place=self.place)
+
+            if len(self.place.georow_list) > 0:
+                # convert to list  and modify name
+                lst = list(self.place.georow_list[0])
+                lst[GeoDB.Entry.NAME] = GeoKeys.normalize(alt_tokens[ALT_NAME])
+                new_row = tuple(lst)
+                self.geo_files.geodb.insert(geo_row=new_row, feat_code=lst[GeoDB.Entry.FEAT])

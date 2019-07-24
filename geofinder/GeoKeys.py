@@ -54,16 +54,16 @@ def cache_directory(path):
     """ Return the directory for cache files """
     return os.path.join(path, "cache")
 
-
 def semi_normalize(name) -> str:
     """ Strip spaces and normalize spelling for items such as Saint and County """
     # Replacement patterns to clean up entries
     res = re.sub('saint |st. ', 'st ', name)  # Normalize Saint
     res = re.sub(r' co\.', ' county', res)  # Normalize County
     res = re.sub('  +', ' ', res)  # Strip multiple space
+    res = re.sub('county of ([^,]+)', r'\g<1> county', res)  # Normalize 'Township of X' to 'X Township'
     res = re.sub('township of ([^,]+)', r'\g<1> township', res)  # Normalize 'Township of X' to 'X Township'
+    res = re.sub('cathedral of ([^,]+)', r'\g<1> cathedral', res)  # Normalize 'Township of X' to 'X Township'
     return res
-
 
 def normalize(res) -> str:
     """ Strip commas. Also strip spaces and normalize spelling for items such as Saint and County and chars   ø ß """

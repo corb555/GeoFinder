@@ -24,7 +24,7 @@ from typing import List, Dict
 
 class Widge:
     """
-    These  routines provide a simplified wrapper for Tkint and some helper functions
+    These  routines provide helper functions for Tkint including standardized get and set text.
     """
 
     @staticmethod
@@ -93,6 +93,38 @@ class Widge:
             widget.grid(row=grd[name][1], column=grd[name][0], padx=grd[name][2],
                         pady=grd[name][3], sticky=grd[name][4])
 
+
+class CEntry(ttk.Entry):
+    """ Add support for Undo/Redo to TextEntry on Ctl-Z, shift Ctl-y"""
+    def __init__(self, parent, *args, **kwargs):
+        ttk.Entry.__init__(self, parent,*args,  **kwargs)
+        self.changes = [""]
+        self.steps = int()
+        self.bind("<Control-z>", self.undo)
+        self.bind("<Control-y>", self.redo)
+        self.bind("<Key>", self.add_changes)
+
+    def insert(self, idx, txt):
+        self.changes = [""]
+        self.steps = int()
+        super().insert(idx,txt)
+
+    def undo(self, event=None):
+        if self.steps != 0:
+            self.steps -= 1
+            self.delete(0, END)
+            super().insert(END, self.changes[self.steps])
+
+    def redo(self, event=None):
+        if self.steps < len(self.changes):
+            self.delete(0, END)
+            super().insert(END, self.changes[self.steps])
+            self.steps += 1
+
+    def add_changes(self, event=None):
+        if self.get() != self.changes[-1]:
+            self.changes.append(self.get())
+            self.steps += 1
 
 """
     def add_to_layer(self, layer, command, coords, **kwargs):

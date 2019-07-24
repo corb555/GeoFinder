@@ -21,7 +21,7 @@ from tkinter import *
 from tkinter import ttk
 from tkinter.ttk import *
 
-from geofinder import CachedDictionary
+from geofinder import CachedDictionary, GFStyle
 from geofinder.Widge import Widge
 
 BUTTON_WIDTH = 6
@@ -51,10 +51,18 @@ class ListboxFrame:
         self.separator = "   ::   "
         self.dirty_flag = False  # Flag to track if data was modified
 
-        self.title_label = ttk.Label(self.frame, text=self.title, width=80)
-        self.status = ttk.Label(self.frame, text="Highlight items above to remove and click Remove.", width=80)
+        """
+        self.prefix: ttk.Label = ttk.Label(self.root, width=GFStyle.TXT_WID, style='Highlight.TLabel')
+        self.scrollbar = ttk.Scrollbar(self.root)
+        self.listbox = tkinter.Listbox(self.root, height=15, bg=GFStyle.LT_GRAY, borderwidth=0, selectmode=SINGLE)
+        self.search_button: ttk.Button = ttk.Button(self.root, text="search", command=self.main.search_handler,
+                                                    width=GFStyle.BTN_WID, image=self.images['search'], compound="left")
+        """
+
+        self.title_label = ttk.Label(self.frame, text=self.title, width=80, style='Info.TLabel')
+        self.status = ttk.Label(self.frame, text="Highlight items above to remove and click Remove.", width=80, style='Info.TLabel')
         self.scrollbar = Scrollbar(self.frame)
-        self.listbox = Listbox(self.frame, width=80, height=15, bg='gray92', selectmode=MULTIPLE,
+        self.listbox = Listbox(self.frame, width=80, height=15, bg=GFStyle.LT_GRAY, selectmode=MULTIPLE,
                                yscrollcommand=self.scrollbar.set)
         self.remove_button = ttk.Button(self.frame, text="remove", command=self.delete_handler, width=BUTTON_WIDTH)
 
@@ -97,7 +105,6 @@ class ListboxFrame:
         items = lbox.curselection()
         for line in items:
             tokens = lbox.get(line).split(self.separator)
-            print(f"delete: [{tokens[0]}]")
             dct.pop(tokens[0], None)
 
         self.load_handler()  # Reload display
@@ -115,5 +122,4 @@ class ListboxFrame:
 
     def write(self):
         # Write out cache file
-        print(f'Write {self.cache.fname}')
         self.cache.write()

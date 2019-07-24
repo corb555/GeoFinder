@@ -28,7 +28,7 @@ from tkinter import ttk
 from tkinter.ttk import *
 from typing import List
 
-from geofinder import CachedDictionary, Geodata, GeoKeys, ListboxFrame, SetupCountriesFrame, SetupErrorFrame, SetupFeatureFrame
+from geofinder import CachedDictionary, Geodata, GeoKeys, ListboxFrame, SetupCountriesFrame, SetupErrorFrame, SetupFeatureFrame, GFStyle
 
 try:
     import unidecode
@@ -61,27 +61,35 @@ class ReviewWindow:
         self.logger.info('Setup')
 
         self.directory: str = os.path.join(str(Path.home()), Geodata.Geodata.get_directory_name())
-
         self.cache_dir = GeoKeys.cache_directory(self.directory)
         self.logger.debug(f'Home dir {self.directory} Sub Dir {self.cache_dir}')
-        self.window = Tk()
-        self.bg_color: str = "gray92"
-        self.style: ttk.Style = ttk.Style()
+
         self.config: CachedDictionary.CachedDictionary = CachedDictionary.CachedDictionary(self.cache_dir, "config.pkl")
-        self.config.read()
         self.frames: List[Frame] = []
         self.listbox_list: List[ListboxFrame] = []
         self.error = ""
 
         if not os.path.exists(self.directory):
-            self.logger.info(f'Creating folder {self.directory}')
+            self.logger.info(f'Creating main folder {self.directory}')
             os.makedirs(self.directory)
 
-        # Create App window
-        self.create_app_window("geoUtil")
+        if not os.path.exists(self.cache_dir):
+            self.logger.info(f'Creating cache folder {self.cache_dir}')
+            os.makedirs(self.cache_dir)
 
-        # Verify config -  test to see if gedcom file accessible 
+        self.config.read()
+        # Verify config -  test to see if gedcom file accessible
         self.get_config()
+
+        # Create App window
+        self.root = Tk()
+        self.root["padx"] = 30
+        self.root["pady"] = 30
+        self.root.title('GeoUtil')
+
+        # Setup styles
+        self.root.configure(background=GFStyle.BG_COLOR)
+        GFStyle.GFStyle()
 
         # Add Multiple tabs
         tab_list = ["Errors", "Countries", "Skip List", "Global Replace", "Features"]
@@ -97,7 +105,6 @@ class ReviewWindow:
 
         # Country Tab -  (has text entry box to add items)
         self.logger.debug('=====country frame')
-
         self.country_list = SetupCountriesFrame.SetupCountriesFrame(self.frames[1],
                                                                     "We will only load geo data for these countries:",
                                                                     self.directory, self.cache_dir, "country_list.pkl")
@@ -105,49 +112,41 @@ class ReviewWindow:
 
         # Skiplist Tab - ListboxFrame (simple list)
         self.logger.debug('=====skiplist frame')
-
-        self.skip_list = ListboxFrame.ListboxFrame(self.frames[2], "Skiplist - Ignore these errors",
+        self.skip_list = ListboxFrame.ListboxFrame(self.frames[2], "Skiplist - Ignore errors for these places",
                                                    self.cache_dir, "skiplist.pkl")
         self.listbox_list.append(self.skip_list)
 
         # GlobalReplace Tab- ListboxFrame (simple list)
-        self.logger.debug('=====glb replace frame')
-
+        self.logger.debug('=====gbl replace frame')
         self.replace_list = ListboxFrame.ListboxFrame(self.frames[3], "Global Replace  - Replace these errors",
                                                       self.cache_dir, "global_replace.pkl")
         self.listbox_list.append(self.replace_list)
 
         # Feature tab
         self.logger.debug('=====Feature frame')
-
         self.feature_list = SetupFeatureFrame.SetupFeatureFrame(self.frames[4],
-                                                                "We will only load geo data for these features:",
+                                                                "We will load data for these geoname feature types:",
                                                                 self.cache_dir, "feature_list.pkl")
         self.listbox_list.append(self.feature_list)
 
         # Create Help button below frames
-        self.help_button = ttk.Button(self.window, text="help", command=self.help_handler, width=10)
+        self.help_button = ttk.Button(self.root, text="help", command=self.help_handler, width=10)
         self.help_button.grid(row=1, column=0, sticky="E", pady=9, padx=8)
 
         # Create Quit button below frames
-        self.quit_button = ttk.Button(self.window, text="exit", command=self.quit_handler, width=10)
+        self.quit_button = ttk.Button(self.root, text="quit", command=self.quit_handler, width=10)
         self.quit_button.grid(row=1, column=1, sticky="E", pady=9, padx=8)
 
+        #  write out all cache files
+        for item in self.listbox_list:
+            item.write()
+
         # Start up 
-        self.window.mainloop()  # Loop getting user actions. We are now controlled by user window actions
-
-    def create_app_window(self, title):
-        self.window.title(title)
-        self.window.columnconfigure(0, weight=1)
-
-        self.window.style = ttk.Style()
-        self.window.style.theme_use("clam")
-        self.window.style.configure('.', font=('Helvetica', 14))
-        self.window.configure(bg="gray92")
+        self.root.mainloop()  # Loop getting user actions. We are now controlled by user window actions
 
     def create_tabs(self, tabs_list):
-        nb = ttk.Notebook(self.window)
-        nb.grid(row=0, column=0, columnspan=2)
+        nb = ttk.Notebook(self.root, style='TNotebook')
+        nb.grid(row=0, column=0, columnspan=2, pady=9, padx=8)
         for element in tabs_list:
             frame = Frame()
             nb.add(frame, text=element)
@@ -160,7 +159,7 @@ class ReviewWindow:
         webbrowser.open(help_base)
 
     def quit_handler(self):
-        # Close all the lists - write out cache files
+        #  write out all cache files
         for item in self.listbox_list:
             item.write()
 
@@ -174,7 +173,7 @@ class ReviewWindow:
                 else:
                     self.logger.warning(f'Delete file not found {path}')
 
-        self.window.quit()
+        self.root.quit()
         sys.exit()
 
     def get_config(self):

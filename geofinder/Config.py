@@ -31,31 +31,31 @@ class Config:
         self.config_cd: CachedDictionary
         self.config_cd = None
 
-    def get(self, param):
-        return self.config_cd.dict.get(param)
+    def get(self, param)->str:
+        res = self.config_cd.dict.get(param)
+        if res is None:
+            res = ''
+        return res
 
-    def set(self, name, val):
+    def set(self, name:str, val:str):
         self.config_cd.dict[name] = val
 
     def write(self):
         self.config_cd.write()
 
-    def read(self, directory, fname):
+    def read(self, directory, fname:str):
         """ Read config file  """
         self.logger.debug(f'config read {directory} {fname}')
         # Verify main directory exists
         if not os.path.exists(directory):
             self.logger.warning(f"{directory} folder not found.")
-            Widge.fatal_error(f"{directory} folder not found.  Please run Setup.py")
+            Widge.fatal_error(f"{directory} folder not found.  Please run GeoUtil.py to correct")
 
         self.config_cd = CachedDictionary.CachedDictionary(directory, fname)
         self.config_cd.read()
 
         if self.config_cd.error:
             self.logger.error(f'Config {os.path.join(directory, fname)} not found')
-
-            if not os.path.exists(directory):
-                os.makedirs(directory)
 
             # Create empty config file
             path = os.path.join(directory, "config.pkl")

@@ -25,7 +25,7 @@ from tkinter import ttk
 from tkinter.ttk import *
 from typing import Dict
 
-from geofinder import CachedDictionary, GeoKeys
+from geofinder import CachedDictionary, GeoKeys, GFStyle
 from geofinder.Widge import Widge
 
 
@@ -56,16 +56,15 @@ class SetupErrorFrame:
         self.supported_countries_cd.read()
         self.supported_countries_dct: Dict[str, str] = self.supported_countries_cd.dict
 
-        print(f'country list len={len(self.supported_countries_dct)}')
+        self.logger.debug(f'country list len={len(self.supported_countries_dct)}')
 
-        # self.geofiles = GeodataFiles.GeodataFiles(self.directory, progress_bar=None, geo_district=None)
         self.grd = {"title_label": [0, 0, 5, 5, "W"], "scrollbar": [1, 2, 0, 5, "WNS"], "status": [0, 1, 5, 5, "W"], "add_button": [2, 4, 5, 5, "W"],
                     "listbox": [0, 2, 5, 5, "E"], "unused": [2, 3, 5, 5, "W"], "add_entry": [0, 4, 5, 5, "W"], "load_button": [2, 1, 5, 5, "W"],
                     "remove_button": [2, 1, 5, 5, "W"], "add_label": [0, 3, 5, 5, "EW"]}
-        self.title_label = ttk.Label(frame, text=self.title, width=80)
-        self.status = ttk.Label(frame, text=" ", width=80)
+        self.title_label = ttk.Label(frame, text=self.title, width=80,style='Info.TLabel')
+        self.status = ttk.Label(frame, text=" ", width=80, style='Highlight.TLabel')
         self.scrollbar = Scrollbar(frame)
-        self.listbox = Listbox(frame, width=80, height=20, bg='gray92', selectmode=MULTIPLE,
+        self.listbox = Listbox(frame, width=80, height=20, bg=GFStyle.LT_GRAY, selectmode=MULTIPLE,
                                yscrollcommand=self.scrollbar.set)
 
         # Configure buttons and widgets
@@ -118,7 +117,7 @@ class SetupErrorFrame:
             self.error_dict[res] = ''
 
         if len(self.error_dict) > 0:
-            # Missing files     
+            # Missing files
             for item in sorted(self.error_dict):
                 if len(self.error_dict[item]) > 1:
                     self.listbox.insert(END, "{}:   {}".format(item, self.error_dict[item]))
@@ -126,7 +125,6 @@ class SetupErrorFrame:
                     self.listbox.insert(END, "{}".format(item))
         else:
             Widge.set_text(self.status, "No configuration errors detected")
-
             # Load in list and display
             self.listbox.delete(0, END)
 
@@ -156,20 +154,13 @@ class SetupErrorFrame:
 
     def configure_widgets(self):
         # Grid config for each widget: {name:[col, row, xpad, ypad, sticky]}
-
         # Create COLUMN 0 widgets
         self.config_grid(self.title_label, "title_label")
-
         self.config_grid(self.status, "status")
 
         # Create COLUMN 1 widgets
-
         self.config_grid(self.listbox, "listbox")
         self.scrollbar.config(command=self.listbox.yview)
-
-        # self.remove_button = ttk.Button(frm, text="remove", command=self.delete_handler, width=6)
-        # self.config_grid(self.remove_button, "remove_button")
-
         self.config_grid(self.scrollbar, "scrollbar")
 
     @staticmethod

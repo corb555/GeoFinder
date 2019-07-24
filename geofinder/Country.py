@@ -314,6 +314,7 @@ country_dict = {
     'United Kingdom': ('GB', 'GBR', '826', '54', '-2'),
     'United States': ('US', 'USA', '840', '38', '-97'),
     'U.S.A.': ('US', 'USA', '840', '38', '-97'),
+    'USA': ('US', 'USA', '840', '38', '-97'),
     'United States Minor Outlying Islands': ('UM', 'UMI', '581', '19.2833', '166.6'),
     'Uruguay': ('UY', 'URY', '858', '-33', '-56'),
     'Uzbekistan': ('UZ', 'UZB', '860', '41', '64'),

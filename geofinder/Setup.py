@@ -13,6 +13,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/corb555/GeoFinder",
     packages=setuptools.find_packages(),
+    package_data={'geofinder': ['images/*.gif']},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD 2-Clause License",

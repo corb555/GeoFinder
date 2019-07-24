@@ -22,7 +22,7 @@ from tkinter import *
 from tkinter import ttk
 from tkinter.ttk import *
 
-from geofinder import Country, GeodataFiles, ListboxFrame
+from geofinder import Country, GeodataFiles, ListboxFrame, GFStyle
 from geofinder.Widge import Widge
 
 
@@ -40,10 +40,10 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
         self.logger = logging.getLogger(__name__)
         self.logger.debug(f'SetupConfigureCountries dir {dir_name} cache dir {cache_dir} file {cache_filename}')
 
-        self.add_label = ttk.Label(frame, text="Select countries below to add to supported list and click Add")
+        self.add_label = ttk.Label(frame, text="Select countries below to add to supported list and click Add",style='Info.TLabel')
         self.add_button = ttk.Button(frame, text="add", command=self.add_handler, width=ListboxFrame.BUTTON_WIDTH)
         self.scrollbar2 = Scrollbar(frame)
-        self.listbox_all_countries = Listbox(frame, width=80, height=15, bg='gray92', selectmode=MULTIPLE,
+        self.listbox_all_countries = Listbox(frame, width=80, height=15, bg=GFStyle.LT_GRAY, selectmode=MULTIPLE,
                                              yscrollcommand=self.scrollbar2.set)
         self.country_dict = {}
         super().__init__(frame, title, cache_dir, cache_filename)
