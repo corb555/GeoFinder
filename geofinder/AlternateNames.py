@@ -35,15 +35,17 @@ class AlternateNames(FileReader):
     FileReader calls handle_line every time it reads a line
     """
 
-    def __init__(self, directory_name: str, filename: str, progress_bar, geo_files: GeodataFiles):
+    def __init__(self, directory_name: str, filename: str, progress_bar, geo_files: GeodataFiles, lang_list):
         super().__init__(directory_name, filename, progress_bar)
         self.cache_changed: bool = False
         self.sub_dir = GeoKeys.cache_directory(self.directory)
         self.geo_files: GeodataFiles.GeodataFiles = geo_files
+        self.lang_list = lang_list
         self.place = Place()
 
     def read(self) -> bool:
         self.geo_files.geodb.db.begin()
+        # Read in file.  This will call handle_line for each file line
         res = super().read()
         self.geo_files.geodb.db.commit()
         return res
@@ -54,23 +56,23 @@ class AlternateNames(FileReader):
             self.logger.debug(f'Incorrect number of tokens: {alt_tokens} line {line_num}')
             return
 
-        # Alternate names are in multiple languages.  Only add if item is an 'en' lang
-        if alt_tokens[ALT_LANG] in ['en']:
+        # Alternate names are in multiple languages.  Only add if item is in requested lang
+        if alt_tokens[ALT_LANG] in self.lang_list:
             # Add this alias to geoname db if there is already an entry (geoname DB is filtered based on feature)
             # See if item has a primary entry with same GEOID in Admin DB
             dbid = self.geo_files.geodb.geoid_admin_dict.get(alt_tokens[ALT_GEOID])
             if dbid is not None:
                 self.place.target = dbid
                 self.geo_files.geodb.lookup_admin_dbid(place=self.place)
-
-            # See if item has a primary entry with same GEOID in Main DB
-            dbid = self.geo_files.geodb.geoid_main_dict.get(alt_tokens[ALT_GEOID])
-            if dbid is not None:
-                self.place.target = dbid
-                self.geo_files.geodb.lookup_main_dbid(place=self.place)
+            else:
+                # See if item has a primary entry with same GEOID in Main DB
+                dbid = self.geo_files.geodb.geoid_main_dict.get(alt_tokens[ALT_GEOID])
+                if dbid is not None:
+                    self.place.target = dbid
+                    self.geo_files.geodb.lookup_main_dbid(place=self.place)
 
             if len(self.place.georow_list) > 0:
-                # convert to list  and modify name
+                # convert to list  and modify name and add to DB
                 lst = list(self.place.georow_list[0])
                 lst[GeoDB.Entry.NAME] = GeoKeys.normalize(alt_tokens[ALT_NAME])
                 new_row = tuple(lst)

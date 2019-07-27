@@ -33,10 +33,11 @@ class Place:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.clear()
+        self.event_year : int = 0
 
     def clear(self):
         # Place geo info
-        self.name = ""
+        self.name : str= ""
         self.lat: float = float('NaN')  # Latitude
         self.lon: float = float('NaN')  # Longitude
         self.country_iso: str = ""  # Country ISO code
@@ -50,7 +51,8 @@ class Place:
         self.feature: str = ''  # Geoname feature code
         self.place_type: int = PlaceType.COUNTRY  # Is this a Country , Admin1 ,admin2 or city?
         self.target: str = ''  # Target for lookup
-        self.geoid = ''
+        self.geoid : str = ''
+        self.prefix_commas : str = ''
 
         # Lookup result info
         self.status: str = ""
@@ -72,6 +74,7 @@ class Place:
 
         tokens = place_name.split(",")
         token_count = len(tokens)
+        self.place_type = PlaceType.CITY
 
         # Parse City, Admin2, Admin2, Country scanning from the right.  When there are more tokens, we capture more fields
         # Place type is the leftmost item we found - either City, Admin2, Admin2, or Country
@@ -142,9 +145,9 @@ class Place:
 
             # Assign remaining tokens (if any) to prefix
             for item in tokens[0:-4]:
-                self.prefix += item + ','
+                self.prefix += item + ' '
 
-        self.logger.debug(f"*** PARSE  City [{self.city1}] Adm2 [{self.admin2_name}]"
+        self.logger.debug(f"*** PARSE  #={token_count} City [{self.city1}] Adm2 [{self.admin2_name}]"
                           f"  Adm1 [{self.admin1_name}] Cntry [{self.country_name}] Pref={self.prefix} Typ={place_type_name_dict[self.place_type]}")
         return
 
@@ -164,6 +167,9 @@ class Place:
 
     def format_full_name(self):
         """ Take the parts of a Place and build fullname.  e.g. pref, city,adm2,adm1,country name """
+        if len(self.prefix) > 0:
+            self.prefix_commas = ', '
+
         if self.admin1_name is None:
             self.admin1_name = ''
         if self.admin2_name is None:
@@ -172,17 +178,19 @@ class Place:
         if self.place_type == PlaceType.ADMIN1:
             nm = f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
             if len(self.prefix) > 0:
-                self.prefix = self.prefix + ', , '
+                self.prefix_commas = ', , , '
         elif self.place_type == PlaceType.COUNTRY:
             nm = f"{st.capwords(self.country_name)}"
         elif self.place_type == PlaceType.ADMIN2:
             nm = f"{st.capwords(self.admin2_name)}," \
                 f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
             if len(self.prefix) > 0:
-                self.prefix = self.prefix + ', '
+                self.prefix_commas = ', , '
         else:
-            nm = f"{st.capwords(self.city1)}, {st.capwords(self.admin2_name)}," \
-                f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
+            nm = f"{st.capwords(self.city1)}, {st.capwords(self.admin2_name)}, " \
+                f"{st.capwords(self.admin1_name)}, {st.capwords(str(self.country_name))}"
+
+        self.logger.debug(f'[{self.prefix}][{self.prefix_commas}][{nm}]')
         return nm
 
 

@@ -20,7 +20,6 @@
 import logging
 from typing import Dict
 
-# special help to simplify entering UK items
 from geofinder import GeoDB, GeoKeys
 
 
@@ -30,6 +29,7 @@ class C_Row:
     NUM = 2
     LAT = 3
     LON = 4
+
 
 class Country:
     def __init__(self, progress, geodb):
@@ -48,8 +48,6 @@ class Country:
 
         # list of all countries and their ISO codes
         # This also includes some common aliases
-
-        # name, iso2, iso3,CC,lat,lon
         self.geodb.db.begin()
 
         #  create lowercase dictionary and reverse dictionary - iso to name
@@ -69,9 +67,8 @@ class Country:
             self.geodb.insert(geo_row=geo_row, feat_code='ADM0')
 
         self.geodb.db.commit()
-
-
         return False
+
 
 country_dict = {
     'Afghanistan': ('AF', 'AFG', '4', '33', '65'),

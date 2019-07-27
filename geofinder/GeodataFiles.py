@@ -30,30 +30,22 @@ from geofinder import CachedDictionary, Country, GeoDB, GeoKeys, Place, Alternat
 
 class GeodataFiles:
     """
-    Read in geonames.org geo data files and place the entries in dictionaries.
-    Once that slow conversion is down, cache the dictionaries in Python Pickle files
-    Items that have Feature Class matching Adm1 are placed in dictionary with @A in key,
-    others are placed in  dictionary with @P in key.
-    The dictionary data entry contains: Lat, Long, and districtID (County or State or Province ID)
-    The dictionary key is the place name, admin1 (state/province) and country (created by  function make_key)
-    Only items whose feature code is in feature_code list are included.
+    Read in geonames.org geo data files, filter them and place the entries in sqlite db.
 
     The files must be downloaded from geonames.org and used according to their usage rules.
     
     geoname_data - Any of the following: gb.TXT (or other country), allCountries.txt, cities500.txt, etc.
-                   Some of these files are large and take a long time to process.
-    
-    The files are large and parsing them is slow.  To speed this up, once the files are read they are output to a Python
-    pickle file.  On the next startup the pickle file is read rather than the original geonames files unless the directory has
-    been updated.
+
+    The geoname file is filtered to only include the countries and feature codes specified in the country_list
+    dictionary (stored in a pickle file) and the feature_list dictionary (also from a pickle)
          
-         There is a separate GeoUtil.py utility which allows users to:
-             1. set country list config file.  Only entries for those countries will be read.    "country_list.pkl"
-             2. set the feature list for features to include
-             3. if files or the above are changed, the utility deletes the cache file and we rebuild it here
+     There is a separate GeoUtil.py utility which allows users to:
+         1. edit country list config file.  Only entries for those countries will be read.    "country_list.pkl"
+         2. edit the geoname feature list.  Only those geonames features are included.  "features.pkl"
+         3. if files or the above are changed, the utility deletes the DB
     """
 
-    def __init__(self, directory: str, progress_bar):  # , geo_district):
+    def __init__(self, directory: str, progress_bar):
         self.logger = logging.getLogger(__name__)
         self.geodb = None
         self.directory: str = directory
@@ -63,23 +55,27 @@ class GeodataFiles:
         sub_dir = GeoKeys.cache_directory(self.directory)
         self.country = None
 
+        # Read in dictionary listing Geoname features we should include
         self.feature_code_list_cd = CachedDictionary.CachedDictionary(sub_dir, "feature_list.pkl")
         self.feature_code_list_cd.read()
         self.feature_code_list_dct: Dict[str, str] = self.feature_code_list_cd.dict
 
+        # Read in dictionary listing countries (ISO2) we should include
         self.supported_countries_cd = CachedDictionary.CachedDictionary(sub_dir, "country_list.pkl")
         self.supported_countries_cd.read()
         self.supported_countries_dct: Dict[str, str] = self.supported_countries_cd.dict
 
         self.entry_place = Place.Place()
+
+        # Support for Geonames AlternateNames file.  Adds alternate names for entries
         self.alternate_names = AlternateNames.AlternateNames(directory_name=self.directory,
                                                              geo_files=self,progress_bar=self.progress_bar,
-                                                             filename='alternateNamesV2.txt')
+                                                             filename='alternateNamesV2.txt', lang_list=['en'])
 
     def read(self) -> bool:
         """
         .. module:: read
-        :synopsis: Read in geoname data from cache file if available or read each geoname.org file and place in cache file.
+        :synopsis: Read in dictionary for supported countries and features
         :returns: True if error
         """
         # Read list of Supported countries and features - only these countries/features will be loaded from geoname data
@@ -125,7 +121,7 @@ class GeodataFiles:
                     # No error if DB has over 1000 records
                     return False
 
-        # DB  is stale or not available, rebuild it
+        # DB  is stale or not available, rebuild it from geoname files
         self.geodb = GeoDB.GeoDB(os.path.join(cache_dir, 'geodata.db'))
         self.country = Country.Country(self.progress_bar, geodb=self.geodb)
 
@@ -175,17 +171,9 @@ class GeodataFiles:
         return False
 
     def add_admin_aliases(self):
-        # name='q', iso='q', adm1='q', adm2='q', lat=900, lon=900, feat='q', id='q')
-        """
+        """ Add in aliases for some Admin items """
         alias_list = [
-            ('brittany','fr', '53', '', 48.16667, -2.83333, 'ADM1','3030293'),
-            ('normandy', 'fr', '28', '', 49.19906, 0.49988, 'ADM1', '11071621'),
             ('burgundy', 'fr', '28', '', 47.06981, 5.04822, 'ADM1', '11071619'),
-            ('prussia', 'de', '', '', 51.0, 9.0, 'ADM0', 'de'),
-            ('North Rhine-Westphalia', 'de', '07', '', 51.21895, 6.76339, 'ADM1', '2861876')
-        ] """
-
-        alias_list = [
             ('prussia', 'de', '', '', 51.0, 9.0, 'ADM0', 'de')
         ]
 
@@ -242,7 +230,7 @@ class GeodataFiles:
             return True
 
     def insert_line(self, geoname_row):
-        # Create Geo_row
+        # Create Geo_row and insert into DB
         # ('paris', 'fr', '07', '012', 12.345, 45.123, 'PPL', '34124')
         geo_row = [None] * 8
         geo_row[GeoDB.Entry.NAME] = GeoKeys.normalize(geoname_row.name)

@@ -125,7 +125,7 @@ class GeoDB:
             self.get_admin2_id(place=place)
             self.select_city(place)
 
-        self.build_result_list(place.georow_list)
+        self.build_result_list(place.georow_list, place.event_year)
 
         if len(place.georow_list) == 0:
             place.result_type = Result.NO_MATCH
@@ -178,6 +178,12 @@ class GeoDB:
             query_list.append(Query(where="name = ? AND country = ?",
                                 args=(lookup_target, place.country_iso),
                                 result=Result.EXACT_MATCH))
+        elif len(place.admin2_name) > 0:
+            # lookup by name
+            # admin1 wasnt entered, so a match here is an exact match
+            query_list.append(Query(where="name = ? AND admin2_id=? AND country = ?",
+                                args=(lookup_target, place.admin2_id, place.country_iso),
+                                result=Result.EXACT_MATCH))
         else:
             # lookup by name (partial match since user specified admin)
             query_list.append(Query(where="name = ? AND country = ?",
@@ -201,14 +207,14 @@ class GeoDB:
 
         # Try each query until we find a match - each query gets less exact
         query_list = [
-            Query(where="name = ? AND country = ? AND admin1_id = ?",
-                  args=(lookup_target, place.country_iso, place.admin1_id),
+            Query(where="name = ? AND country = ? AND admin1_id = ? AND f_code=?",
+                  args=(lookup_target, place.country_iso, place.admin1_id, 'ADM2'),
                   result=Result.EXACT_MATCH),
-            Query(where="name = ? AND country = ?",
-                  args=(lookup_target, place.country_iso),
+            Query(where="name = ? AND country = ? AND f_code=?",
+                  args=(lookup_target, place.country_iso, 'ADM2'),
                   result=Result.PARTIAL_MATCH),
-            Query(where="name LIKE ? AND country = ?",
-                  args=(self.create_wildcard(lookup_target), place.country_iso),
+            Query(where="name LIKE ? AND country = ? AND f_code=?",
+                  args=(self.create_wildcard(lookup_target), place.country_iso, 'ADM2'),
                   result=Result.PARTIAL_MATCH)
         ]
 
@@ -284,15 +290,25 @@ class GeoDB:
             return
 
         # Try each query until we find a match - each query gets less exact
-        query_list = [
-            Query(where="name = ? AND country = ? AND admin1_id=?",
-                  args=(lookup_target, place.country_iso, place.admin1_id),
-                  result=Result.EXACT_MATCH),
-            Query(where="name LIKE ? AND country = ? and admin1_id = ? ",
-                  args=(self.create_wildcard(lookup_target), place.country_iso, place.admin1_id),
-                  result=Result.PARTIAL_MATCH)]
+        query_list = []
+        if len(place.admin1_id) > 0:
+            query_list.append(Query(where="name = ? AND country = ? AND admin1_id=? AND f_code=?",
+                      args=(lookup_target, place.country_iso, place.admin1_id, 'ADM2'),
+                      result=Result.EXACT_MATCH) )
+            query_list.append(Query(where="name LIKE ? AND country = ? and admin1_id = ? AND f_code=?",
+                      args=(self.create_wildcard(lookup_target), place.country_iso, place.admin1_id, 'ADM2'),
+                      result=Result.PARTIAL_MATCH))
+        else:
+            query_list.append(Query(where="name = ? AND country = ? AND f_code=?",
+                      args=(lookup_target, place.country_iso, 'ADM2'),
+                      result=Result.EXACT_MATCH) )
+            query_list.append(Query(where="name LIKE ? AND country = ? AND f_code=?",
+                      args=(self.create_wildcard(lookup_target), place.country_iso, 'ADM2'),
+                      result=Result.PARTIAL_MATCH))
 
         row_list, res = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
+
+        self.logger.debug(f'get adm2 id nm={lookup_target} res={row_list}')
 
         if len(row_list) > 0:
             row = row_list[0]
@@ -357,7 +373,7 @@ class GeoDB:
                   result=Result.EXACT_MATCH)]
 
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
-        self.build_result_list(place.georow_list)
+        self.build_result_list(place.georow_list, place.event_year)
 
     def lookup_geoid(self, place: Place)->None:
         """Search for GEOID"""
@@ -434,7 +450,7 @@ class GeoDB:
 
     def copy_georow_to_place(self, row, place: Place):
         # Copy data from DB row into Place
-        self.logger.debug(row)
+        #self.logger.debug(row)
         place.city1 = row[Entry.NAME]
         place.country_iso = row[Entry.ISO]
         place.country_name = self.get_country_name(row[Entry.ISO])
@@ -502,11 +518,22 @@ class GeoDB:
         else:
             return prior
 
-    def build_result_list(self, georow_list):
+    def validate_year_for_location(self, event_year:int, iso:str, admin1:str)->bool:
+        start_year = location_name_start_year.get(iso)
+        self.logger.debug(f'Val year:  loc year={start_year}  event yr={event_year}')
+        if start_year is None:
+            start_year = -1
+        if event_year < start_year and event_year != 0:
+            return False
+        else:
+            return True
+
+    def build_result_list(self, georow_list, event_year:int):
         # Create a sorted version of result_list without any dupes
         # Add note if we hit the lookup limit
+        # Discard location names that didnt exist at time of event
         if len(georow_list) > 299:
-            georow_list.append(GeoDB.make_georow(name='(plus more...)',iso='q', adm1='0', adm2='0', feat='Q0', lat=99.9, lon=99.9, id='q'))
+            georow_list.append(GeoDB.make_georow(name='(plus more...)',iso='US', adm1=' ', adm2=' ', feat='Q0', lat=99.9, lon=99.9, id='q'))
 
         # sort list by State/Province id, and County id
         list_copy = sorted(georow_list, key=itemgetter(Entry.ADM1, Entry.ADM2))
@@ -520,6 +547,10 @@ class GeoDB:
         # Create new list without dupes (adjacent items with same name and same lat/lon)
         # Find if two items with same name are similar lat/lon (within Box Distance of 0.5 degrees)
         for geo_row in list_copy:
+            if self.validate_year_for_location(event_year, geo_row[Entry.ISO], geo_row[Entry.ADM1]) is False:
+                # Skip location if location name  didnt exist at the time of event
+                continue
+
             if geo_row[Entry.NAME] != prev_geo_row[Entry.NAME]:
                 # Name is different.  Add previous item
                 georow_list.append(geo_row)
@@ -541,3 +572,5 @@ feature_priority = {'ADM1': 22, 'PPL': 21, 'PPLA': 20, 'PPLA2': 19, 'PPLA3': 18,
                     'NVB': 12,
                     'PPLF': 11, 'DEFAULT': 10, 'ADM0': 10, 'PPLL': 10, 'PPLQ': 9, 'PPLR': 8, 'PPLS': 7, 'PPLW': 6, 'PPLX': 5, 'BTL': 4, 'PPLCH': 3,
                     'PPLH': 2, 'STLMT': 1, 'CMTY': 1, 'VAL': 1}
+
+location_name_start_year = {'ca': 1605, 'us': 1620}

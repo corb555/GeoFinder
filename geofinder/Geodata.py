@@ -37,7 +37,7 @@ class Geodata:
         self.status = "geoname file error"
         self.directory: st = directory_name
         self.progress_bar = progress_bar  # progress_bar
-        self.geo_files = GeodataFiles.GeodataFiles(self.directory, progress_bar=self.progress_bar)  # , geo_district=self.geo_district)
+        self.geo_files = GeodataFiles.GeodataFiles(self.directory, progress_bar=self.progress_bar)
 
     def find_location(self, location: str, place: Place.Place):
         """
@@ -67,7 +67,7 @@ class Geodata:
 
     def process_result(self, place: Place.Place, targ_name) -> None:
         # Copy geodata to place record and Put together status text
-        self.logger.debug(f'**PROCESS RESULT:  Res={place.result_type}  Geoid_list={place.georow_list}')
+        self.logger.debug(f'**PROCESS RESULT:  Res={place.result_type}  Georow_list={place.georow_list}')
         if place.result_type in GeoKeys.successful_match:
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
 

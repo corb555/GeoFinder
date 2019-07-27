@@ -18,16 +18,15 @@
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 import logging
-import tkinter
-import tkinter.font
+import tkinter as tk
 from tkinter import ttk
 from typing import List
 
 import pkg_resources
 
 import geofinder.GFStyle as GFStyle
-from geofinder import Progress, Tooltip
 import geofinder.Widge
+from geofinder import Progress, Tooltip
 
 # Columns for widgets:
 # [0 PADDING]  [1 TEXT    with span 2]  [3 Buttons]
@@ -45,7 +44,7 @@ class AppLayout:
         self.logger = logging.getLogger(__name__)
         self.main = main
 
-        self.root = tkinter.Tk()
+        self.root = tk.Tk()
         self.root.title("geofinder")
         self.root["padx"] = 0
         self.root["pady"] = 20
@@ -63,12 +62,12 @@ class AppLayout:
         self.images = {}
         for icon_name in ("map", "verify", "save", "skip", "help", "exit", "play", "folder", "search"):
             path = pkg_resources.resource_filename(__name__, f'images/{icon_name}.gif')
-            self.images[icon_name] = tkinter.PhotoImage(file=path)
+            self.images[icon_name] = tk.PhotoImage(file=path)
 
         self.root.update()
 
     def create_initialization_widgets(self):
-        """ Create the  widgets for display during initialization  (GEDCOM File open)  """
+        """ Create the  widgets for display during initialization  (File open)  """
         self.pad: ttk.Label = ttk.Label(self.root, text=" ", width=2, style='Light.TLabel')
         self.title: ttk.Label = ttk.Label(self.root, text="Geo Finder", width=30, style='Large.TLabel')
         self.line_number_label: ttk.Label = ttk.Label(self.root, text="", width=GFStyle.BTN_WID, style='Tiny.TLabel')
@@ -124,9 +123,19 @@ class AppLayout:
         self.prefix: ttk.Label = ttk.Label(self.root, width=GFStyle.TXT_WID, style='Highlight.TLabel')
 
         self.scrollbar = ttk.Scrollbar(self.root)
-        self.listbox = tkinter.Listbox(self.root, height=15, bg=GFStyle.LT_GRAY, borderwidth=0, selectmode='single')
-        self.listbox.config(yscrollcommand=self.scrollbar.set)
-        self.scrollbar.config(command=self.listbox.yview)
+
+        self.tree=ttk.Treeview(self.root, style="Plain.Treeview", selectmode="browse")
+        self.tree.tag_configure('odd', background=GFStyle.ODD_ROW_COLOR)
+        self.tree.tag_configure('even', background='white')
+
+        self.tree["columns"]=("pre",)
+        self.tree.column("#0", width=500, minwidth=100, stretch=tk.NO)
+        self.tree.column("pre", width=180, minwidth=5, stretch=tk.NO)
+        self.tree.heading("#0",text="   Location", anchor=tk.W)
+        self.tree.heading("pre", text="   Prefix",anchor=tk.W)
+
+        self.tree.config(yscrollcommand=self.scrollbar.set)
+        self.scrollbar.config(command=self.tree.yview)
 
         self.ged_event_info: ttk.Label = ttk.Label(self.root, text=" ", width=GFStyle.TXT_WID, style='Light.TLabel')
         self.line_number_label: ttk.Label = ttk.Label(self.root, text="", width=6, style='Light.TLabel')
@@ -155,25 +164,23 @@ class AppLayout:
 
         # Set grid layout for column 0 (TXT_COL) Widgets
         # The first 8 are set span to 2 columns because the listbox has a scrollbar next to it
-        self.ged_event_info.grid(column=TXT_COL, row=7, padx=0, pady=6, sticky="W", columnspan=2)
         self.title.grid(column=TXT_COL, row=0, padx=0, pady=12, sticky="N", columnspan=2)
         self.prog.bar.grid(column=TXT_COL, row=1, padx=0, pady=5, sticky="EW", columnspan=2)
         self.original_entry.grid(column=TXT_COL, row=2, padx=0, pady=5, sticky="EWS", columnspan=2)
         self.user_edit.grid(column=TXT_COL, row=3, padx=0, pady=0, sticky="EWN", columnspan=2)
-        self.prefix.grid(column=TXT_COL, row=4, padx=0, pady=0, sticky="EW", columnspan=2)
-        self.status.grid(column=TXT_COL, row=5, padx=0, pady=0, sticky="EW", columnspan=2)
+        self.status.grid(column=TXT_COL, row=4, padx=0, pady=0, sticky="EW", columnspan=2)
+        self.tree.grid(column=TXT_COL, row=5, padx=0, pady=5, sticky="EW")
+        self.ged_event_info.grid(column=TXT_COL, row=7, padx=0, pady=6, sticky="W", columnspan=2)
         self.footnote.grid(column=TXT_COL, row=12, padx=0, pady=5, sticky="EW", columnspan=2)
 
-        self.listbox.grid(column=TXT_COL, row=6, padx=0, pady=5, sticky="EW")
-
         # Column 1 - just the scrollbar
-        self.scrollbar.grid(column=SCRL_COL, row=6, padx=0, pady=5, sticky='WNS')
+        self.scrollbar.grid(column=SCRL_COL, row=5, padx=0, pady=5, sticky='WNS')
 
         # Column 2 Widgets
+        self.map_button.grid(column=BTN_COL, row=1, padx=GFStyle.BTN_PADX, pady=6, sticky="NE")
         self.search_button.grid(column=BTN_COL, row=2, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
-        self.verify_button.grid(column=BTN_COL, row=3, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
-        self.save_button.grid(column=BTN_COL, row=4, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
-        self.map_button.grid(column=BTN_COL, row=5, padx=GFStyle.BTN_PADX, pady=6, sticky="NE")
+        self.verify_button.grid(column=BTN_COL, row=4, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
+        self.save_button.grid(column=BTN_COL, row=5, padx=GFStyle.BTN_PADX, pady=6, sticky="NE")
         self.skip_button.grid(column=BTN_COL, row=6, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
         self.help_button.grid(column=BTN_COL, row=8, padx=GFStyle.BTN_PADX, pady=5, sticky="E")
         self.quit_button.grid(column=BTN_COL, row=12, padx=GFStyle.BTN_PADX, pady=6, sticky="SE")
@@ -184,7 +191,7 @@ class AppLayout:
 
         # Track whether user is in Edit box or list box
         self.user_edit.bind("<FocusIn>", self.main.entry_focus_event_handler)
-        self.listbox.bind("<FocusIn>", self.main.list_focus_event_handler)
+        self.tree.bind("<FocusIn>", self.main.list_focus_event_handler)
 
         # Tooltips
         footnote_text = 'This uses data from GeoNames.org. This work is licensed under a Creative Commons Attribution 4.0 License,\

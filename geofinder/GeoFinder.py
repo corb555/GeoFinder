@@ -22,7 +22,7 @@ import os
 import sys
 import webbrowser
 from pathlib import Path
-from tkinter import filedialog, END
+from tkinter import filedialog
 from tkinter import messagebox
 
 from geofinder import AppLayout, Gedcom, Geodata, GeoKeys, Place
@@ -31,6 +31,13 @@ from geofinder.Config import Config
 from geofinder.Widge import Widge
 
 MISSING_FILES = 'Missing Files.  Please run GeoUtil.py and correct errors in Errors Tab'
+
+odd_tag = ('odd',)
+even_tag = ('even',)
+
+LOC_TOKEN = 1
+PREFIX_TOKEN = 2
+
 
 class GeoFinder:
     """
@@ -58,11 +65,12 @@ class GeoFinder:
     """
 
     def __init__(self):
-        print('geofinder')
+        print('GeoFinder')
         self.shutdown_requested: bool = False  # Flag to indicate user requested shutdown
         self.save_enabled = False  # Only allow SAVE when we have an item that was matched in geonames
         self.user_selected_list = False  # Indicates whether user selected a list entry or text edit entry
         self.err_count = 0
+        self.odd = False
 
         self.logger = self.setup_logging('geofinder Init')
         # Save our base directory and cache directory
@@ -164,7 +172,7 @@ class GeoFinder:
         self.clear_detail_text(self.place)
 
         while True:
-            self.err_count += 1
+            self.err_count += 1    # Counter is used to periodically update status
             # Find the next PLACE entry in GEDCOM file
             # Process it and keep looping until we need user input
             self.place.clear()
@@ -178,16 +186,17 @@ class GeoFinder:
             if self.global_replace.get(town_entry) is not None:
                 # There is a global change that we can apply to this line.  Get the replacement text
                 replacement = self.global_replace.get(town_entry)
-                self.logger.debug(f'Found GblRep {replacement} for {town_entry}')
+                # self.logger.debug(f'Found GblRep {replacement} for {town_entry}')
 
                 # get lat long and write out to gedcom output file
-                tokens = replacement.split('@')
-                self.geodata.find_geoid(tokens[1], self.place)
+                rep_token = replacement.split('@')
+                self.geodata.find_geoid(rep_token[LOC_TOKEN], self.place)
 
                 # Get prefix if there was one
-                if len(tokens) > 2:
-                    self.place.prefix = tokens[2]
+                if len(rep_token) > 2:
+                    self.place.prefix = rep_token[PREFIX_TOKEN]
 
+                # Output place to GEDCOM file
                 self.gedcom_output_place(self.place)
 
                 # Display status to user
@@ -203,12 +212,12 @@ class GeoFinder:
                 self.logger.debug(f'Found Accept {replacement} for {town_entry}')
 
                 # get lat long and write out to gedcom output file
-                tokens = replacement.split('@')
-                self.geodata.find_geoid(tokens[1], self.place)
+                rep_token = replacement.split('@')
+                self.geodata.find_geoid(rep_token[LOC_TOKEN], self.place)
 
                 # Get prefix if there was one
-                if len(tokens) > 2:
-                    self.place.prefix = tokens[2]
+                if len(rep_token) > 2:
+                    self.place.prefix = rep_token[PREFIX_TOKEN]
 
                 self.gedcom_output_place(self.place)
 
@@ -223,7 +232,7 @@ class GeoFinder:
                 # User requested shutdown.  Finish up going thru file, then shut down
                 self.periodic_update("Shutting Down...")
                 Widge.set_text(self.w.original_entry, " ")
-                self.gedcom.write(self.place.name)
+                self.gedcom.write(town_entry)
                 continue
             elif self.skiplist.get(town_entry) is not None:
                 # item is in skiplist - Write out as-is and go to next error
@@ -236,6 +245,7 @@ class GeoFinder:
                 # See if it is in our place database
                 # Parse the entry into Prefix, City, Admin2, Admin1, Country
                 self.place.parse_place(place_name=town_entry, geo_files=self.geodata.geo_files)
+                self.place.event_year = int(self.gedcom.year)  # Set place date to event date (as geo names change over time)
                 self.geodata.find_location(town_entry, self.place)
 
                 if self.place.result_type in GeoKeys.successful_match:
@@ -247,7 +257,7 @@ class GeoFinder:
                             self.periodic_update("Shutting down...")
                         else:
                             self.periodic_update("Scanning")
-                        # Add to global replace list
+                        # Add to global replace list - Use '@' for tokenizing.  Save LOC_TOKEN and PREFIX_TOKEN
                         res = '@' + self.place.geoid + '@' + self.place.prefix
 
                         self.global_replace.set(town_entry, res)
@@ -273,15 +283,22 @@ class GeoFinder:
         # Have user review the result
         self.display_result(self.place)
 
+    def get_list_selection(self):
+        # Get the item the user selected in list (tree)
+        loc = (self.w.tree.item(self.w.tree.selection(), "text"))
+        prefix = (self.w.tree.item(self.w.tree.selection())['values'][0])
+        return f'{prefix}, {loc}'
+
     def verify_handler(self):
         """ User clicked verify.  Verify if the users new Place entry has a match in geonames data.  """
         # Do we verify item from listbox or from text edit field?
         if self.user_selected_list:
             # User selected item from listbox - get listbox selection
-            town_entry = self.w.listbox.get(self.w.listbox.curselection())
+            town_entry = self.get_list_selection()
+
             # Update the user edit widget with the List selection item
             Widge.set_text(self.w.user_edit, town_entry)
-            # Since we are verifying, Get unique match.  don't try partial match
+            # Since we are verifying users choice, Get first match.  don't try partial match
             self.geodata.find_first_match(town_entry, self.place)
         else:
             # User typed in text entry window - get edit field value and look it up
@@ -296,7 +313,7 @@ class GeoFinder:
         Widge.enable_buttons(self.w.review_buttons)
         Widge.set_text(self.w.user_edit, place.name)
 
-        # Enable/disable action buttons based on result type
+        # Enable action buttons based on type of result
         if place.result_type == GeoKeys.Result.MULTIPLE_MATCHES or \
                 place.result_type == GeoKeys.Result.NO_MATCH or \
                 place.result_type == GeoKeys.Result.NO_COUNTRY:
@@ -318,30 +335,37 @@ class GeoFinder:
         else:
             self.w.status.configure(style="Error.TLabel")
 
-        # Display prefix if it was required
-        if len(place.prefix) > 0:
-            Widge.set_text(self.w.prefix, 'PREFIX= ' + place.prefix)
-        else:
-            Widge.set_text(self.w.prefix, ' ')
-
         if len(place.georow_list) > 0:
-            # Display match(es) in listbox
-            self.w.listbox.focus()  # Set focus to listbox
+            # Display matches in listbox
+            self.w.tree.focus()  # Set focus to listbox
             self.display_georow_list(place)
         else:
             # No matches
             self.w.user_edit.focus()  # Set focus to text edit widget
-            self.set_detail_text_line(place.status_detail)
+            self.display_one_georow(place.status_detail)
 
         # Display GEDCOM person and event that this location refers to
         Widge.set_text(self.w.ged_event_info, f'{self.gedcom.get_name(self.gedcom.id)}: {self.gedcom.last_tag_name} {self.gedcom.date}')
         self.w.root.update_idletasks()
 
+    def list_insert(self, text, prefix):
+        self.odd = not self.odd
+        if self.odd:
+            tag = odd_tag
+        else:
+            tag = even_tag
+        self.w.tree.insert('', "end", "", text=text, values=(prefix,), tags=tag)
+
+    def clear_display_list(self):
+        self.odd = False
+        for row in self.w.tree.get_children():
+            self.w.tree.delete(row)
+
     def display_georow_list(self, place: Place.Place):
-        """ Display list of matches in listbox """
+        """ Display list of matches in listbox (tree) """
 
         # Clear listbox
-        self.w.listbox.delete(0, END)
+        self.clear_display_list()
 
         temp_place = copy.copy(place)
 
@@ -349,7 +373,7 @@ class GeoFinder:
         for geo_row in place.georow_list:
             self.geodata.geo_files.geodb.copy_georow_to_place(geo_row, temp_place)
             nm = temp_place.format_full_name()
-            self.w.listbox.insert(END, f'{temp_place.prefix}{nm}')
+            self.list_insert(nm, temp_place.prefix)
 
         self.w.root.update_idletasks()
 
@@ -463,14 +487,16 @@ class GeoFinder:
         return "break"
 
     def clear_detail_text(self, place):
-        self.set_detail_text_line(" ")
-        self.w.listbox.insert(END, " ")
-        self.w.listbox.delete(0, END)
+        self.odd = False
+        self.clear_display_list()
         place.georow_list.clear()
 
-    def set_detail_text_line(self, txt):
-        self.w.listbox.delete(0, END)
-        self.w.listbox.insert(END, txt)
+    def display_one_georow(self, txt):
+
+        self.logger.debug(f'DISP ONE ROW {txt}')
+        self.clear_display_list()
+        #self.w.scrollbar.grid_remove()  # Just one item, so hide scrollbar
+        self.list_insert(txt, '')
 
     def display_country_note(self) -> int:
         """ display warning if only a small number of countries are enabled """
@@ -495,10 +521,9 @@ class GeoFinder:
 
     def gedcom_output_place(self, place: Place.Place):
         # Write out location and lat/lon to gedcom file
-        # self.logger.debug(f'place {place.city1}, {place.admin2_name}, {place.admin1_name},'
-        #                 f' {place.country_name} {place.lat} {place.lon}')
         nm = place.format_full_name()
-        self.gedcom.write(place.prefix + nm)
+        self.logger.debug(f'ged write [{place.prefix}][{place.prefix_commas}][{nm}]')
+        self.gedcom.write(place.prefix + place.prefix_commas + nm)
         self.gedcom.write_lat_lon(lat=place.lat, lon=place.lon)
 
     def shutdown(self):
