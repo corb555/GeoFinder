@@ -16,7 +16,6 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-import datetime
 import logging
 import os
 import re
@@ -40,22 +39,23 @@ class Gedcom:
         self.progress_bar = progress
         self.output_latlon = False    # todo enable lat lon output
 
-        # Parts of GEDCOM line - Level label tag value
+        # Sections of a GEDCOM line - Level, label, tag, value
         self.level: int = 0
         self.label: str = ""
         self.tag: str = ""
         self.value: str = ""
 
         # GEDCOM  meta data
-        self.line_num: int = 0
         self.id: str = ''
         self.name: str = ""
-        self.year: int = 0
+        self.event_year: int = 0
+        self.event_name: str = ""
+
+        self.line_num: int = 0
         self.filesize = 0
         self.infile = None
         self.out_path: str = out_path
         self.error = False
-        self.last_tag_name: str = ""
 
         if out_path is not None:
             # Create an output file with same name with "out.ged" appended
@@ -155,7 +155,7 @@ class Gedcom:
             self.label = ''
 
     def clear_date(self):
-        self.year = 0
+        self.event_year = 0
         self.date = ''
 
     def collect_event_details(self):
@@ -175,7 +175,7 @@ class Gedcom:
                 if self.label is not None:
                     self.id = self.label
                     self.name = self.label
-                    self.last_tag_name = self.tag
+                    self.event_name = self.tag
                 else:
                     self.logger.info(f'NO label line {self.line_num} tag {self.tag}')
         elif self.level == 1:
@@ -187,12 +187,12 @@ class Gedcom:
                 self.name = self.value
             # Store name of events that have Locations
             if self.tag in event_names:
-                self.last_tag_name = event_names[self.tag]
+                self.event_name = event_names[self.tag]
                 self.clear_date()
             elif self.tag == 'TYPE':
-                self.last_tag_name = self.value
+                self.event_name = self.value
             elif self.tag != 'DATE' and self.tag != 'PLAC':
-                self.last_tag_name = self.tag
+                self.event_name = self.tag
         elif self.level == 2:
             if self.tag == 'DATE':
                 self.set_date(self.value)
@@ -200,7 +200,7 @@ class Gedcom:
     def set_date(self, date:str):
         """ Set Date and Parse string for date/year and set Gedcom year of event """
         self.date = date
-        self.year = 0
+        self.event_year = 0
         if len(date) > 0:
             tkn = date.split(' ')
             for elem in tkn:
@@ -209,7 +209,7 @@ class Gedcom:
                 except ValueError:
                     year = 0
                 if year > 32:
-                    self.year = year
+                    self.event_year = year
                     break
 
     def build_person_dictionary(self):
@@ -245,7 +245,7 @@ class Gedcom:
         else:
             nm = self.name
 
-        self.logger.debug(f'{nm}: [{self.last_tag_name}] [{self.date}]')
+        self.logger.debug(f'{nm}: [{self.event_name}] [{self.date}]')
 
         return nm.replace('/', '')
 

@@ -190,7 +190,7 @@ class Place:
             nm = f"{st.capwords(self.city1)}, {st.capwords(self.admin2_name)}, " \
                 f"{st.capwords(self.admin1_name)}, {st.capwords(str(self.country_name))}"
 
-        self.logger.debug(f'[{self.prefix}][{self.prefix_commas}][{nm}]')
+        #self.logger.debug(f'[{self.prefix}][{self.prefix_commas}][{nm}]')
         return nm
 
 

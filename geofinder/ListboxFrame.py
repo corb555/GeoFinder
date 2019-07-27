@@ -84,6 +84,14 @@ class ListboxFrame:
     def load_handler(self):
         # Load in list and display
         self.listbox.delete(0, END)
+        # Remove erroneous None key
+        """
+        try:
+            del self.dict[None]
+        except KeyError:
+            pass
+        """
+
         for item in sorted(self.dict):
             if len(self.dict[item]) > 1:
                 self.listbox.insert(END, f"{item}{self.separator}{self.dict[item]}")

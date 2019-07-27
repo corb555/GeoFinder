@@ -230,7 +230,7 @@ class GeodataFiles:
             return True
 
     def insert_line(self, geoname_row):
-        # Create Geo_row and insert into DB
+        # Create Geo_row and inses
         # ('paris', 'fr', '07', '012', 12.345, 45.123, 'PPL', '34124')
         geo_row = [None] * 8
         geo_row[GeoDB.Entry.NAME] = GeoKeys.normalize(geoname_row.name)

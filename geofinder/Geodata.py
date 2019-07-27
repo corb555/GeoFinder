@@ -37,7 +37,7 @@ class Geodata:
         self.status = "geoname file error"
         self.directory: st = directory_name
         self.progress_bar = progress_bar  # progress_bar
-        self.geo_files = GeodataFiles.GeodataFiles(self.directory, progress_bar=self.progress_bar)
+        self.geo_files = GeodataFiles.GeodataFiles(self.directory, progress_bar=self.progress_bar)  # , geo_district=self.geo_district)
 
     def find_location(self, location: str, place: Place.Place):
         """

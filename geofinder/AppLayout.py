@@ -68,11 +68,11 @@ class AppLayout:
 
     def create_initialization_widgets(self):
         """ Create the  widgets for display during initialization  (File open)  """
-        self.pad: ttk.Label = ttk.Label(self.root, text=" ", width=2, style='Light.TLabel')
-        self.title: ttk.Label = ttk.Label(self.root, text="Geo Finder", width=30, style='Large.TLabel')
-        self.line_number_label: ttk.Label = ttk.Label(self.root, text="", width=GFStyle.BTN_WID, style='Tiny.TLabel')
-        self.original_entry: ttk.Label = ttk.Label(self.root, text=" ", width=50, style='Info.TLabel')
-        self.status: ttk.Label = ttk.Label(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
+        self.pad: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
+        self.title: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="Geo Finder", width=30, style='Large.TLabel')
+        #self.line_number_label: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="", width=GFStyle.BTN_WID, style='Tiny.TLabel')
+        self.original_entry: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=50, style='Info.TLabel')
+        self.status: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
         self.prog: Progress.Progress = Progress.Progress(self.root, bar_color=GFStyle.HIGH_COLOR, trough_color=GFStyle.LT_GRAY, status=self.status)
         self.quit_button: ttk.Button = ttk.Button(self.root, text="quit", command=self.main.shutdown,
                                                   width=GFStyle.BTN_WID_WD, image=self.images['exit'], compound="left")
@@ -114,13 +114,13 @@ class AppLayout:
         self.remove_initialization_widgets()  # Remove old widgets
 
         """ Create all the buttons and entry fields for normal running """
-        self.pad: ttk.Label = ttk.Label(self.root, text=" ", width=2, style='Light.TLabel')
-        self.title: ttk.Label = ttk.Label(self.root, text="Geo Finder", width=30, style='Large.TLabel')
+        self.pad: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
+        self.title: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="Geo Finder", width=30, style='Large.TLabel')
 
-        self.original_entry: ttk.Label = ttk.Label(self.root, text="   ", width=GFStyle.TXT_WID, style='Light.TLabel')
+        self.original_entry: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="   ", width=GFStyle.TXT_WID, style='Light.TLabel')
         self.user_edit: geofinder.Widge.CEntry = geofinder.Widge.CEntry(self.root, text="   ", width=GFStyle.TXT_WID, font=(GFStyle.FNT_NAME, 14))
-        self.status: ttk.Label = ttk.Label(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
-        self.prefix: ttk.Label = ttk.Label(self.root, width=GFStyle.TXT_WID, style='Highlight.TLabel')
+        self.status: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
+        self.prefix: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, width=GFStyle.TXT_WID, style='Highlight.TLabel')
 
         self.scrollbar = ttk.Scrollbar(self.root)
 
@@ -137,9 +137,8 @@ class AppLayout:
         self.tree.config(yscrollcommand=self.scrollbar.set)
         self.scrollbar.config(command=self.tree.yview)
 
-        self.ged_event_info: ttk.Label = ttk.Label(self.root, text=" ", width=GFStyle.TXT_WID, style='Light.TLabel')
-        self.line_number_label: ttk.Label = ttk.Label(self.root, text="", width=6, style='Light.TLabel')
-        self.footnote: ttk.Label = ttk.Label(self.root, text="Data is from GeoNames.org.  Hover for details",
+        self.ged_event_info: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=GFStyle.TXT_WID, style='Light.TLabel')
+        self.footnote: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="Data is from GeoNames.org.  Hover for details",
                                              width=GFStyle.TXT_WID, style='Light.TLabel')
 
         self.prog: Progress.Progress = Progress.Progress(self.root, bar_color=GFStyle.HIGH_COLOR, trough_color=GFStyle.LT_GRAY, status=self.status)
@@ -204,7 +203,6 @@ class AppLayout:
         Tooltip.Tooltip(self.root, self.search_button, text="Bring up search in browser")
         Tooltip.Tooltip(self.root, self.map_button, text="Bring up map in browser")
         Tooltip.Tooltip(self.root, self.save_button, text="Save this replacement")
-        Tooltip.Tooltip(self.root, self.line_number_label, text="GEDCOM line number")
         Tooltip.Tooltip(self.root, self.skip_button, text="Ignore this error and write out unmodified")
 
         self.review_buttons: List[ttk.Button] = [self.save_button, self.search_button, self.verify_button,

@@ -94,10 +94,24 @@ class Widge:
                         pady=grd[name][3], sticky=grd[name][4])
 
 
+class CLabel(ttk.Label):
+    def __init__(self, parent, **kwargs):
+        ttk.Label.__init__(self, parent, **kwargs)
+
+    def get_text(self) -> str:
+        """ Get the text of a widget """
+        return self.cget("text")
+
+    def set_text(self, text: str):
+        """ Set the text of a widget """
+        self.configure(text=text)
+
+
 class CEntry(ttk.Entry):
     """ Add support for Undo/Redo to TextEntry on Ctl-Z, shift Ctl-y"""
+
     def __init__(self, parent, *args, **kwargs):
-        ttk.Entry.__init__(self, parent,*args,  **kwargs)
+        ttk.Entry.__init__(self, parent, *args, **kwargs)
         self.changes = [""]
         self.steps = int()
         self.bind("<Control-z>", self.undo)
@@ -107,7 +121,7 @@ class CEntry(ttk.Entry):
     def insert(self, idx, txt):
         self.changes = [""]
         self.steps = int()
-        super().insert(idx,txt)
+        super().insert(idx, txt)
 
     def undo(self, event=None):
         if self.steps != 0:
@@ -125,6 +139,16 @@ class CEntry(ttk.Entry):
         if self.get() != self.changes[-1]:
             self.changes.append(self.get())
             self.steps += 1
+
+    def set_text(self, text: str):
+        """ Set the text of a widget """
+        self.delete("0", END)
+        self.insert(0, text)
+
+    def get_text(self) -> str:
+        """ Get the text of a widget """
+        return self.get()
+
 
 """
     def add_to_layer(self, layer, command, coords, **kwargs):
