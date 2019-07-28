@@ -18,6 +18,7 @@
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 
 import logging
+import tkinter as tk
 from tkinter import *
 from tkinter import ttk
 from tkinter.ttk import *
@@ -40,13 +41,34 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
         self.logger = logging.getLogger(__name__)
         self.logger.debug(f'SetupConfigureCountries dir {dir_name} cache dir {cache_dir} file {cache_filename}')
 
-        self.add_label = ttk.Label(frame, text="Select countries below to add to supported list and click Add",style='Info.TLabel')
+
+        self.pad = ttk.Label(frame, text="",style='Info.TLabel')  # blank padding row
+
+        self.add_label = ttk.Label(frame, text="All Countries - Select countries below to add to supported list and click Add",style='Info.TLabel')
         self.add_button = ttk.Button(frame, text="add", command=self.add_handler, width=ListboxFrame.BUTTON_WIDTH)
         self.scrollbar2 = Scrollbar(frame)
-        self.listbox_all_countries = Listbox(frame, width=80, height=15, bg=GFStyle.LT_GRAY, selectmode=MULTIPLE,
-                                             yscrollcommand=self.scrollbar2.set)
+
+        self.listbox_all_countries=ttk.Treeview(frame, style="Plain.Treeview") #, selectmode="browse")
+        self.listbox_all_countries.tag_configure('odd', background=GFStyle.ODD_ROW_COLOR)
+        self.listbox_all_countries.tag_configure('even', background='white')
+
+        self.listbox_all_countries["columns"]=("pre",)
+        self.listbox_all_countries.column("#0", width=400, minwidth=100, stretch=tk.NO)
+        self.listbox_all_countries.column("pre", width=400, minwidth=50, stretch=tk.NO)
+        self.listbox_all_countries.heading("#0",text="Name", anchor=tk.W)
+        self.listbox_all_countries.heading("pre", text="Code",anchor=tk.W)
+
+        self.listbox_all_countries.config(yscrollcommand=self.scrollbar2.set)
+        self.scrollbar2.config(command=self.listbox_all_countries.yview)
+
+        #self.listbox_all_countries = Listbox(frame, width=80, height=15, bg=GFStyle.LT_GRAY, selectmode=MULTIPLE,
+        #                                     yscrollcommand=self.scrollbar2.set)
+
+
         self.country_dict = {}
         super().__init__(frame, title, cache_dir, cache_filename)
+        self.tree.heading("#0",text="Code", anchor=tk.W)
+        self.tree.heading("pre", text="Name",anchor=tk.W)
 
         self.geoFiles = GeodataFiles.GeodataFiles(dir_name, None)
 
@@ -54,6 +76,9 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
 
     def configure_widgets(self, frm):
         super().configure_widgets(frm)
+
+        # Add Lable for allow user to Add to list
+        Widge.set_grid_position(self.pad, "pad", grd=self.grd)
 
         # Add Lable for allow user to Add to list
         Widge.set_grid_position(self.add_label, "add_label", grd=self.grd)
@@ -68,22 +93,26 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
 
     def load_handler_all(self):
         # Load in list of all countries and display
-        self.listbox_all_countries.delete(0, END)
+        #self.listbox_all_countries.delete(0, END)
+        self.clear_display_list(self.listbox_all_countries)
         for name in sorted(Country.country_dict):
             row = Country.country_dict[name]
-            self.listbox_all_countries.insert(END, f"{name.lower()}{self.separator}{row[0].lower()}")
+            #self.listbox_all_countries.insert(END, f"{name.lower()}{self.separator}{row[0].lower()}")
+            self.list_insert(self.listbox_all_countries, f"{name.lower()}", f"{row[0].lower()}")
 
     def add_handler(self):
         # Add items user selected to supported list
-        items = self.listbox_all_countries.curselection()
-        for line in items:
-            print(line)
-            tokens = self.listbox_all_countries.get(line).split(self.separator)
-            print("[{}]  [{}]".format(tokens[0], tokens[1]))
+        # Delete any items in the list that the user selected
 
-            if len(tokens) > 1:
-                self.dict[tokens[1].strip(" ")] = tokens[0].strip(" ")  # Add key for entry to dict
+        items = self.listbox_all_countries.selection()
+        for line in items:
+            col1 = self.listbox_all_countries.item(line, "text")
+            col2 = self.listbox_all_countries.item(line, 'values')[0]
+            print(f"ADD [{col1}]  [{col2}]")
+
+            if len(col2) > 0:
+                self.dict[col2.strip(" ")] = col1.strip(" ")  # Add key for entry to dict
             else:
-                self.dict[tokens[0].strip(" ")] = " "  # Add key for entry to dict
+                self.dict[col1.strip(" ")] = " "  # Add key for entry to dict
 
         super().add_handler()

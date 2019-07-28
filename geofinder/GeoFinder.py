@@ -32,11 +32,11 @@ from geofinder.Widge import Widge
 
 MISSING_FILES = 'Missing Files.  Please run GeoUtil.py and correct errors in Errors Tab'
 
-odd_tag = ('odd',)
-even_tag = ('even',)
-
 GEOID_TOKEN = 1
 PREFIX_TOKEN = 2
+
+odd_tag = ('odd',)
+even_tag = ('even',)
 
 
 class GeoFinder:

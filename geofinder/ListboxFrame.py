@@ -17,14 +17,18 @@
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 import logging
+import tkinter as tk
 from tkinter import *
 from tkinter import ttk
 from tkinter.ttk import *
 
 from geofinder import CachedDictionary, GFStyle
-from geofinder.Widge import Widge
+from geofinder.Widge import Widge as Widge
 
 BUTTON_WIDTH = 6
+# tags to aletrnate colors in list box
+odd_tag = ('odd',)
+even_tag = ('even',)
 
 
 class ListboxFrame:
@@ -40,30 +44,36 @@ class ListboxFrame:
         self.grd = {"title_label": [0, 0, 5, 5, "EW"],
                     "listbox": [0, 1, 5, 5, "EW"], "scrollbar": [1, 1, 0, 5, "WNS"],
                     "status": [0, 2, 5, 5, "EW"], "load_button": [2, 2, 5, 5, "W"], "remove_button": [2, 2, 5, 5, "W"],
-                    "add_label": [0, 3, 5, 5, "EW"], "add_button": [2, 3, 5, 5, "W"],
-                    "add_entry": [0, 4, 5, 5, "EW"], "listbox_all_countries": [0, 4, 5, 5, "EW"], "scrollbar2": [1, 4, 0, 5, "WNS"],
-                    "country_label": [0, 4, 5, 5, "EW"],
-                    "country_entry": [0, 5, 5, 5, "W"], "country_button": [2, 5, 5, 5, "W"],
+                    "pad": [0, 3, 5, 5, "EW"],
+                    "add_label": [0, 4, 5, 5, "EW"], "add_button": [2, 4, 5, 5, "W"],
+                    "add_entry": [0, 5, 5, 5, "EW"], "listbox_all_countries": [0, 5, 5, 5, "EW"], "scrollbar2": [1, 5, 0, 5, "WNS"],
+                    "country_label": [0, 5, 5, 5, "EW"],
+                    "country_entry": [0, 6, 5, 5, "W"], "country_button": [2, 6, 5, 5, "W"],
                     }
 
         self.title = title
         self.frame = frame
         self.separator = "   ::   "
         self.dirty_flag = False  # Flag to track if data was modified
-
-        """
-        self.prefix: ttk.Label = ttk.Label(self.root, width=GFStyle.TXT_WID, style='Highlight.TLabel')
-        self.scrollbar = ttk.Scrollbar(self.root)
-        self.listbox = tkinter.Listbox(self.root, height=15, bg=GFStyle.LT_GRAY, borderwidth=0, selectmode=SINGLE)
-        self.search_button: ttk.Button = ttk.Button(self.root, text="search", command=self.main.search_handler,
-                                                    width=GFStyle.BTN_WID, image=self.images['search'], compound="left")
-        """
+        self.odd = False
 
         self.title_label = ttk.Label(self.frame, text=self.title, width=80, style='Info.TLabel')
         self.status = ttk.Label(self.frame, text="Highlight items above to remove and click Remove.", width=80, style='Info.TLabel')
         self.scrollbar = Scrollbar(self.frame)
-        self.listbox = Listbox(self.frame, width=80, height=15, bg=GFStyle.LT_GRAY, selectmode=MULTIPLE,
-                               yscrollcommand=self.scrollbar.set)
+
+        self.tree=ttk.Treeview(self.frame, style="Plain.Treeview") #, selectmode="browse")
+        self.tree.tag_configure('odd', background=GFStyle.ODD_ROW_COLOR)
+        self.tree.tag_configure('even', background='white')
+
+        self.tree["columns"]=("pre",)
+        self.tree.column("#0", width=400, minwidth=100, stretch=tk.NO)
+        self.tree.column("pre", width=500, minwidth=50, stretch=tk.NO)
+        self.tree.heading("#0",text="Name", anchor=tk.W)
+        self.tree.heading("pre", text="  ",anchor=tk.W)
+
+        self.tree.config(yscrollcommand=self.scrollbar.set)
+        self.scrollbar.config(command=self.tree.yview)
+
         self.remove_button = ttk.Button(self.frame, text="remove", command=self.delete_handler, width=BUTTON_WIDTH)
 
         # Load in list from cache file
@@ -81,39 +91,54 @@ class ListboxFrame:
 
 #todo fix disply of global replace db lookup
 
+    def list_insert(self, tree, col1, col2):
+        self.odd = not self.odd
+        if self.odd:
+            tag = odd_tag
+        else:
+            tag = even_tag
+        tree.insert('', "end", "", text=col1, values=(col2,), tags=tag)
+
+    def clear_display_list(self, tree):
+        self.odd = False
+        for row in tree.get_children():
+            tree.delete(row)
+
     def load_handler(self):
         # Load in list and display
-        self.listbox.delete(0, END)
-        # Remove erroneous None key
-        """
-        try:
-            del self.dict[None]
-        except KeyError:
-            pass
-        """
+        self.clear_display_list(self.tree)
 
         for item in sorted(self.dict):
             if len(self.dict[item]) > 1:
-                self.listbox.insert(END, f"{item}{self.separator}{self.dict[item]}")
+                self.list_insert(self.tree, f"{item}",f"{self.dict[item]}")
             else:
-                self.listbox.insert(END, f"{item}")
+                self.list_insert(self.tree, f"{item}",'')
 
     def delete_handler(self):
         # Delete selected items in list
-        self.delete_items(self.listbox, self.dict)
+        self.delete_items(self.tree, self.dict)
         self.dirty_flag = True
 
     def add_handler(self):
         # add  item to list
         self.load_handler()  # Reload listbox with new data
         self.dirty_flag = True
+    """
+    def get_list_selection(self):
+        # Get the items the user selected in list (tree)
+        col1 = (self.tree.item(self.tree.selection(), "text"))
+        col2 = (self.tree.item(self.tree.selection())['values'][0])
+        return f'{prefix}, {loc}'
+    """
 
-    def delete_items(self, lbox, dct):
+    def delete_items(self, tree, dct):
         # Delete any items in the list that the user selected
-        items = lbox.curselection()
+        items = tree.selection()
         for line in items:
-            tokens = lbox.get(line).split(self.separator)
-            dct.pop(tokens[0], None)
+            col1 = self.tree.item(line, "text")
+            #col2 =
+            self.logger.debug(f'DEL {col1}')
+            dct.pop(col1, None)
 
         self.load_handler()  # Reload display
 
@@ -123,8 +148,7 @@ class ListboxFrame:
     def configure_widgets(self, frm):
         Widge.set_grid_position(self.title_label, "title_label", grd=self.grd)
         Widge.set_grid_position(self.status, "status", grd=self.grd)
-        Widge.set_grid_position(self.listbox, "listbox", grd=self.grd)
-        self.scrollbar.config(command=self.listbox.yview)
+        Widge.set_grid_position(self.tree, "listbox", grd=self.grd)
         Widge.set_grid_position(self.scrollbar, "scrollbar", grd=self.grd)
         Widge.set_grid_position(self.remove_button, "remove_button", grd=self.grd)
 

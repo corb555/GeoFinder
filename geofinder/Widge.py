@@ -22,6 +22,7 @@ from tkinter import ttk, messagebox
 from typing import List, Dict
 
 
+
 class Widge:
     """
     These  routines provide helper functions for Tkint including standardized get and set text.

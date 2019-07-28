@@ -28,7 +28,8 @@ from tkinter import ttk
 from tkinter.ttk import *
 from typing import List
 
-from geofinder import CachedDictionary, Geodata, GeoKeys, ListboxFrame, SetupCountriesFrame, SetupErrorFrame, SetupFeatureFrame, GFStyle
+from geofinder import CachedDictionary, Geodata, GeoKeys, ListboxFrame, SetupCountriesFrame, SetupErrorFrame, SetupFeatureFrame, GFStyle, \
+    SetupReplaceFrame
 
 try:
     import unidecode
@@ -106,7 +107,7 @@ class ReviewWindow:
         # Country Tab -  (has text entry box to add items)
         self.logger.debug('=====country frame')
         self.country_list = SetupCountriesFrame.SetupCountriesFrame(self.frames[1],
-                                                                    "We will only load geo data for these countries:",
+                                                                    "Supported Countries - We will only load geo data for these countries:",
                                                                     self.directory, self.cache_dir, "country_list.pkl")
         self.listbox_list.append(self.country_list)
 
@@ -118,7 +119,7 @@ class ReviewWindow:
 
         # GlobalReplace Tab- ListboxFrame (simple list)
         self.logger.debug('=====gbl replace frame')
-        self.replace_list = ListboxFrame.ListboxFrame(self.frames[3], "Global Replace  - Replace these errors",
+        self.replace_list = SetupReplaceFrame.SetupReplaceFrame(self.frames[3], "Global Replace  - Replace these errors",
                                                       self.cache_dir, "global_replace.pkl")
         self.listbox_list.append(self.replace_list)
 

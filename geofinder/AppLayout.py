@@ -70,7 +70,6 @@ class AppLayout:
         """ Create the  widgets for display during initialization  (File open)  """
         self.pad: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
         self.title: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="Geo Finder", width=30, style='Large.TLabel')
-        #self.line_number_label: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="", width=GFStyle.BTN_WID, style='Tiny.TLabel')
         self.original_entry: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=50, style='Info.TLabel')
         self.status: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
         self.prog: Progress.Progress = Progress.Progress(self.root, bar_color=GFStyle.HIGH_COLOR, trough_color=GFStyle.LT_GRAY, status=self.status)
