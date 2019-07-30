@@ -172,6 +172,8 @@ class GeodataFiles:
 
     def add_admin_aliases(self):
         """ Add in aliases for some Admin items """
+        pass
+        """
         alias_list = [
             ('burgundy', 'fr', '28', '', 47.06981, 5.04822, 'ADM1', '11071619'),
             ('prussia', 'de', '', '', 51.0, 9.0, 'ADM0', 'de')
@@ -179,6 +181,7 @@ class GeodataFiles:
 
         for geo_row in alias_list:
             self.geodb.insert(geo_row=geo_row, feat_code=geo_row[GeoDB.Entry.FEAT])
+        """
 
     def read_geoname_file(self, file) -> bool:  # , g_dict
         """Read in geonames files and build lookup structure

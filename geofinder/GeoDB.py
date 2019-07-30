@@ -19,26 +19,14 @@
 import logging
 import re
 import time
-from operator import itemgetter
 
 from geofinder import DB, Place
-from geofinder.GeoKeys import Query, Result
-
-
-class Entry:
-    NAME = 0
-    ISO = 1
-    ADM1 = 2
-    ADM2 = 3
-    LAT = 4
-    LON = 5
-    FEAT = 6
-    ID = 7
+from geofinder.GeoKeys import Query, Result, Entry
 
 
 class GeoDB:
     """
-    Manage the geoname data database.  Create tables, indices, add items, look up items
+    geoname data database.  Add items, look up items, create tables, indices
     """
 
     def __init__(self, database):
@@ -125,13 +113,8 @@ class GeoDB:
             self.get_admin2_id(place=place)
             self.select_city(place)
 
-        self.build_result_list(place.georow_list, place.event_year)
-
-        if len(place.georow_list) == 0:
-            place.result_type = Result.NO_MATCH
-        elif len(place.georow_list) > 1:
-            self.logger.debug(f'mult matches {len(place.georow_list)}')
-            place.result_type = Result.MULTIPLE_MATCHES
+        if place.result_type == Result.EXACT_MATCH and len(place.prefix) > 0:
+            place.result_type = Result.PARTIAL_MATCH
 
     def select_city(self, place: Place):
         """
@@ -147,7 +130,7 @@ class GeoDB:
         query_list = []
 
         if len(place.country_iso) == 0:
-            # lookup by name.  No country present - No other queries
+            # No country present - try lookup by name.   No other queries
             query_list.append(Query(where="name = ?",
                   args=(lookup_target,),
                   result=Result.PARTIAL_MATCH))
@@ -204,8 +187,26 @@ class GeoDB:
         lookup_target = place.admin2_name
         if len(lookup_target) == 0:
             return
+        place.target = lookup_target
 
-        # Try each query until we find a match - each query gets less exact
+        # Prioritize an EXACT city match over County match.  (Try admin2 as city first)
+        self.logger.debug(f'Try admin2 as city: [{place.target}]')
+
+        query_list = [
+            Query(where="name = ? AND country = ? AND admin1_id = ?",
+                                    args=(lookup_target, place.country_iso, place.admin1_id),
+                                    result=Result.EXACT_MATCH)
+        ]
+        place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
+
+        if len(place.georow_list) > 0:
+            # Found match as a City
+            place.city1 = place.admin2_name
+            place.admin2_name = ''
+            place.place_type = Place.PlaceType.CITY
+            return
+
+        # Try Admin query until we find a match - each query gets less exact
         query_list = [
             Query(where="name = ? AND country = ? AND admin1_id = ? AND f_code=?",
                   args=(lookup_target, place.country_iso, place.admin1_id, 'ADM2'),
@@ -220,14 +221,33 @@ class GeoDB:
 
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
 
+        if len(place.georow_list) == 0:
+            # Try city rather than County match.
+            save_admin2 = place.admin2_name
+            place.city1 = place.admin2_name
+            place.admin2_name = ''
+            self.logger.debug(f'Try admin2 as city: [{place.target}]')
+
+            self.select_city(place)
+
+            if len(place.georow_list) == 0:
+                #  not found.  restore admin
+                place.admin2_name = save_admin2
+                place.city1 = ''
+            else:
+                # Found match as a City
+                place.place_type = Place.PlaceType.CITY
+                return
+
     def select_admin1(self, place: Place):
         """Search for Admin1 entry"""
         lookup_target = place.admin1_name
+
         pattern = self.create_wildcard(lookup_target)
         if len(lookup_target) == 0:
             return
 
-        self.logger.debug(f'sel adm1 patt={pattern} iso={place.country_iso}')
+        #self.logger.debug(f'sel adm1 patt={pattern} iso={place.country_iso}')
 
         # Try each query until we find a match - each query gets less exact
         query_list = [
@@ -252,10 +272,9 @@ class GeoDB:
 
             if len(place.georow_list) == 0:
                 # still not found.  restore admin1
-                self.logger.debug('not found')
                 place.admin1_name = save_admin1
+                place.city1 = ''
             else:
-                self.logger.debug('found')
                 place.place_type = Place.PlaceType.CITY
 
     def get_admin1_id(self, place: Place):
@@ -308,7 +327,7 @@ class GeoDB:
 
         row_list, res = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
 
-        self.logger.debug(f'get adm2 id nm={lookup_target} res={row_list}')
+        #self.logger.debug(f'get adm2 id nm={lookup_target} res={row_list}')
 
         if len(row_list) > 0:
             row = row_list[0]
@@ -373,7 +392,7 @@ class GeoDB:
                   result=Result.EXACT_MATCH)]
 
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
-        self.build_result_list(place.georow_list, place.event_year)
+        #self.build_result_list(place.georow_list, place.event_year)
 
     def lookup_geoid(self, place: Place)->None:
         """Search for GEOID"""
@@ -451,15 +470,33 @@ class GeoDB:
     def copy_georow_to_place(self, row, place: Place):
         # Copy data from DB row into Place
         #self.logger.debug(row)
-        place.city1 = row[Entry.NAME]
+        place.admin1_id = ''
+        place.admin2_id = ''
+        place.city1 = ''
+
         place.country_iso = row[Entry.ISO]
         place.country_name = self.get_country_name(row[Entry.ISO])
-        place.admin1_id = row[Entry.ADM1]
-        place.admin2_id = row[Entry.ADM2]
         place.lat = row[Entry.LAT]
         place.lon = row[Entry.LON]
         place.feature = row[Entry.FEAT]
         place.geoid = row[Entry.ID]
+
+
+        if place.feature == 'ADM0':
+            self.place_type = Place.PlaceType.COUNTRY
+            pass
+        elif place.feature == 'ADM1':
+            place.admin1_id = row[Entry.ADM1]
+            self.place_type = Place.PlaceType.ADMIN1
+        elif place.feature == 'ADM2':
+            place.admin1_id = row[Entry.ADM1]
+            place.admin2_id = row[Entry.ADM2]
+            self.place_type = Place.PlaceType.ADMIN2
+        else:
+            place.admin1_id = row[Entry.ADM1]
+            place.admin2_id = row[Entry.ADM2]
+            place.city1 = row[Entry.NAME]
+            self.place_type = Place.PlaceType.CITY
 
         place.admin1_name = self.get_admin1_name(place)
         place.admin2_name = self.get_admin2_name(place)
@@ -510,67 +547,3 @@ class GeoDB:
         pattern = re.sub(r"\*", "%", pattern)
         pattern = pattern + '%'
         return re.sub("%%", "%", pattern)
-
-    def get_priority(self, feature):
-        prior = feature_priority.get(feature)
-        if prior is None:
-            return 1
-        else:
-            return prior
-
-    def validate_year_for_location(self, event_year:int, iso:str, admin1:str)->bool:
-        start_year = location_name_start_year.get(iso)
-        self.logger.debug(f'Val year:  loc year={start_year}  event yr={event_year}')
-        if start_year is None:
-            start_year = -1
-        if event_year < start_year and event_year != 0:
-            return False
-        else:
-            return True
-
-    def build_result_list(self, georow_list, event_year:int):
-        # Create a sorted version of result_list without any dupes
-        # Add note if we hit the lookup limit
-        # Discard location names that didnt exist at time of event
-        if len(georow_list) > 299:
-            georow_list.append(GeoDB.make_georow(name='(plus more...)',iso='US', adm1=' ', adm2=' ', feat='Q0', lat=99.9, lon=99.9, id='q'))
-
-        # sort list by State/Province id, and County id
-        list_copy = sorted(georow_list, key=itemgetter(Entry.ADM1, Entry.ADM2))
-        georow_list.clear()
-        distance_cutoff = 0.5  # Value to determine if two lat/longs are similar
-
-        # Create a dummy previous row so first comparison works
-        prev_geo_row = GeoDB.make_georow(name='q', iso='q', adm1='q', adm2='q', lat=900, lon=900, feat='q', id='q')
-        idx = 0
-
-        # Create new list without dupes (adjacent items with same name and same lat/lon)
-        # Find if two items with same name are similar lat/lon (within Box Distance of 0.5 degrees)
-        for geo_row in list_copy:
-            if self.validate_year_for_location(event_year, geo_row[Entry.ISO], geo_row[Entry.ADM1]) is False:
-                # Skip location if location name  didnt exist at the time of event
-                continue
-
-            if geo_row[Entry.NAME] != prev_geo_row[Entry.NAME]:
-                # Name is different.  Add previous item
-                georow_list.append(geo_row)
-                idx += 1
-            elif abs(float(prev_geo_row[Entry.LAT]) - float(geo_row[Entry.LAT])) + \
-                    abs(float(prev_geo_row[Entry.LON]) - float(geo_row[Entry.LON])) > distance_cutoff:
-                # Lat/lon is different from previous item. Add this one
-                georow_list.append(geo_row)
-                idx += 1
-            elif self.get_priority(geo_row[Entry.FEAT]) > self.get_priority(prev_geo_row[Entry.FEAT]):
-                # Same Lat/lon but this has higher feature priority so replace previous entry
-                georow_list[idx-1] = geo_row
-
-            prev_geo_row = geo_row
-
-
-# If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
-feature_priority = {'ADM1': 22, 'PPL': 21, 'PPLA': 20, 'PPLA2': 19, 'PPLA3': 18, 'PPLA4': 17, 'PPLC': 16, 'PPLG': 15, 'ADM2': 14, 'MILB': 13,
-                    'NVB': 12,
-                    'PPLF': 11, 'DEFAULT': 10, 'ADM0': 10, 'PPLL': 10, 'PPLQ': 9, 'PPLR': 8, 'PPLS': 7, 'PPLW': 6, 'PPLX': 5, 'BTL': 4, 'PPLCH': 3,
-                    'PPLH': 2, 'STLMT': 1, 'CMTY': 1, 'VAL': 1}
-
-location_name_start_year = {'ca': 1605, 'us': 1620}

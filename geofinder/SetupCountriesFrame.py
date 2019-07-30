@@ -54,21 +54,17 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
 
         self.listbox_all_countries["columns"]=("pre",)
         self.listbox_all_countries.column("#0", width=400, minwidth=100, stretch=tk.NO)
-        self.listbox_all_countries.column("pre", width=400, minwidth=50, stretch=tk.NO)
+        self.listbox_all_countries.column("pre", width=500, minwidth=50, stretch=tk.NO)
         self.listbox_all_countries.heading("#0",text="Name", anchor=tk.W)
         self.listbox_all_countries.heading("pre", text="Code",anchor=tk.W)
 
         self.listbox_all_countries.config(yscrollcommand=self.scrollbar2.set)
         self.scrollbar2.config(command=self.listbox_all_countries.yview)
 
-        #self.listbox_all_countries = Listbox(frame, width=80, height=15, bg=GFStyle.LT_GRAY, selectmode=MULTIPLE,
-        #                                     yscrollcommand=self.scrollbar2.set)
-
-
         self.country_dict = {}
         super().__init__(frame, title, cache_dir, cache_filename)
-        self.tree.heading("#0",text="Code", anchor=tk.W)
-        self.tree.heading("pre", text="Name",anchor=tk.W)
+        self.tree.heading("#0",text="Name", anchor=tk.W)
+        self.tree.heading("pre", text="Code",anchor=tk.W)
 
         self.geoFiles = GeodataFiles.GeodataFiles(dir_name, None)
 
@@ -90,6 +86,27 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
         Widge.set_grid_position(self.listbox_all_countries, "listbox_all_countries", grd=self.grd)
         self.scrollbar2.config(command=self.listbox_all_countries.yview)
         Widge.set_grid_position(self.scrollbar2, "scrollbar2", grd=self.grd)
+
+    def load_handler(self):
+        # Load in list and display - Need to Reverse the Key and Val
+        self.clear_display_list(self.tree)
+
+        for key in sorted(self.dict):
+            if len(self.dict[key]) > 1:
+                self.list_insert(self.tree,f"{self.dict[key]}", f"{key}")
+            else:
+                self.list_insert(self.tree, f"{key}",'')
+
+    def delete_items(self, tree, dct):
+        # Delete any items in the list that the user selected
+        items = tree.selection()
+        for line in items:
+            col1 = self.tree.item(line, "text")
+            col2 = self.tree.item(line, 'values')[0]
+            self.logger.debug(f'DEL {col1}')
+            dct.pop(col2, None)
+
+        self.load_handler()  # Reload display
 
     def load_handler_all(self):
         # Load in list of all countries and display

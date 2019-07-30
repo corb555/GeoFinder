@@ -145,10 +145,20 @@ class Place:
 
             # Assign remaining tokens (if any) to prefix
             for item in tokens[0:-4]:
-                self.prefix += item + ' '
+                if len(self.prefix) > 0:
+                    self.prefix += ' '
+                self.prefix += item.strip(' ')
+
+            #self.prefix.strip(' ')
+
+        # Special case for New York, New York which normally refers to the City, not county
+        if self.admin2_name == 'new york' and self.place_type == PlaceType.ADMIN2:
+            self.admin2_name = 'new york city'
+            self.target = self.admin2_name
 
         self.logger.debug(f"*** PARSE  #={token_count} City [{self.city1}] Adm2 [{self.admin2_name}]"
-                          f"  Adm1 [{self.admin1_name}] Cntry [{self.country_name}] Pref={self.prefix} Typ={place_type_name_dict[self.place_type]}")
+                          f"  Adm1 [{self.admin1_name}] Cntry [{self.country_name}] Pref=[{self.prefix}] Com=[{self.prefix_commas}]"
+                          f" Typ={place_type_name_dict[self.place_type]}")
         return
 
     def set_place_type(self):
@@ -167,30 +177,32 @@ class Place:
 
     def format_full_name(self):
         """ Take the parts of a Place and build fullname.  e.g. pref, city,adm2,adm1,country name """
-        if len(self.prefix) > 0:
-            self.prefix_commas = ', '
+        self.set_place_type()
+        self.prefix = self.prefix.strip(',')
 
         if self.admin1_name is None:
             self.admin1_name = ''
         if self.admin2_name is None:
             self.admin2_name = ''
 
-        if self.place_type == PlaceType.ADMIN1:
-            nm = f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
-            if len(self.prefix) > 0:
-                self.prefix_commas = ', , , '
-        elif self.place_type == PlaceType.COUNTRY:
+        if self.place_type == PlaceType.COUNTRY:
             nm = f"{st.capwords(self.country_name)}"
+            self.prefix_commas = ', , , , '
+        elif self.place_type == PlaceType.ADMIN1:
+            nm = f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
+            self.prefix_commas = ', , , '
         elif self.place_type == PlaceType.ADMIN2:
             nm = f"{st.capwords(self.admin2_name)}," \
                 f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
-            if len(self.prefix) > 0:
-                self.prefix_commas = ', , '
+            self.prefix_commas = ', , '
         else:
             nm = f"{st.capwords(self.city1)}, {st.capwords(self.admin2_name)}, " \
                 f"{st.capwords(self.admin1_name)}, {st.capwords(str(self.country_name))}"
+            self.prefix_commas = ', '
 
-        #self.logger.debug(f'[{self.prefix}][{self.prefix_commas}][{nm}]')
+        if len(self.prefix) == 0:
+            self.prefix_commas = ''
+        #self.logger.debug(f' [{self.prefix}][{self.prefix_commas}][{nm}]')
         return nm
 
 

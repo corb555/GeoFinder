@@ -26,6 +26,17 @@ except ModuleNotFoundError:
     print('Unidecode missing.  Please run "PIP3 install unidecode" from command line')
 
 
+class Entry:
+    NAME = 0
+    ISO = 1
+    ADM1 = 2
+    ADM2 = 3
+    LAT = 4
+    LON = 5
+    FEAT = 6
+    ID = 7
+
+
 class Result:
     # Result codes for lookup
     EXACT_MATCH = 0

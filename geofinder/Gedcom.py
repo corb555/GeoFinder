@@ -37,7 +37,7 @@ class Gedcom:
         self.build = False
         self.logger = logging.getLogger(__name__)
         self.progress_bar = progress
-        self.output_latlon = False    # todo enable lat lon output
+        self.output_latlon = False   # todo Set gedcom output to true
 
         # Sections of a GEDCOM line - Level, label, tag, value
         self.level: int = 0
@@ -201,16 +201,23 @@ class Gedcom:
         """ Set Date and Parse string for date/year and set Gedcom year of event """
         self.date = date
         self.event_year = 0
-        if len(date) > 0:
-            tkn = date.split(' ')
-            for elem in tkn:
-                try:
-                    year = int(elem)
-                except ValueError:
-                    year = 0
-                if year > 32:
-                    self.event_year = year
-                    break
+        self.abt_flag = False
+
+        # Support DATE and ABT DATE of form <DD> <MMM> YYYY (GEDCOM format) with no validation
+        reg = r'^\s*(ABT\s+)?([1-3]?[0-9]{1}\s+)?((JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+)?(\d{3,4})'
+
+        m = re.search(reg, date)
+        if m:
+            abt = (m.group(1))
+            #day = (m.group(2))
+            #mon = (m.group(3))
+            # group4 not used
+            year = (m.group(5))
+
+            if year is not None:
+                self.event_year = int(year)
+            if abt is not None:
+                self.abt_flag = True
 
     def build_person_dictionary(self):
         """

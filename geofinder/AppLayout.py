@@ -45,7 +45,7 @@ class AppLayout:
         self.main = main
 
         self.root = tk.Tk()
-        self.root.title("geofinder")
+        self.root.title("GEOfinder")
         self.root["padx"] = 0
         self.root["pady"] = 20
 
@@ -69,7 +69,7 @@ class AppLayout:
     def create_initialization_widgets(self):
         """ Create the  widgets for display during initialization  (File open)  """
         self.pad: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
-        self.title: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="Geo Finder", width=30, style='Large.TLabel')
+        self.title: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="GEO FINDER", width=30, style='Large.TLabel')
         self.original_entry: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=50, style='Info.TLabel')
         self.status: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
         self.prog: Progress.Progress = Progress.Progress(self.root, bar_color=GFStyle.HIGH_COLOR, trough_color=GFStyle.LT_GRAY, status=self.status)
@@ -114,10 +114,10 @@ class AppLayout:
 
         """ Create all the buttons and entry fields for normal running """
         self.pad: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
-        self.title: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="Geo Finder", width=30, style='Large.TLabel')
+        self.title: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="GEO FINDER", width=30, style='Large.TLabel')
 
         self.original_entry: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="   ", width=GFStyle.TXT_WID, style='Light.TLabel')
-        self.user_edit: geofinder.Widge.CEntry = geofinder.Widge.CEntry(self.root, text="   ", width=GFStyle.TXT_WID, font=(GFStyle.FNT_NAME, 14))
+        self.user_entry: geofinder.Widge.CEntry = geofinder.Widge.CEntry(self.root, text="   ", width=GFStyle.TXT_WID, font=(GFStyle.FNT_NAME, 14))
         self.status: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
         self.prefix: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, width=GFStyle.TXT_WID, style='Highlight.TLabel')
 
@@ -165,7 +165,7 @@ class AppLayout:
         self.title.grid(column=TXT_COL, row=0, padx=0, pady=12, sticky="N", columnspan=2)
         self.prog.bar.grid(column=TXT_COL, row=1, padx=0, pady=5, sticky="EW", columnspan=2)
         self.original_entry.grid(column=TXT_COL, row=2, padx=0, pady=5, sticky="EWS", columnspan=2)
-        self.user_edit.grid(column=TXT_COL, row=3, padx=0, pady=0, sticky="EWN", columnspan=2)
+        self.user_entry.grid(column=TXT_COL, row=3, padx=0, pady=0, sticky="EWN", columnspan=2)
         self.status.grid(column=TXT_COL, row=4, padx=0, pady=0, sticky="EW", columnspan=2)
         self.tree.grid(column=TXT_COL, row=5, padx=0, pady=5, sticky="EW")
         self.ged_event_info.grid(column=TXT_COL, row=7, padx=0, pady=6, sticky="W", columnspan=2)
@@ -184,11 +184,11 @@ class AppLayout:
         self.quit_button.grid(column=BTN_COL, row=12, padx=GFStyle.BTN_PADX, pady=6, sticky="SE")
 
         # Set accelerator keys for Verify, listbox, and Save
-        self.user_edit.bind("<Return>", self.main.return_key_event_handler)
-        self.user_edit.bind("<Control-s>", self.main.ctl_s_event_handler)
+        self.user_entry.bind("<Return>", self.main.return_key_event_handler)
+        self.user_entry.bind("<Control-s>", self.main.ctl_s_event_handler)
 
         # Track whether user is in Edit box or list box
-        self.user_edit.bind("<FocusIn>", self.main.entry_focus_event_handler)
+        self.user_entry.bind("<FocusIn>", self.main.entry_focus_event_handler)
         self.tree.bind("<FocusIn>", self.main.list_focus_event_handler)
 
         # Tooltips

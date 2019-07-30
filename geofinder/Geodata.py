@@ -19,6 +19,7 @@
 import copy
 import logging
 import string as st
+from operator import itemgetter
 
 from geofinder import GeodataFiles, GeoKeys, Place
 
@@ -60,6 +61,18 @@ class Geodata:
                 self.geo_files.geodb.lookup_place(place=place)
                 if len(place.georow_list) == 0:
                     place.result_type = GeoKeys.Result.NO_COUNTRY
+            else:
+                self.process_result(place=place, targ_name=place.target)
+                return
+
+        if len(place.georow_list) > 0:
+            self.build_result_list(place.georow_list, place.event_year)
+
+        if len(place.georow_list) == 0:
+            place.result_type = GeoKeys.Result.NO_MATCH
+        elif len(place.georow_list) > 1:
+            self.logger.debug(f'mult matches {len(place.georow_list)}')
+            place.result_type = GeoKeys.Result.MULTIPLE_MATCHES
 
         # Process the results
         self.process_result(place=place, targ_name=place.target)
@@ -116,7 +129,6 @@ class Geodata:
         if len(place.georow_list) > 0:
             # Copy geo row to Place
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
-        place.set_place_type()
 
     @staticmethod
     def get_district1_type(iso) -> str:
@@ -172,6 +184,77 @@ class Geodata:
 
         return is_valid
 
+    def validate_year_for_location(self, event_year: int, iso: str, admin1: str) -> bool:
+        # See if this location name was valid at the time of the event
+        # Try looking up start year by state/province
+        start_year = admin1_name_start_year.get(f'{iso}.{admin1.lower()}')
+        if start_year is None:
+            # Try looking up start year by country
+            start_year = country_name_start_year.get(iso)
+        if start_year is None:
+            start_year = -1
+
+        if event_year < start_year and event_year != 0:
+            self.logger.debug(f'Val year:  loc year={start_year}  event yr={event_year} loc={admin1},{iso}')
+            return False
+        else:
+            return True
+
+    def build_result_list(self, georow_list, event_year: int):
+        # Create a sorted version of result_list without any dupes
+        # Add note if we hit the lookup limit
+        # Discard location names that didnt exist at time of event
+        if len(georow_list) > 299:
+            georow_list.append(self.geo_files.geodb.make_georow(name='(plus more...)', iso='US', adm1=' ', adm2=' ', feat='Q0', lat=99.9, lon=99.9,
+                                                                id='q'))
+
+        # sort list by State/Province id, and County id
+        list_copy = sorted(georow_list, key=itemgetter(GeoKeys.Entry.ADM1, GeoKeys.Entry.ADM2))
+        georow_list.clear()
+        distance_cutoff = 0.5  # Value to determine if two lat/longs are similar
+
+        # Create a dummy 'previous' row so first comparison works
+        prev_geo_row = self.geo_files.geodb.make_georow(name='q', iso='q', adm1='q', adm2='q', lat=900, lon=900, feat='q', id='q')
+        idx = 0
+        date_filtered = ''
+
+        # Create new list without dupes (adjacent items with same name and same lat/lon)
+        # Find if two items with same name are similar lat/lon (within Box Distance of 0.5 degrees)
+        for geo_row in list_copy:
+            if self.validate_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1]) is False:
+                # Skip location if location name  didnt exist at the time of event
+                date_filtered += f'[{geo_row[GeoKeys.Entry.ADM1]}, {geo_row[GeoKeys.Entry.ISO]}] '
+                continue
+
+            if geo_row[GeoKeys.Entry.NAME] != prev_geo_row[GeoKeys.Entry.NAME]:
+                # Name is different.  Add previous item
+                georow_list.append(geo_row)
+                idx += 1
+            elif abs(float(prev_geo_row[GeoKeys.Entry.LAT]) - float(geo_row[GeoKeys.Entry.LAT])) + \
+                    abs(float(prev_geo_row[GeoKeys.Entry.LON]) - float(geo_row[GeoKeys.Entry.LON])) > distance_cutoff:
+                # Lat/lon is different from previous item. Add this one
+                georow_list.append(geo_row)
+                idx += 1
+            elif self.get_priority(geo_row[GeoKeys.Entry.FEAT]) > self.get_priority(prev_geo_row[GeoKeys.Entry.FEAT]):
+                # Same Lat/lon but this has higher feature priority so replace previous entry
+                georow_list[idx - 1] = geo_row
+
+            prev_geo_row = geo_row
+
+    def get_priority(self, feature):
+        prior = feature_priority.get(feature)
+        if prior is None:
+            return 1
+        else:
+            return prior
+
+
+# If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
+feature_priority = {'ADM1': 22, 'PPL': 21, 'PPLA': 20, 'PPLA2': 19, 'PPLA3': 18, 'PPLA4': 17, 'PPLC': 16, 'PPLG': 15, 'ADM2': 14, 'MILB': 13,
+                    'NVB': 12,
+                    'PPLF': 11, 'DEFAULT': 10, 'ADM0': 10, 'PPLL': 10, 'PPLQ': 9, 'PPLR': 8, 'PPLS': 7, 'PPLW': 6, 'PPLX': 5, 'BTL': 4,
+                    'PPLCH': 3,
+                    'PPLH': 2, 'STLMT': 1, 'CMTY': 1, 'VAL': 1}
 
 result_text_list = {
     GeoKeys.Result.EXACT_MATCH: 'matched! Click Save to accept:',
@@ -180,4 +263,78 @@ result_text_list = {
     GeoKeys.Result.NOT_SUPPORTED: ' is not supported. Skip or add in GeoUtil.py',
     GeoKeys.Result.NO_COUNTRY: 'No Country found.',
     GeoKeys.Result.PARTIAL_MATCH: 'partial match.  Click Save to accept:'
+}
+
+# Starting year this country name was valid
+country_name_start_year = {
+    'cu': -1,
+}
+
+# Starting year this state/province name was valid
+# https://en.wikipedia.org/wiki/List_of_North_American_settlements_by_year_of_foundation
+admin1_name_start_year = {
+    'us.al': 1711,
+    'us.ak': 1774,
+    'us.az': 1775,
+    'us.ar': 1686,
+    'us.ca': 1769,
+    'us.co': 1871,
+    'us.ct': 1633,
+    'us.de': 1638,
+    'us.dc': 1650,
+    'us.fl': 1565,
+    'us.ga': 1566,
+    'us.hi': -1,
+    'us.id': 1862,
+    'us.il': 1703,
+    'us.in': 1715,
+    'us.ia': 1785,
+    'us.ks': 1870,
+    'us.ky': 1775,
+    'us.la': 1699,
+    'us.me': 1604,
+    'us.md': 1633,
+    'us.ma': 1620,
+    'us.mi': 1784,
+    'us.mn': 1820,
+    'us.ms': 1699,
+    'us.mo': 1765,
+    'us.mt': 1877,
+    'us.ne': 1854,
+    'us.nv': 1905,
+    'us.nh': 1638,
+    'us.nj': 1624,
+    'us.nm': 1598,
+    'us.ny': 1614,
+    'us.nc': 1653,
+    'us.nd': 1871,
+    'us.oh': 1785,
+    'us.ok': 1889,
+    'us.or': 1811,
+    'us.pa': 1682,
+    'us.ri': 1636,
+    'us.sc': 1663,
+    'us.sd': 1865,
+    'us.tn': 1739,
+    'us.tx': 1685,
+    'us.ut': 1847,
+    'us.vt': 1650,
+    'us.va': 1607,
+    'us.wa': 1825,
+    'us.wv': 1788,
+    'us.wi': 1685,
+    'us.wy': 1867,
+    'ca.01': 1795,
+    'ca.02': 1789,
+    'ca.03': 1733,
+    'ca.04': 1766,
+    'ca.05': 1583,
+    'ca.07': 1604,
+    'ca.08': 1673,
+    'ca.09': 1764,
+    'ca.10': 1541,
+    'ca.11': 1862,
+    'ca.12': 1700,
+    'ca.13': 1700,
+    'ca.14': 1700
 }

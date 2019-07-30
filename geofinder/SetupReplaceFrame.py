@@ -49,8 +49,32 @@ class SetupReplaceFrame(ListboxFrame.ListboxFrame):
         place = Place.Place()
 
         for item in sorted(self.dict):
+            # get lat long
+            replacement = self.dict[item]
+            rep_token = replacement.split('@')
+            #self.geodata.find_geoid(rep_token[GEOID_TOKEN], self.place)
+            place.target = rep_token[GEOID_TOKEN]
+            self.geodb.lookup_geoid(place=place)
+            if len(place.georow_list) > 0:
+                # Copy geo row to Place
+                self.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
+
+            #place.set_place_type()
+
+            # Get prefix if there was one
+            if len(rep_token) > 2:
+                place.prefix = rep_token[PREFIX_TOKEN]
+
+            nm = place.format_full_name()
+            line = place.prefix + place.prefix_commas + nm
+
+            self.list_insert(self.tree, item, line)
+
+            """ 
+                
             if len(self.dict[item]) > 1:
                 tkn = self.dict[item].split('@')
+                
 
                 place.target = tkn[GEOID_TOKEN]
                 self.geodb.lookup_geoid(place=place)
@@ -65,3 +89,4 @@ class SetupReplaceFrame(ListboxFrame.ListboxFrame):
                         self.list_insert(self.tree, f"{item}", f"{nm}")
             else:
                 self.list_insert(self.tree, f"{item}",'')
+            """
