@@ -69,7 +69,7 @@ class GeodataFiles:
 
         # Support for Geonames AlternateNames file.  Adds alternate names for entries
         self.alternate_names = AlternateNames.AlternateNames(directory_name=self.directory,
-                                                             geo_files=self,progress_bar=self.progress_bar,
+                                                             geo_files=self, progress_bar=self.progress_bar,
                                                              filename='alternateNamesV2.txt', lang_list=['en'])
 
     def read(self) -> bool:
@@ -170,7 +170,8 @@ class GeodataFiles:
 
         return False
 
-    def add_admin_aliases(self):
+    @staticmethod
+    def add_admin_aliases():
         """ Add in aliases for some Admin items """
         pass
         """

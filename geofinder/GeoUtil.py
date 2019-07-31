@@ -58,7 +58,7 @@ class ReviewWindow:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         fmt = "%(levelname)s %(asctime)s %(name)s.%(funcName)s %(lineno)d: %(message)s"
-        logging.basicConfig(level=logging.DEBUG, format=fmt)
+        logging.basicConfig(level=logging.INFO, format=fmt)
         self.logger.info('Setup')
 
         self.directory: str = os.path.join(str(Path.home()), Geodata.Geodata.get_directory_name())
@@ -120,7 +120,7 @@ class ReviewWindow:
         # GlobalReplace Tab- ListboxFrame (simple list)
         self.logger.debug('=====gbl replace frame')
         self.replace_list = SetupReplaceFrame.SetupReplaceFrame(self.frames[3], "Global Replace  - Replace these errors",
-                                                      self.cache_dir, "global_replace.pkl")
+                                                                self.cache_dir, "global_replace.pkl")
         self.listbox_list.append(self.replace_list)
 
         # Feature tab

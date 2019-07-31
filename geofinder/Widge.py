@@ -22,33 +22,10 @@ from tkinter import ttk, messagebox
 from typing import List, Dict
 
 
-
 class Widge:
     """
     These  routines provide helper functions for Tkint including standardized get and set text.
     """
-
-    @staticmethod
-    def set_text(widget, text: str):
-        """ Set the text of a widget """
-        if widget.winfo_class() == 'TText' or widget.winfo_class() == 'Text':
-            widget.delete("1.0", END)
-            widget.insert("1.0", text)
-        elif widget.winfo_class() == 'TLabel':
-            widget.configure(text=text)
-        else:
-            widget.delete("0", END)
-            widget.insert(0, text)
-
-    @staticmethod
-    def get_text(widget) -> str:
-        """ Get the text of a widget """
-        if widget.winfo_class() == 'TText':
-            return widget.cget("text")
-        elif widget.winfo_class() == 'TLabel':
-            return widget.cget("text")
-        else:
-            return widget.get()
 
     @staticmethod
     def disable_buttons(button_list: List[ttk.Button]) -> None:
@@ -96,6 +73,10 @@ class Widge:
 
 
 class CLabel(ttk.Label):
+    """
+    Have generic set_text and get_text
+    """
+
     def __init__(self, parent, **kwargs):
         ttk.Label.__init__(self, parent, **kwargs)
 
@@ -109,7 +90,10 @@ class CLabel(ttk.Label):
 
 
 class CEntry(ttk.Entry):
-    """ Add support for Undo/Redo to TextEntry on Ctl-Z, shift Ctl-y"""
+    """
+    Add support for Undo/Redo to TextEntry on Ctl-Z, shift Ctl-y.
+    Have generic set_text and get_text
+    """
 
     def __init__(self, parent, *args, **kwargs):
         ttk.Entry.__init__(self, parent, *args, **kwargs)
@@ -124,19 +108,19 @@ class CEntry(ttk.Entry):
         self.steps = int()
         super().insert(idx, txt)
 
-    def undo(self, event=None):
+    def undo(self,  _):
         if self.steps != 0:
             self.steps -= 1
             self.delete(0, END)
             super().insert(END, self.changes[self.steps])
 
-    def redo(self, event=None):
+    def redo(self,  _):
         if self.steps < len(self.changes):
             self.delete(0, END)
             super().insert(END, self.changes[self.steps])
             self.steps += 1
 
-    def add_changes(self, event=None):
+    def add_changes(self,  _):
         if self.get() != self.changes[-1]:
             self.changes.append(self.get())
             self.steps += 1

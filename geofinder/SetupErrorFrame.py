@@ -21,12 +21,11 @@ import glob
 import logging
 import os
 from tkinter import *
-from tkinter import ttk
 from tkinter.ttk import *
 from typing import Dict
 
 from geofinder import CachedDictionary, GeoKeys, GFStyle
-from geofinder.Widge import Widge
+from geofinder import Widge as Widge
 
 
 class SetupErrorFrame:
@@ -61,8 +60,8 @@ class SetupErrorFrame:
         self.grd = {"title_label": [0, 0, 5, 5, "W"], "scrollbar": [1, 2, 0, 5, "WNS"], "status": [0, 1, 5, 5, "W"], "add_button": [2, 4, 5, 5, "W"],
                     "listbox": [0, 2, 5, 5, "E"], "unused": [2, 3, 5, 5, "W"], "add_entry": [0, 4, 5, 5, "W"], "load_button": [2, 1, 5, 5, "W"],
                     "remove_button": [2, 1, 5, 5, "W"], "add_label": [0, 3, 5, 5, "EW"]}
-        self.title_label = ttk.Label(frame, text=self.title, width=80,style='Info.TLabel')
-        self.status = ttk.Label(frame, text=" ", width=80, style='Highlight.TLabel')
+        self.title_label = Widge.CLabel(frame, text=self.title, width=80, style='Info.TLabel')
+        self.status = Widge.CLabel(frame, text=" ", width=80, style='Highlight.TLabel')
         self.scrollbar = Scrollbar(frame)
         self.listbox = Listbox(frame, width=80, height=20, bg=GFStyle.LT_GRAY, selectmode=MULTIPLE,
                                yscrollcommand=self.scrollbar.set)
@@ -95,9 +94,9 @@ class SetupErrorFrame:
 
         if not alt_found:
             # Alternate Names file is missing
-            #self.error_dict["Optional alternateNamesV2.txt not found"] = ""
+            # self.error_dict["Optional alternateNamesV2.txt not found"] = ""
             self.logger.warning('optional alternateNamesV2.txt not found')
-            #self.file_error = True
+            # self.file_error = True
 
         self.logger.debug(f'geoname file count={count}')
         if count == 0:
@@ -107,7 +106,7 @@ class SetupErrorFrame:
             self.file_error = True
 
         if self.file_error:
-            Widge.set_text(self.status, "Download missing files from geonames.org and place in {}".format(self.directory))
+            self.status.set_text("Download missing files from geonames.org and place in {}".format(self.directory))
 
         # Get country list and validate
         self.logger.debug('load countries')
@@ -124,7 +123,7 @@ class SetupErrorFrame:
                 else:
                     self.listbox.insert(END, "{}".format(item))
         else:
-            Widge.set_text(self.status, "No configuration errors detected")
+            self.status.set_text("No configuration errors detected")
             # Load in list and display
             self.listbox.delete(0, END)
 

@@ -32,7 +32,6 @@ class FileReader:
         self.fname: str = filename
         self.cache_changed = False
 
-
     def read(self) -> bool:
         """
         :synopsis:  Read geoname.org alternate name file and add names as alternates in geoname dict
@@ -65,7 +64,7 @@ class FileReader:
             self.logger.error(f'Unable to open {path}')
             return True
 
-    def handle_line(self,  line_num: int, row: str) -> int:
+    def handle_line(self, line_num: int, row: str) -> int:
         pass
 
     def progress(self, msg, val):

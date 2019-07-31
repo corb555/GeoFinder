@@ -27,6 +27,7 @@ from geofinder import Geodata, GeoKeys, Place
 
 halifax_lat = 44.71314
 
+
 class TestGeodata(unittest.TestCase):
     geodata = None
 
@@ -128,7 +129,7 @@ class TestGeodata(unittest.TestCase):
         test = "City - Bad"
         lat: float = self.run_test(test, "Alberton, ,,Germany")
         self.assertEqual(GeoKeys.Result.NO_MATCH, self.place.result_type, test)
-        
+
     def test_res_code09(self):
         test = "State - Bad"
         lat: float = self.run_test(test, "skdfjd,Germany")
@@ -223,7 +224,7 @@ class TestGeodata(unittest.TestCase):
         test = "Country -  bad"
         lat: float = self.run_test(test, "xyzzy")
         self.assertEqual('', self.place.country_iso, test)
-        
+
     def test_country03(self):
         test = "Country - Good"
         lat: float = self.run_test(test, "Canada")
@@ -498,7 +499,7 @@ class TestGeodata(unittest.TestCase):
         test = "***** Test Parse prefix"
         print(test)
         self.place.parse_place(place_name="pref,   abcde,Banff,Alberta's Rockies,Alberta,Canada", geo_files=TestGeodata.geodata.geo_files)
-        self.assertEqual("pref abcde", self.place.prefix+ self.place.prefix_commas, test)
+        self.assertEqual("pref abcde", self.place.prefix + self.place.prefix_commas, test)
 
     # =====  TEST Name formatting
     def test_place_name01(self):
@@ -530,7 +531,6 @@ class TestGeodata(unittest.TestCase):
         lat: float = self.run_test(test, "abc,,Halifax County, Nova Scotia, Canada")
         nm = self.place.format_full_name()
         self.assertEqual("abc, , Halifax County, Nova Scotia, Canada", self.place.prefix + self.place.prefix_commas + nm, test)
-
 
     def test_place_name06(self):
         test = "City  verify place name"

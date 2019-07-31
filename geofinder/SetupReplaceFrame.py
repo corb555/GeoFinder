@@ -35,13 +35,13 @@ class SetupReplaceFrame(ListboxFrame.ListboxFrame):
     ListboxFrame defines the overall Grid Layout
     """
 
-    def __init__(self, frame, title: str, dir_name: str,  cache_filename: str):
+    def __init__(self, frame, title: str, dir_name: str, cache_filename: str):
         # Initialize GEO database
         self.geodb = GeoDB.GeoDB(os.path.join(dir_name, 'geodata.db'))
 
         super().__init__(frame, title, dir_name, cache_filename)
-        self.tree.heading("#0",text="Original", anchor=tk.W)
-        self.tree.heading("pre", text="Replacement",anchor=tk.W)
+        self.tree.heading("#0", text="Original", anchor=tk.W)
+        self.tree.heading("pre", text="Replacement", anchor=tk.W)
 
     def load_handler(self):
         # Load in list and display
@@ -52,14 +52,14 @@ class SetupReplaceFrame(ListboxFrame.ListboxFrame):
             # get lat long
             replacement = self.dict[item]
             rep_token = replacement.split('@')
-            #self.geodata.find_geoid(rep_token[GEOID_TOKEN], self.place)
+            # self.geodata.find_geoid(rep_token[GEOID_TOKEN], self.place)
             place.target = rep_token[GEOID_TOKEN]
             self.geodb.lookup_geoid(place=place)
             if len(place.georow_list) > 0:
                 # Copy geo row to Place
                 self.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
 
-            #place.set_place_type()
+            # place.set_place_type()
 
             # Get prefix if there was one
             if len(rep_token) > 2:

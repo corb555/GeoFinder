@@ -23,7 +23,7 @@ from tkinter import ttk
 from tkinter.ttk import *
 
 from geofinder import CachedDictionary, GFStyle
-from geofinder.Widge import Widge as Widge
+from geofinder import Widge as Widge
 
 BUTTON_WIDTH = 6
 # tags to aletrnate colors in list box
@@ -57,19 +57,19 @@ class ListboxFrame:
         self.dirty_flag = False  # Flag to track if data was modified
         self.odd = False
 
-        self.title_label = ttk.Label(self.frame, text=self.title, width=80, style='Info.TLabel')
-        self.status = ttk.Label(self.frame, text="Highlight items above to remove and click Remove.", width=80, style='Info.TLabel')
+        self.title_label = Widge.CLabel(self.frame, text=self.title, width=80, style='Info.TLabel')
+        self.status = Widge.CLabel(self.frame, text="Highlight items above to remove and click Remove.", width=80, style='Info.TLabel')
         self.scrollbar = Scrollbar(self.frame)
 
-        self.tree=ttk.Treeview(self.frame, style="Plain.Treeview") #, selectmode="browse")
+        self.tree = ttk.Treeview(self.frame, style="Plain.Treeview")  # , selectmode="browse")
         self.tree.tag_configure('odd', background=GFStyle.ODD_ROW_COLOR)
         self.tree.tag_configure('even', background='white')
 
-        self.tree["columns"]=("pre",)
+        self.tree["columns"] = ("pre",)
         self.tree.column("#0", width=400, minwidth=100, stretch=tk.NO)
         self.tree.column("pre", width=500, minwidth=50, stretch=tk.NO)
-        self.tree.heading("#0",text="Name", anchor=tk.W)
-        self.tree.heading("pre", text="  ",anchor=tk.W)
+        self.tree.heading("#0", text="Name", anchor=tk.W)
+        self.tree.heading("pre", text="  ", anchor=tk.W)
 
         self.tree.config(yscrollcommand=self.scrollbar.set)
         self.scrollbar.config(command=self.tree.yview)
@@ -88,8 +88,6 @@ class ListboxFrame:
 
         # Display data
         self.load_handler()
-
-#todo fix disply of global replace db lookup
 
     def list_insert(self, tree, col1, col2):
         self.odd = not self.odd
@@ -110,9 +108,9 @@ class ListboxFrame:
 
         for item in sorted(self.dict):
             if len(self.dict[item]) > 1:
-                self.list_insert(self.tree, f"{item}",f"{self.dict[item]}")
+                self.list_insert(self.tree, f"{item}", f"{self.dict[item]}")
             else:
-                self.list_insert(self.tree, f"{item}",'')
+                self.list_insert(self.tree, f"{item}", '')
 
     def delete_handler(self):
         # Delete selected items in list
@@ -123,6 +121,7 @@ class ListboxFrame:
         # add  item to list
         self.load_handler()  # Reload listbox with new data
         self.dirty_flag = True
+
     """
     def get_list_selection(self):
         # Get the items the user selected in list (tree)
@@ -136,7 +135,7 @@ class ListboxFrame:
         items = tree.selection()
         for line in items:
             col1 = self.tree.item(line, "text")
-            #col2 =
+            # col2 =
             self.logger.debug(f'DEL {col1}')
             dct.pop(col1, None)
 
@@ -146,11 +145,11 @@ class ListboxFrame:
         return self.dirty_flag  # Tells whether the cache was modified
 
     def configure_widgets(self, frm):
-        Widge.set_grid_position(self.title_label, "title_label", grd=self.grd)
-        Widge.set_grid_position(self.status, "status", grd=self.grd)
-        Widge.set_grid_position(self.tree, "listbox", grd=self.grd)
-        Widge.set_grid_position(self.scrollbar, "scrollbar", grd=self.grd)
-        Widge.set_grid_position(self.remove_button, "remove_button", grd=self.grd)
+        Widge.Widge.set_grid_position(self.title_label, "title_label", grd=self.grd)
+        Widge.Widge.set_grid_position(self.status, "status", grd=self.grd)
+        Widge.Widge.set_grid_position(self.tree, "listbox", grd=self.grd)
+        Widge.Widge.set_grid_position(self.scrollbar, "scrollbar", grd=self.grd)
+        Widge.Widge.set_grid_position(self.remove_button, "remove_button", grd=self.grd)
 
     def write(self):
         # Write out cache file

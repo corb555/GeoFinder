@@ -123,22 +123,22 @@ class AppLayout:
 
         self.scrollbar = ttk.Scrollbar(self.root)
 
-        self.tree=ttk.Treeview(self.root, style="Plain.Treeview", selectmode="browse")
+        self.tree = ttk.Treeview(self.root, style="Plain.Treeview", selectmode="browse")
         self.tree.tag_configure('odd', background=GFStyle.ODD_ROW_COLOR)
         self.tree.tag_configure('even', background='white')
 
-        self.tree["columns"]=("pre",)
+        self.tree["columns"] = ("pre",)
         self.tree.column("#0", width=500, minwidth=100, stretch=tk.NO)
         self.tree.column("pre", width=180, minwidth=5, stretch=tk.NO)
-        self.tree.heading("#0",text="   Location", anchor=tk.W)
-        self.tree.heading("pre", text="   Prefix",anchor=tk.W)
+        self.tree.heading("#0", text="   Location", anchor=tk.W)
+        self.tree.heading("pre", text="   Prefix", anchor=tk.W)
 
         self.tree.config(yscrollcommand=self.scrollbar.set)
         self.scrollbar.config(command=self.tree.yview)
 
         self.ged_event_info: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=GFStyle.TXT_WID, style='Light.TLabel')
         self.footnote: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="Data is from GeoNames.org.  Hover for details",
-                                             width=GFStyle.TXT_WID, style='Light.TLabel')
+                                                                       width=GFStyle.TXT_WID, style='Light.TLabel')
 
         self.prog: Progress.Progress = Progress.Progress(self.root, bar_color=GFStyle.HIGH_COLOR, trough_color=GFStyle.LT_GRAY, status=self.status)
 
@@ -208,4 +208,3 @@ class AppLayout:
                                                  self.skip_button, self.map_button, self.help_button]
 
         self.root.update()
-

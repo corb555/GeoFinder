@@ -27,9 +27,10 @@ from geofinder.CachedDictionary import CachedDictionary
 
 class Gedcom:
     """
-    Read/Parse and Write GEDCOM files
-    Scan - Read through gedcom file, find specified Tag entry.  Write out all other GEDCOM entries as-is if out_path is not None
-    Keep track of hierarchical info for Events
+    Basic routines to Read/Parse and Write GEDCOM files focused on PLAC entries
+    Scan - Read through gedcom file, find specified Tag entry.
+    Write out all other GEDCOM entries as-is if out_path is not None
+    Keep track of info for current Event
     Build a dictionary of Person ID to name and Family ID to name
     """
 
@@ -37,7 +38,7 @@ class Gedcom:
         self.build = False
         self.logger = logging.getLogger(__name__)
         self.progress_bar = progress
-        self.output_latlon = False   # todo Set gedcom output to true
+        self.output_latlon = True
 
         # Sections of a GEDCOM line - Level, label, tag, value
         self.level: int = 0
@@ -161,9 +162,10 @@ class Gedcom:
     def collect_event_details(self):
         """ Collect details for event - last name, event date, and tag in GEDCOM file."""
 
-        # Text for event tags
+        # Text names for event tags
         event_names = {'DEAT': 'Death', 'CHR': 'Christening', 'BURI': 'Burial', 'BIRT': 'Birth',
-                       'CENS': 'Census', 'MARR': 'Marriage', 'RESI': 'Residence', 'IMMI': 'Immigration', 'EMMI': 'Emmigration'}
+                       'CENS': 'Census', 'MARR': 'Marriage', 'RESI': 'Residence', 'IMMI': 'Immigration', 'EMMI': 'Emmigration',
+                       'OCCU':'Occupation'}
 
         # Level of 0 indicates a new record - reset values
         if self.level == 0:
@@ -196,12 +198,15 @@ class Gedcom:
         elif self.level == 2:
             if self.tag == 'DATE':
                 self.set_date(self.value)
+            elif self.tag == 'TYPE':
+                self.event_name = self.value
 
-    def set_date(self, date:str):
+    def set_date(self, date: str):
         """ Set Date and Parse string for date/year and set Gedcom year of event """
+        # Only supports simple date and ABT date
         self.date = date
         self.event_year = 0
-        self.abt_flag = False
+        self.abt_flag = False  # Flag to indicate that this is an "ABOUT" date
 
         # Support DATE and ABT DATE of form <DD> <MMM> YYYY (GEDCOM format) with no validation
         reg = r'^\s*(ABT\s+)?([1-3]?[0-9]{1}\s+)?((JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+)?(\d{3,4})'
@@ -209,8 +214,8 @@ class Gedcom:
         m = re.search(reg, date)
         if m:
             abt = (m.group(1))
-            #day = (m.group(2))
-            #mon = (m.group(3))
+            # day = (m.group(2))
+            # mon = (m.group(3))
             # group4 not used
             year = (m.group(5))
 

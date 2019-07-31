@@ -20,8 +20,6 @@
 from tkinter import ttk
 from tkinter.ttk import Progressbar
 
-from geofinder.Widge import Widge
-
 
 class Progress:
     """ Create a progress bar for loading large files or other long operations """
@@ -49,7 +47,7 @@ class Progress:
         if progress < 2:
             progress = 2
         self.bar['value'] = progress
-        Widge.set_text(self.lable, stage)
+        self.lable.set_text(stage)
         if self.startup:
             self.window.update()
         else:

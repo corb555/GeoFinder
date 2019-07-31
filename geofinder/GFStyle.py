@@ -72,11 +72,11 @@ class GFStyle:
         styl.configure('Preferred.TButton', foreground=GOOD_COLOR)
 
         styl.configure("Plain.Treeview", highlightthickness=0, bd=0, font=(FNT_NAME, FNT_SIZE_MD),
-                       foreground = FG_COLOR) # Modify the font of the body
-        styl.configure("Plain.Treeview.Heading", font=(FNT_NAME, FNT_SIZE_MD,'bold'),
-                       foreground=FG_COLOR, background=LT_GRAY, relief="flat") # Modify the font of
+                       foreground=FG_COLOR)  # Modify the font of the body
+        styl.configure("Plain.Treeview.Heading", font=(FNT_NAME, FNT_SIZE_MD, 'bold'),
+                       foreground=FG_COLOR, background=LT_GRAY, relief="flat")  # Modify the font of
         # the headings
-        styl.layout("Plain.Treeview", [('Plain.Treeview.treearea', {'sticky': 'nswe'})]) # Remove the borders
+        styl.layout("Plain.Treeview", [('Plain.Treeview.treearea', {'sticky': 'nswe'})])  # Remove the borders
 
         # Import the Notebook.tab element from the default theme
         styl.element_create('Plain.Notebook.tab', "from", 'default')

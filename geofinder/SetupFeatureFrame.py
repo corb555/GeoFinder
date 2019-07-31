@@ -21,11 +21,11 @@ import logging
 from tkinter import ttk
 
 from geofinder import ListboxFrame
-from geofinder.Widge import Widge
+from geofinder import Widge as Widge
 
-default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF","CH", "CSTL", "CMTY", "EST ", "HSP",
-           "HSTS", "ISL", "MSQE", "MSTY","MT", "MUS", "PAL", "PPL", "PPLA", "PPLA2", "PPLA3", "PPLA4",
-           "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "RUIN", "RLG","STG", "SQR", "SYG","VAL"]
+default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ", "HSP",
+           "HSTS", "ISL", "MSQE", "MSTY", "MT", "MUS", "PAL", "PPL", "PPLA", "PPLA2", "PPLA3", "PPLA4",
+           "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "RUIN", "RLG", "STG", "SQR", "SYG", "VAL"]
 
 
 class SetupFeatureFrame(ListboxFrame.ListboxFrame):
@@ -45,8 +45,8 @@ class SetupFeatureFrame(ListboxFrame.ListboxFrame):
 
         # Add these in addition to the standard widgets we inherit from ListBoxFrame
         self.add_button = ttk.Button(frame, text="add", command=self.add_handler, width=ListboxFrame.BUTTON_WIDTH)
-        self.feature_label = ttk.Label(frame, text="Enter Geoname Feature below and click on Add button to add",style='Info.TLabel')
-        self.feature_entry: ttk.Entry = ttk.Entry(frame, text="   ", width=15)  # , style='Info.TLabel')
+        self.feature_label = Widge.CLabel(frame, text="Enter Geoname Feature below and click on Add button to add", style='Info.TLabel')
+        self.feature_entry: Widge.CEntry = Widge.CEntry(frame, text="   ", width=15)  # , style='Info.TLabel')
         super().__init__(frame, title, dir_name, cache_filename)
 
         # If dictionary is empty, load in defaults
@@ -65,13 +65,13 @@ class SetupFeatureFrame(ListboxFrame.ListboxFrame):
         super().configure_widgets(frm)
 
         # Add these in addition to the standard widgets in ListBoxFrame
-        # todo - get rid of set_grid_position and just use element.grid()
-        Widge.set_grid_position(self.add_button, "country_button", grd=self.grd)
-        Widge.set_grid_position(self.feature_label, "country_label", grd=self.grd)
-        Widge.set_grid_position(self.feature_entry, "country_entry", grd=self.grd)
+        # todo - remove set_grid_position and just use element.grid()
+        Widge.Widge.set_grid_position(self.add_button, "country_button", grd=self.grd)
+        Widge.Widge.set_grid_position(self.feature_label, "country_label", grd=self.grd)
+        Widge.Widge.set_grid_position(self.feature_entry, "country_entry", grd=self.grd)
 
     def add_handler(self):
         # Allow user to add an item to list.
-        val: str = Widge.get_text(self.feature_entry)
+        val: str = self.feature_entry.get_text()
         self.dict[val.upper()] = ""  # Add item to dict
         super().add_handler()

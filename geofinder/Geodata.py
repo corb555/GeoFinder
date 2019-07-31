@@ -206,7 +206,7 @@ class Geodata:
         # Discard location names that didnt exist at time of event
         if len(georow_list) > 299:
             georow_list.append(self.geo_files.geodb.make_georow(name='(plus more...)', iso='US', adm1=' ', adm2=' ', feat='Q0', lat=99.9, lon=99.9,
-                                                                id='q'))
+                                                                geoid='q'))
 
         # sort list by State/Province id, and County id
         list_copy = sorted(georow_list, key=itemgetter(GeoKeys.Entry.ADM1, GeoKeys.Entry.ADM2))
@@ -214,7 +214,7 @@ class Geodata:
         distance_cutoff = 0.5  # Value to determine if two lat/longs are similar
 
         # Create a dummy 'previous' row so first comparison works
-        prev_geo_row = self.geo_files.geodb.make_georow(name='q', iso='q', adm1='q', adm2='q', lat=900, lon=900, feat='q', id='q')
+        prev_geo_row = self.geo_files.geodb.make_georow(name='q', iso='q', adm1='q', adm2='q', lat=900, lon=900, feat='q', geoid='q')
         idx = 0
         date_filtered = ''
 
@@ -241,7 +241,8 @@ class Geodata:
 
             prev_geo_row = geo_row
 
-    def get_priority(self, feature):
+    @staticmethod
+    def get_priority(feature):
         prior = feature_priority.get(feature)
         if prior is None:
             return 1

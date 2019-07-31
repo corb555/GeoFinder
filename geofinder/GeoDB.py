@@ -41,8 +41,8 @@ class GeoDB:
 
         self.db.set_speed_pragmas()
         self.db.set_params(select_str='name, country, admin1_id, admin2_id, lat, lon, f_code, geoid', order_str='', limit_str='LIMIT 300')
-        self.geoid_main_dict = {}   # Key is GEOID, Value is DB ID for entry
-        self.geoid_admin_dict = {}   # Key is GEOID, Value is DB ID for entry
+        self.geoid_main_dict = {}  # Key is GEOID, Value is DB ID for entry
+        self.geoid_admin_dict = {}  # Key is GEOID, Value is DB ID for entry
 
     def insert(self, geo_row: (), feat_code: str):
         # We split the data into 3 separate tables, 1) Admin: ADM0/ADM1/ADM2,  and 2) city data
@@ -132,8 +132,8 @@ class GeoDB:
         if len(place.country_iso) == 0:
             # No country present - try lookup by name.   No other queries
             query_list.append(Query(where="name = ?",
-                  args=(lookup_target,),
-                  result=Result.PARTIAL_MATCH))
+                                    args=(lookup_target,),
+                                    result=Result.PARTIAL_MATCH))
             place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
             return
 
@@ -148,30 +148,30 @@ class GeoDB:
 
             # lookup by name, admin1
             query_list.append(Query(where="name = ? AND country = ? AND admin1_id = ?",
-                  args=(lookup_target, place.country_iso, place.admin1_id),
-                  result=Result.EXACT_MATCH))
+                                    args=(lookup_target, place.country_iso, place.admin1_id),
+                                    result=Result.EXACT_MATCH))
 
             # lookup by wildcard name, admin1
             query_list.append(Query(where="name LIKE ? AND country = ? AND admin1_id = ?",
-                  args=(pattern, place.country_iso, place.admin1_id),
-                  result=Result.PARTIAL_MATCH))
+                                    args=(pattern, place.country_iso, place.admin1_id),
+                                    result=Result.PARTIAL_MATCH))
         elif len(place.admin2_name) == 0:
             # lookup by name
             # admin1 and admin2 werent entered, so a match here is an exact match
             query_list.append(Query(where="name = ? AND country = ?",
-                                args=(lookup_target, place.country_iso),
-                                result=Result.EXACT_MATCH))
+                                    args=(lookup_target, place.country_iso),
+                                    result=Result.EXACT_MATCH))
         elif len(place.admin2_name) > 0:
             # lookup by name
             # admin1 wasnt entered, so a match here is an exact match
             query_list.append(Query(where="name = ? AND admin2_id=? AND country = ?",
-                                args=(lookup_target, place.admin2_id, place.country_iso),
-                                result=Result.EXACT_MATCH))
+                                    args=(lookup_target, place.admin2_id, place.country_iso),
+                                    result=Result.EXACT_MATCH))
         else:
             # lookup by name (partial match since user specified admin)
             query_list.append(Query(where="name = ? AND country = ?",
-                                args=(lookup_target, place.country_iso),
-                                result=Result.PARTIAL_MATCH))
+                                    args=(lookup_target, place.country_iso),
+                                    result=Result.PARTIAL_MATCH))
 
         # lookup by name (partial match since user specified admin)
         query_list.append(Query(where="name LIKE ? AND country = ?",
@@ -180,7 +180,6 @@ class GeoDB:
 
         # Try each query in list until we find a match
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
-
 
     def select_admin2(self, place: Place):
         """Search for Admin2 entry"""
@@ -194,8 +193,8 @@ class GeoDB:
 
         query_list = [
             Query(where="name = ? AND country = ? AND admin1_id = ?",
-                                    args=(lookup_target, place.country_iso, place.admin1_id),
-                                    result=Result.EXACT_MATCH)
+                  args=(lookup_target, place.country_iso, place.admin1_id),
+                  result=Result.EXACT_MATCH)
         ]
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
 
@@ -247,7 +246,7 @@ class GeoDB:
         if len(lookup_target) == 0:
             return
 
-        #self.logger.debug(f'sel adm1 patt={pattern} iso={place.country_iso}')
+        # self.logger.debug(f'sel adm1 patt={pattern} iso={place.country_iso}')
 
         # Try each query until we find a match - each query gets less exact
         query_list = [
@@ -312,22 +311,22 @@ class GeoDB:
         query_list = []
         if len(place.admin1_id) > 0:
             query_list.append(Query(where="name = ? AND country = ? AND admin1_id=? AND f_code=?",
-                      args=(lookup_target, place.country_iso, place.admin1_id, 'ADM2'),
-                      result=Result.EXACT_MATCH) )
+                                    args=(lookup_target, place.country_iso, place.admin1_id, 'ADM2'),
+                                    result=Result.EXACT_MATCH))
             query_list.append(Query(where="name LIKE ? AND country = ? and admin1_id = ? AND f_code=?",
-                      args=(self.create_wildcard(lookup_target), place.country_iso, place.admin1_id, 'ADM2'),
-                      result=Result.PARTIAL_MATCH))
+                                    args=(self.create_wildcard(lookup_target), place.country_iso, place.admin1_id, 'ADM2'),
+                                    result=Result.PARTIAL_MATCH))
         else:
             query_list.append(Query(where="name = ? AND country = ? AND f_code=?",
-                      args=(lookup_target, place.country_iso, 'ADM2'),
-                      result=Result.EXACT_MATCH) )
+                                    args=(lookup_target, place.country_iso, 'ADM2'),
+                                    result=Result.EXACT_MATCH))
             query_list.append(Query(where="name LIKE ? AND country = ? AND f_code=?",
-                      args=(self.create_wildcard(lookup_target), place.country_iso, 'ADM2'),
-                      result=Result.PARTIAL_MATCH))
+                                    args=(self.create_wildcard(lookup_target), place.country_iso, 'ADM2'),
+                                    result=Result.PARTIAL_MATCH))
 
         row_list, res = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
 
-        #self.logger.debug(f'get adm2 id nm={lookup_target} res={row_list}')
+        # self.logger.debug(f'get adm2 id nm={lookup_target} res={row_list}')
 
         if len(row_list) > 0:
             row = row_list[0]
@@ -392,9 +391,9 @@ class GeoDB:
                   result=Result.EXACT_MATCH)]
 
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
-        #self.build_result_list(place.georow_list, place.event_year)
+        # self.build_result_list(place.georow_list, place.event_year)
 
-    def lookup_geoid(self, place: Place)->None:
+    def lookup_geoid(self, place: Place) -> None:
         """Search for GEOID"""
         query_list = [
             Query(where="geoid = ? ",
@@ -422,7 +421,6 @@ class GeoDB:
                   result=Result.EXACT_MATCH)
         ]
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
-
 
     def get_country_name(self, iso: str) -> str:
         """ return country name for specified ISO code """
@@ -469,7 +467,7 @@ class GeoDB:
 
     def copy_georow_to_place(self, row, place: Place):
         # Copy data from DB row into Place
-        #self.logger.debug(row)
+        # self.logger.debug(row)
         place.admin1_id = ''
         place.admin2_id = ''
         place.city1 = ''
@@ -480,7 +478,6 @@ class GeoDB:
         place.lon = row[Entry.LON]
         place.feature = row[Entry.FEAT]
         place.geoid = row[Entry.ID]
-
 
         if place.feature == 'ADM0':
             self.place_type = Place.PlaceType.COUNTRY
@@ -524,16 +521,16 @@ class GeoDB:
         self.db.create_index(create_table_sql='CREATE INDEX name_idx ON geodata(name)')
         self.db.create_index(create_table_sql='CREATE INDEX country_idx ON geodata(country)')
         self.db.create_index(create_table_sql='CREATE INDEX admin1_idx ON geodata(admin1_id)')
-        #self.db.create_index(create_table_sql='CREATE INDEX geoid_idx ON geodata(geoid)')
+        # self.db.create_index(create_table_sql='CREATE INDEX geoid_idx ON geodata(geoid)')
 
         self.db.create_index(create_table_sql='CREATE INDEX admname_idx ON admin(name)')
         self.db.create_index(create_table_sql='CREATE INDEX admcountry_idx ON admin(country)')
         self.db.create_index(create_table_sql='CREATE INDEX admadmin1_idx ON admin(admin1_id)')
 
     @staticmethod
-    def make_georow(name: str, iso:str, adm1: str, adm2: str, lat: float, lon: float, feat: str, id: str) -> ():
+    def make_georow(name: str, iso: str, adm1: str, adm2: str, lat: float, lon: float, feat: str, geoid: str) -> ():
         # Return a dummy geo-row
-        res = (name, iso, adm1, adm2, lat, lon, feat, id)
+        res = (name, iso, adm1, adm2, lat, lon, feat, geoid)
         return res
 
     def get_row_count(self) -> int:

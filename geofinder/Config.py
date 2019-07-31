@@ -31,19 +31,19 @@ class Config:
         self.config_cd: CachedDictionary
         self.config_cd = None
 
-    def get(self, param)->str:
+    def get(self, param) -> str:
         res = self.config_cd.dict.get(param)
         if res is None:
             res = ''
         return res
 
-    def set(self, name:str, val:str):
+    def set(self, name: str, val: str):
         self.config_cd.dict[name] = val
 
     def write(self):
         self.config_cd.write()
 
-    def read(self, directory, fname:str):
+    def read(self, directory, fname: str):
         """ Read config file  """
         self.logger.debug(f'config read {directory} {fname}')
         # Verify main directory exists

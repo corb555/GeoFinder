@@ -41,30 +41,29 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
         self.logger = logging.getLogger(__name__)
         self.logger.debug(f'SetupConfigureCountries dir {dir_name} cache dir {cache_dir} file {cache_filename}')
 
+        self.pad = ttk.Label(frame, text="", style='Info.TLabel')  # blank padding row
 
-        self.pad = ttk.Label(frame, text="",style='Info.TLabel')  # blank padding row
-
-        self.add_label = ttk.Label(frame, text="All Countries - Select countries below to add to supported list and click Add",style='Info.TLabel')
+        self.add_label = ttk.Label(frame, text="All Countries - Select countries below to add to supported list and click Add", style='Info.TLabel')
         self.add_button = ttk.Button(frame, text="add", command=self.add_handler, width=ListboxFrame.BUTTON_WIDTH)
         self.scrollbar2 = Scrollbar(frame)
 
-        self.listbox_all_countries=ttk.Treeview(frame, style="Plain.Treeview") #, selectmode="browse")
+        self.listbox_all_countries = ttk.Treeview(frame, style="Plain.Treeview")  # , selectmode="browse")
         self.listbox_all_countries.tag_configure('odd', background=GFStyle.ODD_ROW_COLOR)
         self.listbox_all_countries.tag_configure('even', background='white')
 
-        self.listbox_all_countries["columns"]=("pre",)
+        self.listbox_all_countries["columns"] = ("pre",)
         self.listbox_all_countries.column("#0", width=400, minwidth=100, stretch=tk.NO)
         self.listbox_all_countries.column("pre", width=500, minwidth=50, stretch=tk.NO)
-        self.listbox_all_countries.heading("#0",text="Name", anchor=tk.W)
-        self.listbox_all_countries.heading("pre", text="Code",anchor=tk.W)
+        self.listbox_all_countries.heading("#0", text="Name", anchor=tk.W)
+        self.listbox_all_countries.heading("pre", text="Code", anchor=tk.W)
 
         self.listbox_all_countries.config(yscrollcommand=self.scrollbar2.set)
         self.scrollbar2.config(command=self.listbox_all_countries.yview)
 
         self.country_dict = {}
         super().__init__(frame, title, cache_dir, cache_filename)
-        self.tree.heading("#0",text="Name", anchor=tk.W)
-        self.tree.heading("pre", text="Code",anchor=tk.W)
+        self.tree.heading("#0", text="Name", anchor=tk.W)
+        self.tree.heading("pre", text="Code", anchor=tk.W)
 
         self.geoFiles = GeodataFiles.GeodataFiles(dir_name, None)
 
@@ -93,9 +92,9 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
 
         for key in sorted(self.dict):
             if len(self.dict[key]) > 1:
-                self.list_insert(self.tree,f"{self.dict[key]}", f"{key}")
+                self.list_insert(self.tree, f"{self.dict[key]}", f"{key}")
             else:
-                self.list_insert(self.tree, f"{key}",'')
+                self.list_insert(self.tree, f"{key}", '')
 
     def delete_items(self, tree, dct):
         # Delete any items in the list that the user selected
@@ -110,11 +109,11 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
 
     def load_handler_all(self):
         # Load in list of all countries and display
-        #self.listbox_all_countries.delete(0, END)
+        # self.listbox_all_countries.delete(0, END)
         self.clear_display_list(self.listbox_all_countries)
         for name in sorted(Country.country_dict):
             row = Country.country_dict[name]
-            #self.listbox_all_countries.insert(END, f"{name.lower()}{self.separator}{row[0].lower()}")
+            # self.listbox_all_countries.insert(END, f"{name.lower()}{self.separator}{row[0].lower()}")
             self.list_insert(self.listbox_all_countries, f"{name.lower()}", f"{row[0].lower()}")
 
     def add_handler(self):

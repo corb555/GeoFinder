@@ -33,11 +33,11 @@ class Place:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.clear()
-        self.event_year : int = 0
+        self.event_year: int = 0
 
     def clear(self):
         # Place geo info
-        self.name : str= ""
+        self.name: str = ""
         self.lat: float = float('NaN')  # Latitude
         self.lon: float = float('NaN')  # Longitude
         self.country_iso: str = ""  # Country ISO code
@@ -51,8 +51,8 @@ class Place:
         self.feature: str = ''  # Geoname feature code
         self.place_type: int = PlaceType.COUNTRY  # Is this a Country , Admin1 ,admin2 or city?
         self.target: str = ''  # Target for lookup
-        self.geoid : str = ''
-        self.prefix_commas : str = ''
+        self.geoid: str = ''
+        self.prefix_commas: str = ''
 
         # Lookup result info
         self.status: str = ""
@@ -94,7 +94,7 @@ class Place:
 
                 # Lookup last token as admin1.  This will fill in country ISO if admin1 is found
                 geo_files.geodb.get_admin1_id(self)
-                self.admin1_name = save_admin1   # Restore Admin1
+                self.admin1_name = save_admin1  # Restore Admin1
 
                 if self.country_iso is not None:
                     # We found the country.  Append it to token list so we now have xx,admin1, country
@@ -131,7 +131,7 @@ class Place:
                     # Change to Greater London
                     self.admin2_name = 'greater london'
                 self.target = self.admin2_name
-            #else:
+            # else:
             #    self.place_type = PlaceType.CITY
 
         if token_count > 3:
@@ -149,7 +149,7 @@ class Place:
                     self.prefix += ' '
                 self.prefix += item.strip(' ')
 
-            #self.prefix.strip(' ')
+            # self.prefix.strip(' ')
 
         # Special case for New York, New York which normally refers to the City, not county
         if self.admin2_name == 'new york' and self.place_type == PlaceType.ADMIN2:
@@ -202,7 +202,7 @@ class Place:
 
         if len(self.prefix) == 0:
             self.prefix_commas = ''
-        #self.logger.debug(f' [{self.prefix}][{self.prefix_commas}][{nm}]')
+        # self.logger.debug(f' [{self.prefix}][{self.prefix_commas}][{nm}]')
         return nm
 
 
