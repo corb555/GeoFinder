@@ -594,4 +594,8 @@ class GeoFinder:
             self.w.save_button.configure(style="Preferred.TButton")  # Make the Save button the preferred selection
 
 
-r = GeoFinder()
+def entry():
+    GeoFinder()
+
+
+r = entry()
