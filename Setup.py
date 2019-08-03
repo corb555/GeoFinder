@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 
-# Note: To use the 'upload' functionality of this file, you must:
-#   $ pipenv install twine --dev
+# To use the 'upload' functionality of this file:
+#   python Setup.py upload
 
 import io
 import os
