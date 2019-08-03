@@ -29,6 +29,7 @@ from tkinter import messagebox
 from geofinder import Geodata, GeoKeys, Config, Gedcom, Loc, AppLayout, UtilLayout
 from geofinder.CachedDictionary import CachedDictionary
 from geofinder.Widge import Widge
+from geofinder import __version__
 
 MISSING_FILES = 'Missing Files.  Please run geoutil and correct errors in Errors Tab'
 
@@ -56,19 +57,18 @@ class GeoFinder:
 
     Main classes:
 
-    geofinder - The main GUI
+    GeoFinder - The main GUI
     GeoData - The geonames data model routines
     GeoDB -  Database insert/lookup routines
     GEDCOM - routines to read and write GEDCOM files
     GeodataFile - routines to read/write geoname data sources
     AppLayout - routines to create the app windows and widgets
-    Place - holds all info for a single place
+    Loc - holds all info for a single location
 
-    python3 -m geofinder.Geofinder.main
     """
 
     def __init__(self):
-        print('GeoFinder')
+        print(f'GeoFinder v{__version__.__version__}')
         self.shutdown_requested: bool = False  # Flag to indicate user requested shutdown
         self.save_enabled = False  # Only allow SAVE when we have an item that was matched in geonames
         self.user_selected_list = False  # Indicates whether user selected a list entry or text edit entry
