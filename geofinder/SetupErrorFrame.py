@@ -47,7 +47,7 @@ class SetupErrorFrame:
 
         # Load in list from cache file
         self.directory = dir_name
-        self.cache_dir = GeoKeys.get_cache_directory()
+        self.cache_dir = GeoKeys.get_cache_directory(dir_name)
         self.logger.debug(f'SetupStatusFrame dir={dir_name} sub_dir={self.cache_dir} file={cache_filename}')
         self.cache = CachedDictionary.CachedDictionary(self.cache_dir, cache_filename)
         self.cache.read()
