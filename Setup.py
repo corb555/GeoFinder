@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="geofinder",
-    version="0.1.9",
+    version="0.2.0",
     author="Mike Herbert",
     author_email="corb@aol.com",
     description="GEDCOM Genealogy address validation and geocoding using geonames.org data",
