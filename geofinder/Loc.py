@@ -24,7 +24,7 @@ from typing import List, Tuple
 from geofinder import GeoKeys
 
 
-class Place:
+class Loc:
     """
     Holds the details about a Place: Name, county, state/province, country, lat/long as well as lookup result details
     Parses a name into Place items (county, state, etc)
@@ -163,7 +163,7 @@ class Place:
 
     def set_place_type(self):
         self.place_type = PlaceType.CITY
-        if len(self.country_name) > 0:
+        if len(str(self.country_name)) > 0:
             self.place_type = PlaceType.COUNTRY
         if len(self.admin1_name) > 0:
             self.place_type = PlaceType.ADMIN1

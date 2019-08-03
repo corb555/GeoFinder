@@ -20,6 +20,8 @@
 import glob
 import logging
 import os
+import tkinter as ttk
+import webbrowser
 from tkinter import *
 from tkinter.ttk import *
 from typing import Dict
@@ -45,7 +47,7 @@ class SetupErrorFrame:
 
         # Load in list from cache file
         self.directory = dir_name
-        self.cache_dir = GeoKeys.cache_directory(self.directory)
+        self.cache_dir = GeoKeys.get_cache_directory()
         self.logger.debug(f'SetupStatusFrame dir={dir_name} sub_dir={self.cache_dir} file={cache_filename}')
         self.cache = CachedDictionary.CachedDictionary(self.cache_dir, cache_filename)
         self.cache.read()
@@ -59,12 +61,14 @@ class SetupErrorFrame:
 
         self.grd = {"title_label": [0, 0, 5, 5, "W"], "scrollbar": [1, 2, 0, 5, "WNS"], "status": [0, 1, 5, 5, "W"], "add_button": [2, 4, 5, 5, "W"],
                     "listbox": [0, 2, 5, 5, "E"], "unused": [2, 3, 5, 5, "W"], "add_entry": [0, 4, 5, 5, "W"], "load_button": [2, 1, 5, 5, "W"],
-                    "remove_button": [2, 1, 5, 5, "W"], "add_label": [0, 3, 5, 5, "EW"]}
+                    "geoname_button": [2, 1, 5, 5, "E"], "add_label": [0, 3, 5, 5, "EW"]}
         self.title_label = Widge.CLabel(frame, text=self.title, width=80, style='Info.TLabel')
         self.status = Widge.CLabel(frame, text=" ", width=80, style='Highlight.TLabel')
         self.scrollbar = Scrollbar(frame)
         self.listbox = Listbox(frame, width=80, height=20, bg=GFStyle.LT_GRAY, selectmode=MULTIPLE,
                                yscrollcommand=self.scrollbar.set)
+        self.add_button = ttk.Button(frame, text="geonames.org", command=self.web_handler, width=12)
+
 
         # Configure buttons and widgets
         self.configure_widgets()
@@ -72,7 +76,13 @@ class SetupErrorFrame:
         # Display data
         self.load_handler()
 
-    def load_handler(self):
+    @staticmethod
+    def web_handler():
+        """ Bring up browser with help text """
+        help_base = "https://download.geonames.org/export/dump/"
+        webbrowser.open(help_base)
+
+    def check_configuration(self, error_dict, country_dct):
         country_file_len = 6
         file_list = ['allCountries.txt', 'cities500.txt']
         self.file_error = False
@@ -85,7 +95,6 @@ class SetupErrorFrame:
 
         for filepath in glob.glob(path):
             # Ignore the two Admin files
-            print(filepath)
             fname = os.path.basename(filepath)
             if len(fname) == country_file_len or fname in file_list:
                 count += 1
@@ -94,26 +103,29 @@ class SetupErrorFrame:
 
         if not alt_found:
             # Alternate Names file is missing
-            # self.error_dict["Optional alternateNamesV2.txt not found"] = ""
+            # error_dict["Optional alternateNamesV2.txt not found"] = ""
             self.logger.warning('optional alternateNamesV2.txt not found')
             # self.file_error = True
 
         self.logger.debug(f'geoname file count={count}')
         if count == 0:
             # No data files, add error to error dictionary
-            self.error_dict["No Geoname.org data files found. e.g. AllCountries.txt, or cities500.txt or xx.txt"] = ""
+            error_dict["No Geoname.org data files found. e.g. AllCountries.txt"] = ""
             self.logger.warning('No Geonames files found')
             self.file_error = True
 
         if self.file_error:
-            self.status.set_text("Download missing files from geonames.org and place in {}".format(self.directory))
+            self.status.set_text("Download AllCountries.zip from geonames.org and place in {}".format(self.directory))
 
         # Get country list and validate
         self.logger.debug('load countries')
         # self.supported_countries_cd.read()
-        res = self.verify_country_list(self.supported_countries_dct)
+        res = self.verify_country_list(country_dct)
         if len(res) > 0:
-            self.error_dict[res] = ''
+            error_dict[res] = ''
+
+    def load_handler(self):
+        self.check_configuration(self.error_dict, self.supported_countries_dct)
 
         if len(self.error_dict) > 0:
             # Missing files
@@ -161,6 +173,7 @@ class SetupErrorFrame:
         self.config_grid(self.listbox, "listbox")
         self.scrollbar.config(command=self.listbox.yview)
         self.config_grid(self.scrollbar, "scrollbar")
+        self.config_grid(self.add_button, 'geoname_button')
 
     @staticmethod
     def verify_country_list(dct):

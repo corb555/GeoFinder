@@ -23,7 +23,7 @@ import time
 import unittest
 from pathlib import Path
 
-from geofinder import Geodata, GeoKeys, Place
+from geofinder import Geodata, GeoKeys, Loc
 
 halifax_lat = 44.71314
 
@@ -65,7 +65,7 @@ class TestGeodata(unittest.TestCase):
             raise ValueError('Cannot open database')
 
     def setUp(self) -> None:
-        self.place: Place.Place = Place.Place()
+        self.place: Loc.Loc = Loc.Loc()
 
     def run_test(self, title: str, entry: str) -> float:
         print("*****TEST: {}".format(title))
@@ -170,47 +170,47 @@ class TestGeodata(unittest.TestCase):
     def test_place_code01(self):
         test = "Country  verify place type"
         lat: float = self.run_test(test, "Germany")
-        self.assertEqual(Place.PlaceType.COUNTRY, self.place.place_type, test)
+        self.assertEqual(Loc.PlaceType.COUNTRY, self.place.place_type, test)
 
     def test_place_code02(self):
         test = "State - Bad.  verify place type"
         lat: float = self.run_test(test, "skdfjd,Germany")
-        self.assertEqual(Place.PlaceType.ADMIN1, self.place.place_type, test)
+        self.assertEqual(Loc.PlaceType.ADMIN1, self.place.place_type, test)
 
     def test_place_code03(self):
         test = "State - Bad.  verify place type.  with prefix"
         lat: float = self.run_test(test, "abc,,,Alberta,Canada")
-        self.assertEqual(Place.PlaceType.ADMIN1, self.place.place_type, test)
+        self.assertEqual(Loc.PlaceType.ADMIN1, self.place.place_type, test)
 
     def test_place_code04(self):
         test = "County  prioritize city.  verify place type "
         lat: float = self.run_test(test, "Halifax, Nova Scotia, Canada")
-        self.assertEqual(Place.PlaceType.CITY, self.place.place_type, test)
+        self.assertEqual(Loc.PlaceType.CITY, self.place.place_type, test)
 
     def test_place_code24(self):
         test = "County  prioritize city.  verify place type "
         lat: float = self.run_test(test, "Halifax County, Nova Scotia, Canada")
-        self.assertEqual(Place.PlaceType.ADMIN2, self.place.place_type, test)
+        self.assertEqual(Loc.PlaceType.ADMIN2, self.place.place_type, test)
 
     def test_place_code05(self):
         test = "County prioritize city verify place type with prefix "
         lat: float = self.run_test(test, "abc,,Halifax, Nova Scotia, Canada")
-        self.assertEqual(Place.PlaceType.CITY, self.place.place_type, test)
+        self.assertEqual(Loc.PlaceType.CITY, self.place.place_type, test)
 
     def test_place_code25(self):
         test = "County prioritize city verify place type with prefix "
         lat: float = self.run_test(test, "abc,,Halifax County, Nova Scotia, Canada")
-        self.assertEqual(Place.PlaceType.ADMIN2, self.place.place_type, test)
+        self.assertEqual(Loc.PlaceType.ADMIN2, self.place.place_type, test)
 
     def test_place_code06(self):
         test = "City  verify place type"
         lat: float = self.run_test(test, "Halifax, , Nova Scotia, Canada")
-        self.assertEqual(Place.PlaceType.CITY, self.place.place_type, test)
+        self.assertEqual(Loc.PlaceType.CITY, self.place.place_type, test)
 
     def test_place_code07(self):
         test = "City  verify place type with prefix"
         lat: float = self.run_test(test, "abc,,Halifax, , Nova Scotia, Canada")
-        self.assertEqual(Place.PlaceType.CITY, self.place.place_type, test)
+        self.assertEqual(Loc.PlaceType.CITY, self.place.place_type, test)
 
     # ===== TEST PERMUTATIONS for Exact lookups (non wildcard)
 
@@ -300,23 +300,23 @@ class TestGeodata(unittest.TestCase):
 
     def test_city05(self):
         test = "City - Good name, edberg "
-        lat: float = self.run_test(test, "Edberg,,,Canada")
+        lat: float = self.run_test(test, "Edberg,,Alberta,Canada")
         self.assertEqual(52.78343, lat, test)
 
     def test_city06(self):
         test = "City - Good name, edburg with U "
-        lat: float = self.run_test(test, "Edburg,,,Canada")
+        lat: float = self.run_test(test, "Edburg,,Alberta,Canada")
         self.assertEqual(52.78343, lat, test)
 
     def test_city07(self):
-        test = "City - Good name, gray creek "
-        lat: float = self.run_test(test, "gray creek,,,Canada")
-        self.assertEqual(49.63333, lat, test)
+        test = "City - Good name, gray gull island "
+        lat: float = self.run_test(test, "gray gull island,,newfoundland and labrador,Canada")
+        self.assertEqual(47.5166, lat, test)
 
     def test_city08(self):
-        test = "City - Good name, grey creek with E "
-        lat: float = self.run_test(test, "grey creek,,,Canada")
-        self.assertEqual(49.63333, lat, test)
+        test = "City - Good name, grey gull island with E "
+        lat: float = self.run_test(test, "grey gull island,,newfoundland and labrador,Canada")
+        self.assertEqual(47.5166, lat, test)
 
     def test_city09(self):
         test = "City - Good name, St. "

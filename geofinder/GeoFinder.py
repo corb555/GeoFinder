@@ -17,6 +17,7 @@
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 import copy
+import glob
 import logging
 import os
 import sys
@@ -25,16 +26,16 @@ from pathlib import Path
 from tkinter import filedialog
 from tkinter import messagebox
 
-from geofinder import AppLayout, Gedcom, Geodata, GeoKeys, Place
+from geofinder import Geodata, GeoKeys, Config, Gedcom, Loc, AppLayout, UtilLayout
 from geofinder.CachedDictionary import CachedDictionary
-from geofinder.Config import Config
 from geofinder.Widge import Widge
 
-MISSING_FILES = 'Missing Files.  Please run GeoUtil.py and correct errors in Errors Tab'
+MISSING_FILES = 'Missing Files.  Please run geoutil and correct errors in Errors Tab'
 
 GEOID_TOKEN = 1
 PREFIX_TOKEN = 2
 
+# Tags to alternate colors in lists
 odd_tag = ('odd',)
 even_tag = ('even',)
 
@@ -62,6 +63,8 @@ class GeoFinder:
     GeodataFile - routines to read/write geoname data sources
     AppLayout - routines to create the app windows and widgets
     Place - holds all info for a single place
+
+    python3 -m geofinder.Geofinder.main
     """
 
     def __init__(self):
@@ -71,34 +74,74 @@ class GeoFinder:
         self.user_selected_list = False  # Indicates whether user selected a list entry or text edit entry
         self.err_count = 0
         self.odd = False
+        self.cfg = None
+        self.gedcom = None
+        self.place = None
+        self.skiplist = None
+        self.global_replace = None
+        self.user_accepted = None
+        self.geodata = None
 
         self.logger = self.setup_logging('geofinder Init')
+
         # Save our base directory and cache directory
-        self.directory: str = os.path.join(str(Path.home()), Geodata.Geodata.get_directory_name())
-        self.cache_dir = GeoKeys.cache_directory(self.directory)
-
-        # Get configuration settings stored in config pickle file
-        self.logger.debug('load config')
-        self.cfg = Config()
-        err = self.cfg.read(self.cache_dir, "config.pkl")
-        if err:
-            self.logger.warning(f'error reading {self.cache_dir} config.pkl')
-
-        pathname = self.cfg.get("gedcom_path")  # Get saved config setting for GEDCOM file
-        if pathname is not None:
-            out_path = pathname + "new.ged"
-        else:
-            out_path = 'unk.new.ged'
-        cdir = self.cache_dir
-
-        # Initialize routines to read/write GEDCOM file
-        self.gedcom: Gedcom.Gedcom(in_path=pathname, out_path=out_path, cache_dir=cdir, progress=None) = None
-        self.place: Place.Place = Place.Place()  # Create an object to store info for the current Place
+        self.directory: str = os.path.join(str(Path.home()), GeoKeys.get_directory_name())
+        self.cache_dir = GeoKeys.get_cache_directory(self.directory)
 
         # Create App window and configure  window buttons and widgets
         self.w: AppLayout.AppLayout = AppLayout.AppLayout(self)
-        self.w.create_initialization_widgets()
+        self.util = UtilLayout.UtilLayout(root=self.w.root, directory=self.directory, cache_dir=self.cache_dir)
 
+        self.w.create_initialization_widgets()
+        self.w.config_button.config(state="normal")
+
+        # Set up configuration  class
+        if self.cfg is None:
+            self.cfg = Config.Config()
+
+        # Ensure GeoFinder directory structure is valid
+        if self.cfg.valid_directories():
+            # Directories are valid.  See if  required Geonames files are present
+            err = self.check_configuration()
+            if err:
+                # Missing files
+                self.logger.warning(f'Missing files')
+                self.w.status.set_text("Click Config to set up Geo Finder")
+                self.set_preferred_button(self.w.config_button, self.w.initialization_buttons)
+                self.w.load_button.config(state="disabled")
+            else:
+                # No config errors
+                # Read config settings (GEDCOM file path)
+                err = self.cfg.read()
+                if err:
+                    self.logger.warning(f'error reading {self.cache_dir} config.pkl')
+
+                self.w.original_entry.set_text(self.cfg.get("gedcom_path"))
+                Widge.enable_buttons(self.w.initialization_buttons)
+                if os.path.exists(self.cfg.get("gedcom_path")):
+                    # GEDCOM file is valid.  Prompt user to click Open for GEDCOM file
+                    self.w.status.set_text("Click Open to load GEDCOM file")
+                    self.set_preferred_button(self.w.load_button, self.w.initialization_buttons)
+                else:
+                    # No file.  prompt user to select a GEDCOM file - GEDCOM file name isn't valid
+                    self.w.status.set_text("Choose a GEDCOM file")
+                    self.w.load_button.config(state="disabled")
+                    self.set_preferred_button(self.w.choose_button, self.w.initialization_buttons)
+        else:
+            # Missing directories
+            self.logger.warning(f'Directories not found: {self.cache_dir} ')
+            self.w.status.set_text("Click Config to set up Geo Finder")
+            self.w.load_button.config(state="disabled")
+            self.set_preferred_button(self.w.config_button, self.w.initialization_buttons)
+
+            # Create directories for GeoFinder
+            self.cfg.create_directories()
+
+        # Flag to indicate whether we are in startup or in Window loop.  Determines how window idle is called
+        self.startup = False
+        self.w.root.mainloop()  # ENTER MAIN LOOP and Wait for user to click on load button
+
+    def load_data(self):
         # Read in Skiplist, Replace list and  Already Accepted list
         self.skiplist = CachedDictionary(self.cache_dir, "skiplist.pkl")
         self.skiplist.read()
@@ -125,32 +168,34 @@ class GeoFinder:
         self.w.root.update()
         self.w.prog.update_progress(100, " ")
 
-        # Prompt user to click Open for GEDCOM file
-        self.w.original_entry.set_text(self.cfg.get("gedcom_path"))
-        Widge.enable_buttons(self.w.initialization_buttons)
-        if os.path.exists(self.cfg.get("gedcom_path")):
-            self.w.status.set_text("Click Open to load GEDCOM file")
-        else:
-            # GEDCOM file name isn't valid - prompt user to select a GEDCOM file
-            self.w.load_button.config(state="disabled")
-            self.w.status.set_text("Choose a GEDCOM file")
-
-        # Flag to indicate whether we are in startup or in Window loop.  Determines how window idle is called
-        self.startup = False
-        self.w.root.mainloop()  # ENTER MAIN LOOP and Wait for user to click on load button
-
     def load_handler(self):
         """
-        User pressed LOAD button to load a GEDCOM file. Load in file name and
+        User pressed LOAD button to load a GEDCOM file. Switch app display to the Review Widgets
+        Load in file name and
         loop through GEDCOM file and find every PLACE entry and verify the entry against the geoname data
         """
         self.w.original_entry.set_text("")
+        self.w.remove_initialization_widgets()  # Remove old widgets
         self.w.create_review_widgets()  # Switch display from Initial widgets to main review widgets
 
+        self.load_data()
+
+        ged_path = self.cfg.get("gedcom_path")  # Get saved config setting for GEDCOM file
+        if ged_path is not None:
+            out_path = ged_path + "new.ged"
+        else:
+            out_path = 'unk.new.ged'
+
+        # Initialize routines to read/write GEDCOM file
+        if self.gedcom is None:
+            self.gedcom = Gedcom.Gedcom(in_path=ged_path, out_path=out_path, cache_dir=self.cache_dir,
+                                        progress=self.w.prog)  # Routines to open and parse GEDCOM file
+        self.place: Loc.Loc = Loc.Loc()  # Create an object to store info for the current Place
+
         # Open GEDCOM file
-        ged_path = self.cfg.get("gedcom_path")
-        self.gedcom = Gedcom.Gedcom(in_path=ged_path, out_path=ged_path + '.new.ged', cache_dir=self.cache_dir,
-                                    progress=self.w.prog)  # Routines to open and parse GEDCOM file
+        # ged_path = self.cfg.get("gedcom_path")
+        # self.gedcom = Gedcom.Gedcom(in_path=ged_path, out_path=ged_path + '.new.ged', cache_dir=self.cache_dir,
+        #                            progress=self.w.prog)  # Routines to open and parse GEDCOM file
         self.w.root.update()
         if self.gedcom.error:
             Widge.fatal_error(f"GEDCOM file {ged_path} not found.")
@@ -261,7 +306,7 @@ class GeoFinder:
 
                         self.global_replace.set(town_entry, res)
                         self.logger.debug(f'Found Exact Match for {town_entry} res= [{res}] Setting DICT')
-                        # Periodically flush dict to disk
+                        # Periodically flush dictionary to disk.  (We flush on exit as well)
                         if self.err_count % 4 == 1:
                             self.global_replace.write()
 
@@ -316,10 +361,6 @@ class GeoFinder:
         Widge.enable_buttons(self.w.review_buttons)
         nm = place.format_full_name()
         self.logger.debug(f'disp [{place.prefix}][{place.prefix_commas}][{nm}]')
-        # if len(place.prefix) > 0:
-        #    self.w.user_entry.set_text(place.prefix + place.prefix_commas + nm)  #place.name)
-        # else:
-        #    self.w.user_entry.set_text(nm)  #place.name)
 
         # Enable action buttons based on type of result
         if place.result_type == GeoKeys.Result.MULTIPLE_MATCHES or \
@@ -327,19 +368,19 @@ class GeoFinder:
                 place.result_type == GeoKeys.Result.NO_COUNTRY:
             # Disable the Save & Map button until user clicks Verify and item is found
             self.disable_save_button(True)
-            self.set_verify_as_preferred(True)
+            self.set_preferred_button(self.w.verify_button, self.w.review_buttons)
         else:
             # Found a match or Not supported - enable save and verify
             self.disable_save_button(False)  # Enable save button
-            self.set_verify_as_preferred(False)  # Make Save button in highlighted style
+            self.set_preferred_button(self.w.save_button, self.w.review_buttons)
 
         # Display status and color based on success
         self.set_status_text(place.get_status())
         if place.result_type in GeoKeys.successful_match:
-            if place.place_type == Place.PlaceType.ADMIN1 or place.place_type == Place.PlaceType.ADMIN2:
-                self.w.status.configure(style="GoodCounty.TLabel")
-            else:
+            if place.place_type == Loc.PlaceType.CITY:
                 self.w.status.configure(style="Good.TLabel")
+            else:
+                self.w.status.configure(style="GoodCounty.TLabel")
         else:
             self.w.status.configure(style="Error.TLabel")
 
@@ -369,7 +410,7 @@ class GeoFinder:
         for row in self.w.tree.get_children():
             self.w.tree.delete(row)
 
-    def display_georow_list(self, place: Place.Place):
+    def display_georow_list(self, place: Loc.Loc):
         """ Display list of matches in listbox (tree) """
 
         # Clear listbox
@@ -439,7 +480,7 @@ class GeoFinder:
     def map_handler(self):
         """ Bring up browser with map for this item """
         base = "http://www.openstreetmap.org"
-        if self.place.place_type == Place.PlaceType.COUNTRY or self.place.place_type == Place.PlaceType.ADMIN1:
+        if self.place.place_type == Loc.PlaceType.COUNTRY or self.place.place_type == Loc.PlaceType.ADMIN1:
             # Zoom wide if user just put in state, country
             zoom = "zoom=7"
         else:
@@ -463,6 +504,13 @@ class GeoFinder:
             # We will still continue to go through file, but only handle global replaces
             self.handle_place_entry()
 
+    def config_handler(self):
+        # User clicked on Config button - bring up configuration windows
+        self.w.original_entry.set_text("")
+        self.w.remove_initialization_widgets()  # Remove old widgets
+
+        self.util.create_util_widgets()
+
     def filename_handler(self):
         """ Display file open selector dialog """
         fname = filedialog.askopenfilename(initialdir=self.directory,
@@ -471,9 +519,9 @@ class GeoFinder:
         if len(fname) > 1:
             self.cfg.set("gedcom_path", fname)  # Add filename to dict
             self.cfg.write()  # Write out config file
-            self.w.load_button.config(state="normal")
             self.w.status.set_text("Click Open to load GEDCOM file")
             self.w.original_entry.set_text(self.cfg.get("gedcom_path"))
+            self.set_preferred_button(self.w.load_button, self.w.initialization_buttons)
 
     def return_key_event_handler(self, _):
         """ User pressed Return accelerator key.  Call Verify data entry """
@@ -503,7 +551,6 @@ class GeoFinder:
         place.georow_list.clear()
 
     def display_one_georow(self, txt):
-
         self.logger.debug(f'DISP ONE ROW {txt}')
         self.clear_display_list()
         # self.w.scrollbar.grid_remove()  # Just one item, so hide scrollbar
@@ -514,23 +561,23 @@ class GeoFinder:
         countries, num = self.geodata.geo_files.get_supported_countries()
         self.w.root.update()
         if num == 0:
-            Widge.fatal_error("No countries enabled.\n\nUse GeoUtil.py Country Tab to change country list\n")
+            Widge.fatal_error("No countries enabled.\n\nUse geoutil Country Tab to change country list\n")
 
         if num < 20:
             messagebox.showinfo("Info", "{}{}{}".format("Loading geocode data for the following ISO country codes:\n\n",
                                                         countries,
-                                                        "\n\nUse GeoUtil.py Country Tab to change country list\n"))
+                                                        "\n\nUse geoutil Country Tab to change country list\n"))
         return num
 
     @staticmethod
     def setup_logging(msg):
         logger = logging.getLogger(__name__)
         fmt = "%(levelname)s %(name)s.%(funcName)s %(lineno)d: %(message)s"
-        logging.basicConfig(level=logging.INFO, format=fmt)
+        logging.basicConfig(level=logging.DEBUG, format=fmt)
         logger.info(msg)
         return logger
 
-    def gedcom_output_place(self, place: Place.Place):
+    def gedcom_output_place(self, place: Loc.Loc):
         # Write out location and lat/lon to gedcom file
         nm = place.format_full_name()
         # self.logger.debug(f'ged write [{place.prefix}][{place.prefix_commas}][{nm}]')
@@ -585,17 +632,57 @@ class GeoFinder:
             self.w.original_entry.set_text(self.place.name)  # Display place
             self.w.root.update_idletasks()  # Let GUI update
 
-    def set_verify_as_preferred(self, set_verify_preferred: bool):
-        if set_verify_preferred:
-            self.w.verify_button.configure(style="Preferred.TButton")  # Make the Verify button normal style
-            self.w.save_button.configure(style="TButton")  # Make the Save button the preferred selection
-        else:
-            self.w.verify_button.configure(style="TButton")  # Make the Verify button normal style
-            self.w.save_button.configure(style="Preferred.TButton")  # Make the Save button the preferred selection
+    @staticmethod
+    def set_preferred_button(target_button, button_list):
+        """ Highlight preferred button """
+        # Go through list of buttons and set to normal style, or highlight preferred button
+        for button in button_list:
+            if button == target_button:
+                # Highlight preferred button and ensure it is enabled
+                button.configure(style="Preferred.TButton")  # Make this button the preferred selection
+                button.config(state="normal")
+            else:
+                button.configure(style="TButton")  # set to Normal style
+
+    def check_configuration(self):
+        file_error = False
+        file_list = ['allCountries.txt', 'cities500.txt']
+
+        countries = CachedDictionary(self.cache_dir, 'country_list.pkl')
+        countries.read()
+        country_dct = countries.dict
+
+        # Ensure that there are some geoname data files
+        path = os.path.join(self.directory, "*.txt")
+        self.logger.info(f'Geoname path {path}')
+        count = 0
+
+        country_file_len = 6
+        for filepath in glob.glob(path):
+            # Ignore the two Admin files
+            fname = os.path.basename(filepath)
+            if len(fname) == country_file_len or fname in file_list:
+                count += 1
+
+        self.logger.debug(f'geoname file count={count}')
+        if count == 0:
+            # No data files, add error to error dictionary
+            self.logger.warning('No Geonames files found')
+            file_error = True
+
+        # Get country list and validate
+        self.logger.debug('load countries')
+        # self.supported_countries_cd.read()
+        if len(country_dct) == 0:
+            self.logger.warning('no countries specified')
+            file_error = True
+
+        return file_error
 
 
 def entry():
     GeoFinder()
 
 
-r = entry()
+if __name__ == "__main__":
+    entry()

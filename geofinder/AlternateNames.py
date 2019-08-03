@@ -20,7 +20,7 @@
 # The tab separated columns in geoname.org file rows are as follows
 from geofinder import GeodataFiles, GeoKeys, GeoDB
 from geofinder.FileReader import FileReader
-from geofinder.Place import Place
+from geofinder.Loc import Loc
 
 ALT_GEOID = 1
 ALT_LANG = 2
@@ -38,10 +38,10 @@ class AlternateNames(FileReader):
     def __init__(self, directory_name: str, filename: str, progress_bar, geo_files: GeodataFiles, lang_list):
         super().__init__(directory_name, filename, progress_bar)
         self.cache_changed: bool = False
-        self.sub_dir = GeoKeys.cache_directory(self.directory)
+        self.sub_dir = GeoKeys.get_cache_directory(directory_name)
         self.geo_files: GeodataFiles.GeodataFiles = geo_files
         self.lang_list = lang_list
-        self.place = Place()
+        self.place = Loc()
 
     def read(self) -> bool:
         self.geo_files.geodb.db.begin()
@@ -73,7 +73,10 @@ class AlternateNames(FileReader):
 
             if len(self.place.georow_list) > 0:
                 # convert to list  and modify name and add to DB
+                self.logger.debug(self.place.georow_list)
                 lst = list(self.place.georow_list[0])
                 lst[GeoDB.Entry.NAME] = GeoKeys.normalize(alt_tokens[ALT_NAME])
+                lst.append(GeoKeys.get_soundex(alt_tokens[ALT_NAME]))
                 new_row = tuple(lst)
+                self.logger.debug(f'rw {new_row}')
                 self.geo_files.geodb.insert(geo_row=new_row, feat_code=lst[GeoDB.Entry.FEAT])

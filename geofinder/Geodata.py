@@ -16,12 +16,13 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+import collections
 import copy
 import logging
 import string as st
 from operator import itemgetter
 
-from geofinder import GeodataFiles, GeoKeys, Place
+from geofinder import GeodataFiles, GeoKeys, Loc
 
 
 class Geodata:
@@ -40,7 +41,7 @@ class Geodata:
         self.progress_bar = progress_bar  # progress_bar
         self.geo_files = GeodataFiles.GeodataFiles(self.directory, progress_bar=self.progress_bar)  # , geo_district=self.geo_district)
 
-    def find_location(self, location: str, place: Place.Place):
+    def find_location(self, location: str, place: Loc.Loc):
         """
         Find a location in the geoname dictionary.
         First parse the location into <prefix>, city, <district2>, district1, country.
@@ -48,9 +49,10 @@ class Geodata:
         Update place with -- lat, lon, district, city, country_iso, result code
         """
         place.parse_place(place_name=location, geo_files=self.geo_files)
+        flags = ResultFlags(limited=False, filtered=False)
 
         if self.country_is_valid(place):
-            self.logger.debug(f'Find LOCATION Type=[{Place.place_type_name_dict[place.place_type]}] City=[{place.city1}] Adm2=[{place.admin2_name}]\
+            self.logger.debug(f'Find LOCATION Type=[{Loc.place_type_name_dict[place.place_type]}] City=[{place.city1}] Adm2=[{place.admin2_name}]\
     Adm1=[{place.admin1_name}] Prefix=[{place.prefix}] cname=[{place.country_name}] iso=[{place.country_iso}]')
             # Lookup location
             self.geo_files.geodb.lookup_place(place=place)
@@ -62,11 +64,11 @@ class Geodata:
                 if len(place.georow_list) == 0:
                     place.result_type = GeoKeys.Result.NO_COUNTRY
             else:
-                self.process_result(place=place, targ_name=place.target)
+                self.process_result(place=place, targ_name=place.target, flags=flags)
                 return
 
         if len(place.georow_list) > 0:
-            self.build_result_list(place.georow_list, place.event_year)
+            flags = self.build_result_list(place.georow_list, place.event_year)
 
         if len(place.georow_list) == 0:
             place.result_type = GeoKeys.Result.NO_MATCH
@@ -75,10 +77,10 @@ class Geodata:
             place.result_type = GeoKeys.Result.MULTIPLE_MATCHES
 
         # Process the results
-        self.process_result(place=place, targ_name=place.target)
+        self.process_result(place=place, targ_name=place.target, flags=flags)
         self.logger.debug(f'Status={place.status}')
 
-    def process_result(self, place: Place.Place, targ_name) -> None:
+    def process_result(self, place: Loc.Loc, targ_name, flags) -> None:
         # Copy geodata to place record and Put together status text
         self.logger.debug(f'**PROCESS RESULT:  Res={place.result_type}  Georow_list={place.georow_list}')
         if place.result_type in GeoKeys.successful_match:
@@ -86,20 +88,14 @@ class Geodata:
 
         self.set_place_type_text(place=place)
         place.status = f'{place.result_type_text} "{st.capwords(targ_name)}" {result_text_list.get(place.result_type)} '
+        if flags.limited:
+            place.status += ' First 300 matches shown...'
 
-    def set_place_type_text(self, place: Place.Place):
-        if place.result_type == GeoKeys.Result.NO_COUNTRY:
-            place.result_type_text = 'Country'
-        if place.place_type == Place.PlaceType.CITY:
-            place.result_type_text = GeoKeys.type_names.get(place.feature)
-            if place.result_type_text is None:
-                place.result_type_text = ' '
-        elif place.place_type == Place.PlaceType.ADMIN1:
-            place.result_type_text = self.get_district1_type(place.country_iso)
-        else:
-            place.result_type_text = Place.place_type_name_dict[place.place_type]
+        if flags.filtered:
+            place.status = f'{place.result_type_text} "{st.capwords(targ_name)}" {result_text_list.get(place.result_type)} '
+            place.status += ' *FILTERED BY EVENT DATE*'
 
-    def find_first_match(self, location: st, place: Place.Place):
+    def find_first_match(self, location: st, place: Loc.Loc):
         """
         Find the first match for this location in the geoname dictionary.
         First parse the location into <prefix>, city, <district2>, district1, country.
@@ -121,14 +117,26 @@ class Geodata:
             place.georow_list.append(row)
             place.result_type = GeoKeys.Result.EXACT_MATCH
 
-        self.process_result(place=place, targ_name=place.target)
+        self.process_result(place=place, targ_name=place.target, flags=ResultFlags(limited=False, filtered=False))
 
-    def find_geoid(self, geoid: str, place: Place.Place):
+    def find_geoid(self, geoid: str, place: Loc.Loc):
         place.target = geoid
         self.geo_files.geodb.lookup_geoid(place=place)
         if len(place.georow_list) > 0:
             # Copy geo row to Place
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
+
+    def set_place_type_text(self, place: Loc.Loc):
+        if place.result_type == GeoKeys.Result.NO_COUNTRY:
+            place.result_type_text = 'Country'
+        if place.place_type == Loc.PlaceType.CITY:
+            place.result_type_text = GeoKeys.type_names.get(place.feature)
+            if place.result_type_text is None:
+                place.result_type_text = ' '
+        elif place.place_type == Loc.PlaceType.ADMIN1:
+            place.result_type_text = self.get_district1_type(place.country_iso)
+        else:
+            place.result_type_text = Loc.place_type_name_dict[place.place_type]
 
     @staticmethod
     def get_district1_type(iso) -> str:
@@ -160,24 +168,20 @@ class Geodata:
         self.progress("Reading Geoname files...", 70)
         return self.geo_files.read_geoname()
 
-    @staticmethod
-    def get_directory_name() -> st:
-        return "geoname_data"
-
     def progress(self, msg: st, percent: int):
         if self.progress_bar is not None:
             self.progress_bar.update_progress(percent, msg)
         else:
             self.logger.debug(msg)
 
-    def country_is_valid(self, place: Place) -> bool:
+    def country_is_valid(self, place: Loc) -> bool:
         # See if COUNTRY is present and is in the supported country list
         if place.country_iso == '':
             place.result_type = GeoKeys.Result.NO_COUNTRY
             is_valid = False
         elif place.country_iso not in self.geo_files.supported_countries_dct:
             place.result_type = GeoKeys.Result.NOT_SUPPORTED
-            place.place_type = Place.PlaceType.COUNTRY
+            place.place_type = Loc.PlaceType.COUNTRY
             is_valid = False
         else:
             is_valid = True
@@ -202,11 +206,14 @@ class Geodata:
 
     def build_result_list(self, georow_list, event_year: int):
         # Create a sorted version of result_list without any dupes
-        # Add note if we hit the lookup limit
-        # Discard location names that didnt exist at time of event
+        # Add flag if we hit the lookup limit
+        # Discard location names that didnt exist at time of event and add to result flag
+        date_filtered = False   # Flag to indicate whether we dropped locations due to event date
+
         if len(georow_list) > 299:
-            georow_list.append(self.geo_files.geodb.make_georow(name='(plus more...)', iso='US', adm1=' ', adm2=' ', feat='Q0', lat=99.9, lon=99.9,
-                                                                geoid='q'))
+            limited_flag = True
+        else:
+            limited_flag = False
 
         # sort list by State/Province id, and County id
         list_copy = sorted(georow_list, key=itemgetter(GeoKeys.Entry.ADM1, GeoKeys.Entry.ADM2))
@@ -214,16 +221,15 @@ class Geodata:
         distance_cutoff = 0.5  # Value to determine if two lat/longs are similar
 
         # Create a dummy 'previous' row so first comparison works
-        prev_geo_row = self.geo_files.geodb.make_georow(name='q', iso='q', adm1='q', adm2='q', lat=900, lon=900, feat='q', geoid='q')
+        prev_geo_row = self.geo_files.geodb.make_georow(name='q', iso='q', adm1='q', adm2='q', lat=900, lon=900, feat='q', geoid='q', sdx='q')
         idx = 0
-        date_filtered = ''
 
         # Create new list without dupes (adjacent items with same name and same lat/lon)
         # Find if two items with same name are similar lat/lon (within Box Distance of 0.5 degrees)
         for geo_row in list_copy:
             if self.validate_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1]) is False:
                 # Skip location if location name  didnt exist at the time of event
-                date_filtered += f'[{geo_row[GeoKeys.Entry.ADM1]}, {geo_row[GeoKeys.Entry.ISO]}] '
+                date_filtered = True
                 continue
 
             if geo_row[GeoKeys.Entry.NAME] != prev_geo_row[GeoKeys.Entry.NAME]:
@@ -240,6 +246,8 @@ class Geodata:
                 georow_list[idx - 1] = geo_row
 
             prev_geo_row = geo_row
+
+        return ResultFlags(limited=limited_flag, filtered=date_filtered)
 
     @staticmethod
     def get_priority(feature):
@@ -266,12 +274,16 @@ result_text_list = {
     GeoKeys.Result.PARTIAL_MATCH: 'partial match.  Click Save to accept:'
 }
 
+
+ResultFlags = collections.namedtuple('ResultFlags', 'limited filtered')
+
+
 # Starting year this country name was valid
 country_name_start_year = {
     'cu': -1,
 }
 
-# Starting year this state/province name was valid
+# Starting year this state/province modern names were valid
 # https://en.wikipedia.org/wiki/List_of_North_American_settlements_by_year_of_foundation
 admin1_name_start_year = {
     'us.al': 1711,

@@ -19,6 +19,9 @@
 import collections
 import os
 import re
+from pathlib import Path
+
+import phonetics
 
 try:
     import unidecode
@@ -35,6 +38,8 @@ class Entry:
     LON = 5
     FEAT = 6
     ID = 7
+    SDX = 8
+    MAX = 9
 
 
 class Result:
@@ -47,6 +52,10 @@ class Result:
     PARTIAL_MATCH = 6
 
 
+# Result types that are successful matches
+successful_match = [Result.EXACT_MATCH, Result.PARTIAL_MATCH]
+
+"""
 result_type_text = {
     Result.NO_MATCH: 'No match.',
     Result.EXACT_MATCH: 'Match!',
@@ -55,15 +64,23 @@ result_type_text = {
     Result.NOT_SUPPORTED: "Country not supported. SKIP or Run GeoUtil.py.",
     Result.NO_COUNTRY: "Country not found."
 }
-
-successful_match = [Result.EXACT_MATCH, Result.PARTIAL_MATCH]
+"""
 
 Query = collections.namedtuple('Query', 'where args result')
 
 
-def cache_directory(path):
+def get_soundex(txt):
+    res = phonetics.dmetaphone(txt)
+    return res[0]
+
+
+def get_directory_name() -> str:
+    return "geoname_data"
+
+
+def get_cache_directory(dirname):
     """ Return the directory for cache files """
-    return os.path.join(path, "cache")
+    return os.path.join(dirname, "cache")
 
 
 def semi_normalize(name) -> str:

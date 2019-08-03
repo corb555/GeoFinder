@@ -71,7 +71,6 @@ class DB:
         cur = self.conn.cursor()
         cur.execute(pragma)
         self.conn.commit()
-        self.logger.info(pragma)
 
     def create_table(self, create_table_sql: str):
         """ create a table from the create_table_sql statement
@@ -141,9 +140,9 @@ class DB:
 
     def set_speed_pragmas(self):
         # Set DB pragmas for speed.  These can lead to corruption!
-        self.logger.info('Database pragmas set for Speed not integrity')
+        self.logger.info('Database pragmas set for speed')
         for txt in ['PRAGMA temp_store = memory',
                     'PRAGMA journal_mode = off',
-                    'PRAGMA cache_size = -300',
+                    'PRAGMA cache_size = -500',
                     'PRAGMA synchronous = 0']:
             self.set_pragma(txt)

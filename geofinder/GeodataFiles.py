@@ -25,7 +25,7 @@ import time
 from collections import namedtuple
 from typing import Dict
 
-from geofinder import CachedDictionary, Country, GeoDB, GeoKeys, Place, AlternateNames
+from geofinder import CachedDictionary, Country, GeoDB, GeoKeys, Loc, AlternateNames
 
 
 class GeodataFiles:
@@ -52,7 +52,7 @@ class GeodataFiles:
         self.progress_bar = progress_bar
         self.line_num = 0
         self.cache_changed: bool = False
-        sub_dir = GeoKeys.cache_directory(self.directory)
+        sub_dir = GeoKeys.get_cache_directory(self.directory)
         self.country = None
 
         # Read in dictionary listing Geoname features we should include
@@ -65,7 +65,7 @@ class GeodataFiles:
         self.supported_countries_cd.read()
         self.supported_countries_dct: Dict[str, str] = self.supported_countries_cd.dict
 
-        self.entry_place = Place.Place()
+        self.entry_place = Loc.Loc()
 
         # Support for Geonames AlternateNames file.  Adds alternate names for entries
         self.alternate_names = AlternateNames.AlternateNames(directory_name=self.directory,
@@ -104,7 +104,7 @@ class GeodataFiles:
         # if the user loads a new geonames.org file, we also need to rebuild the db
 
         # Use db if it exists and is newer than the geonames directory
-        cache_dir = GeoKeys.cache_directory(self.directory)
+        cache_dir = GeoKeys.get_cache_directory(self.directory)
         fullpath = os.path.join(cache_dir, 'geodata.db')
         self.logger.debug(f'read_geo db: {fullpath}')
 
@@ -156,8 +156,6 @@ class GeodataFiles:
         # Put in alias names
         self.logger.debug(f'geonames files done.  Elapsed ={time.time() - start_time}')
 
-        self.add_admin_aliases()
-
         start_time = time.time()
         self.alternate_names.read()
         self.logger.debug(f'Alt names done.  Elapsed ={time.time() - start_time}')
@@ -169,20 +167,6 @@ class GeodataFiles:
         self.logger.debug(f'Indices done.  Elapsed ={time.time() - start_time}')
 
         return False
-
-    @staticmethod
-    def add_admin_aliases():
-        """ Add in aliases for some Admin items """
-        pass
-        """
-        alias_list = [
-            ('burgundy', 'fr', '28', '', 47.06981, 5.04822, 'ADM1', '11071619'),
-            ('prussia', 'de', '', '', 51.0, 9.0, 'ADM0', 'de')
-        ]
-
-        for geo_row in alias_list:
-            self.geodb.insert(geo_row=geo_row, feat_code=geo_row[GeoDB.Entry.FEAT])
-        """
 
     def read_geoname_file(self, file) -> bool:  # , g_dict
         """Read in geonames files and build lookup structure
@@ -224,7 +208,7 @@ class GeodataFiles:
                     # for a Feature tag we're interested in
                     if geoname_row.iso.lower() in self.supported_countries_dct and \
                             geoname_row.feat_code in self.feature_code_list_dct:
-                        self.insert_line(geoname_row)
+                        self.insert_georow(geoname_row)
 
             self.progress("Write Database", 90)
             self.geodb.db.commit()
@@ -233,11 +217,13 @@ class GeodataFiles:
         else:
             return True
 
-    def insert_line(self, geoname_row):
+    def insert_georow(self, geoname_row):
         # Create Geo_row and inses
         # ('paris', 'fr', '07', '012', 12.345, 45.123, 'PPL', '34124')
-        geo_row = [None] * 8
+        geo_row = [None] * GeoDB.Entry.MAX
         geo_row[GeoDB.Entry.NAME] = GeoKeys.normalize(geoname_row.name)
+        geo_row[GeoDB.Entry.SDX] = GeoKeys.get_soundex(geo_row[GeoDB.Entry.NAME])
+
         geo_row[GeoDB.Entry.ISO] = geoname_row.iso.lower()
         geo_row[GeoDB.Entry.ADM1] = geoname_row.admin1_id
         geo_row[GeoDB.Entry.ADM2] = geoname_row.admin2_id

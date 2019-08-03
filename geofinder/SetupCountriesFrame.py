@@ -90,6 +90,14 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
         # Load in list and display - Need to Reverse the Key and Val
         self.clear_display_list(self.tree)
 
+        if len(self.dict)==0:
+            # Country list is empty.  Hide Remove button and text
+            self.remove_button.grid_remove()
+            self.status.set_text('')
+        else:
+            self.remove_button.grid()
+            self.status.set_text('Highlight items above to remove and click Remove.')
+
         for key in sorted(self.dict):
             if len(self.dict[key]) > 1:
                 self.list_insert(self.tree, f"{self.dict[key]}", f"{key}")

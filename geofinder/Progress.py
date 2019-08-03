@@ -33,7 +33,7 @@ class Progress:
                         background=bar_color, lightcolor=bar_color, darkcolor=bar_color)
 
         self.bar: Progressbar = Progressbar(window, length=400, maximum=100, style="bar.Horizontal.TProgressbar")
-        self.bar['value'] = 2
+        self.bar['value'] = 0
         self.lable = status
         self.startup: bool = True
 
@@ -44,8 +44,6 @@ class Progress:
             self.window.update_idletasks()
 
     def update_progress(self, progress: int, stage: str):
-        if progress < 2:
-            progress = 2
         self.bar['value'] = progress
         self.lable.set_text(stage)
         if self.startup:

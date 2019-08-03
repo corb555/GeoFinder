@@ -20,6 +20,8 @@
 import logging
 from typing import Dict
 
+import phonetics
+
 from geofinder import GeoDB, GeoKeys
 
 
@@ -54,8 +56,11 @@ class Country:
         for ky, row in country_dict.items():
             # Create Geo_row
             # ('paris', 'fr', '07', '012', '12.345', '45.123', 'PPL')
-            geo_row = [None] * 8
+            geo_row = [None] * GeoDB.Entry.MAX
             geo_row[GeoDB.Entry.NAME] = GeoKeys.normalize(ky)
+            sdx = phonetics.dmetaphone(geo_row[GeoDB.Entry.NAME])
+            geo_row[GeoDB.Entry.SDX] = sdx[0]
+
             geo_row[GeoDB.Entry.ISO] = row[C_Row.ISO].lower()
             geo_row[GeoDB.Entry.ADM1] = ''
             geo_row[GeoDB.Entry.ADM2] = ''

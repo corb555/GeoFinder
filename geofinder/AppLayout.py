@@ -45,7 +45,7 @@ class AppLayout:
         self.main = main
 
         self.root = tk.Tk()
-        self.root.title("GEOfinder")
+        self.root.title("GeoFinder")
         self.root["padx"] = 0
         self.root["pady"] = 20
 
@@ -77,8 +77,10 @@ class AppLayout:
                                                   width=GFStyle.BTN_WID_WD, image=self.images['exit'], compound="left")
         self.load_button: ttk.Button = ttk.Button(self.root, text="open", command=self.main.load_handler,
                                                   width=GFStyle.BTN_WID_WD, style='Preferred.TButton', image=self.images['play'], compound="left")
-        self.change_button: ttk.Button = ttk.Button(self.root, text="choose", command=self.main.filename_handler,
+        self.choose_button: ttk.Button = ttk.Button(self.root, text="choose", command=self.main.filename_handler,
                                                     width=GFStyle.BTN_WID_WD, image=self.images['folder'], compound="left")
+        self.config_button: ttk.Button = ttk.Button(self.root, text="config", command=self.main.config_handler,
+                                                    width=GFStyle.BTN_WID_WD, image=self.images['play'], compound="left")
 
         # Set grid layout for padding column widget - just pads out left column
         self.pad.grid(column=PAD_COL, row=0, padx=GFStyle.PAD_PADX, pady=0, sticky="EW")
@@ -91,27 +93,30 @@ class AppLayout:
 
         # Set grid for button widgets
         self.load_button.grid(column=SCRL_COL, row=2, padx=20, pady=6, sticky="")
-        self.change_button.grid(column=SCRL_COL, row=3, padx=20, pady=6, sticky="")
+        self.choose_button.grid(column=SCRL_COL, row=3, padx=20, pady=6, sticky="")
+        self.config_button.grid(column=SCRL_COL, row=4, padx=20, pady=6, sticky="")
         self.quit_button.grid(column=SCRL_COL, row=9, padx=20, pady=6, sticky="S")
 
         Tooltip.Tooltip(self.root, self.load_button, text="Open GEDCOM file")
-        Tooltip.Tooltip(self.root, self.change_button, text="Choose GEDCOM file")
+        Tooltip.Tooltip(self.root, self.choose_button, text="Choose GEDCOM file")
 
         self.root.update()
 
-        self.initialization_buttons: List[ttk.Button] = [self.quit_button, self.load_button, self.change_button]
+        self.initialization_buttons: List[ttk.Button] = [self.quit_button, self.load_button, self.choose_button, self.config_button]
+        # disable all buttons and the app will enable appropriate ones
         geofinder.Widge.Widge.disable_buttons(button_list=self.initialization_buttons)
 
     def remove_initialization_widgets(self):
-        self.load_button.destroy()
-        self.change_button.destroy()
-        self.quit_button.destroy()
         self.title.destroy()
         self.prog.bar.destroy()
+        self.status.destroy()
+
+        self.load_button.destroy()
+        self.choose_button.destroy()
+        self.quit_button.destroy()
+        self.config_button.destroy()
 
     def create_review_widgets(self):
-        self.remove_initialization_widgets()  # Remove old widgets
-
         """ Create all the buttons and entry fields for normal running """
         self.pad: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
         self.title: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="GEO FINDER", width=30, style='Large.TLabel')
@@ -208,3 +213,5 @@ class AppLayout:
                                                  self.skip_button, self.map_button, self.help_button]
 
         self.root.update()
+
+

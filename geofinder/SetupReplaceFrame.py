@@ -20,7 +20,7 @@
 import tkinter as tk
 import os
 
-from geofinder import ListboxFrame, GeoDB, Place
+from geofinder import ListboxFrame, GeoDB, Loc
 
 GEOID_TOKEN = 1
 PREFIX_TOKEN = 2
@@ -46,7 +46,7 @@ class SetupReplaceFrame(ListboxFrame.ListboxFrame):
     def load_handler(self):
         # Load in list and display
         self.clear_display_list(self.tree)
-        place = Place.Place()
+        place = Loc.Loc()
 
         for item in sorted(self.dict):
             # get lat long

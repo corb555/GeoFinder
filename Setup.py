@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="geofinder",
-    version="0.1.3",
+    version="0.1.9",
     author="Mike Herbert",
     author_email="corb@aol.com",
     description="GEDCOM Genealogy address validation and geocoding using geonames.org data",
@@ -13,6 +13,10 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/corb555/GeoFinder",
     packages=setuptools.find_packages(),
+    install_requires=[
+          'unidecode',
+        'phonetics'
+      ],
     package_data={'geofinder': ['images/*.gif']},
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -27,8 +31,8 @@ setuptools.setup(
     # "scripts" keyword. Entry points provide cross-platform support and allow
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
-        'console_scripts': [
-            'geofinder = geofinder.GeoFinder:entry',
+        'gui_scripts': [
+            'geofinder = geofinder.GeoFinder:entry'
         ],
     },
 )
