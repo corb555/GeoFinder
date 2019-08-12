@@ -22,8 +22,8 @@ from tkinter import *
 from tkinter import ttk
 from tkinter.ttk import *
 
-from geofinder import CachedDictionary, GFStyle
-from geofinder import Widge as Widge
+from geofinder import CachedDictionary, AppStyle
+from geofinder import TKHelper as Widge
 
 BUTTON_WIDTH = 6
 # tags to aletrnate colors in list box
@@ -62,7 +62,7 @@ class ListboxFrame:
         self.scrollbar = Scrollbar(self.frame)
 
         self.tree = ttk.Treeview(self.frame, style="Plain.Treeview")  # , selectmode="browse")
-        self.tree.tag_configure('odd', background=GFStyle.ODD_ROW_COLOR)
+        self.tree.tag_configure('odd', background=AppStyle.ODD_ROW_COLOR)
         self.tree.tag_configure('even', background='white')
 
         self.tree["columns"] = ("pre",)
@@ -145,11 +145,11 @@ class ListboxFrame:
         return self.dirty_flag  # Tells whether the cache was modified
 
     def configure_widgets(self, frm):
-        Widge.Widge.set_grid_position(self.title_label, "title_label", grd=self.grd)
-        Widge.Widge.set_grid_position(self.status, "status", grd=self.grd)
-        Widge.Widge.set_grid_position(self.tree, "listbox", grd=self.grd)
-        Widge.Widge.set_grid_position(self.scrollbar, "scrollbar", grd=self.grd)
-        Widge.Widge.set_grid_position(self.remove_button, "remove_button", grd=self.grd)
+        Widge.TKHelper.set_grid_position(self.title_label, "title_label", grd=self.grd)
+        Widge.TKHelper.set_grid_position(self.status, "status", grd=self.grd)
+        Widge.TKHelper.set_grid_position(self.tree, "listbox", grd=self.grd)
+        Widge.TKHelper.set_grid_position(self.scrollbar, "scrollbar", grd=self.grd)
+        Widge.TKHelper.set_grid_position(self.remove_button, "remove_button", grd=self.grd)
 
     def write(self):
         # Write out cache file

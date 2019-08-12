@@ -48,6 +48,9 @@ class GeoDB:
     def insert(self, geo_row: (), feat_code: str):
         # We split the data into 2  tables, 1) Admin: ADM0/ADM1/ADM2,  and 2) city data
 
+        if geo_row[Entry.ID] == '11594109':
+            self.logger.debug(f'ins {geo_row}')
+
         if feat_code == 'ADM1' or feat_code == 'ADM0' or feat_code == 'ADM2':
             sql = ''' INSERT OR IGNORE INTO admin(name,country, admin1_id,admin2_id,lat,lon,f_code, geoid, sdx)
                       VALUES(?,?,?,?,?,?,?,?,?) '''
@@ -129,7 +132,7 @@ class GeoDB:
         pattern = self.create_wildcard(lookup_target)
         sdx = get_soundex(lookup_target)
         self.logger.debug(f'CITY lookup. Targ=[{lookup_target}] adm1 id=[{place.admin1_id}]'
-                          f' adm2 id=[{place.admin2_id}] iso=[{place.country_iso}] patt =[{pattern}]')
+                          f' adm2 id=[{place.admin2_id}] iso=[{place.country_iso}] patt =[{pattern}] sdx={sdx}')
 
         query_list = []
 
@@ -177,15 +180,25 @@ class GeoDB:
                                     args=(lookup_target, place.country_iso),
                                     result=Result.PARTIAL_MATCH))
 
-        # lookup by name (partial match since user specified admin)
+        # append lookup by wildcard (partial match since user specified admin)
         query_list.append(Query(where="name LIKE ? AND country = ?",
                                 args=(pattern, place.country_iso),
                                 result=Result.PARTIAL_MATCH))
 
-        # lookup by Soundex (partial match)
-        query_list.append(Query(where="sdx = ? AND admin1_id = ? AND country = ?",
-                                args=(sdx, place.admin1_id, place.country_iso),
+        # lookup by wildcard with % added (partial match since user specified admin)
+        query_list.append(Query(where="name LIKE ? AND country = ?",
+                                args=('%' + pattern, place.country_iso),
                                 result=Result.PARTIAL_MATCH))
+
+        # lookup by Soundex (partial match)
+        if len(place.admin1_name) > 0:
+            query_list.append(Query(where="sdx = ? AND admin1_id = ? AND country = ?",
+                                    args=(sdx, place.admin1_id, place.country_iso),
+                                    result=Result.PARTIAL_MATCH))
+        else:
+            query_list.append(Query(where="sdx = ? AND country = ?",
+                                    args=(sdx, place.country_iso),
+                                    result=Result.PARTIAL_MATCH))
 
         # Try each query in list until we find a match
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
@@ -551,4 +564,4 @@ class GeoDB:
         if '*' in pattern:
             return re.sub(r"\*", "%", pattern)
         else:
-            return pattern + '%'
+            return f'{pattern}%'

@@ -56,6 +56,8 @@ class AlternateNames(FileReader):
             self.logger.debug(f'Incorrect number of tokens: {alt_tokens} line {line_num}')
             return
 
+        self.place.georow_list = []
+
         # Alternate names are in multiple languages.  Only add if item is in requested lang
         if alt_tokens[ALT_LANG] in self.lang_list:
             # Add this alias to geoname db if there is already an entry (geoname DB is filtered based on feature)
@@ -73,10 +75,15 @@ class AlternateNames(FileReader):
 
             if len(self.place.georow_list) > 0:
                 # convert to list  and modify name and add to DB
-                self.logger.debug(self.place.georow_list)
                 lst = list(self.place.georow_list[0])
                 lst[GeoDB.Entry.NAME] = GeoKeys.normalize(alt_tokens[ALT_NAME])
                 lst.append(GeoKeys.get_soundex(alt_tokens[ALT_NAME]))
                 new_row = tuple(lst)
-                self.logger.debug(f'rw {new_row}')
+                if alt_tokens[ALT_GEOID] == '11594109':
+                    self.logger.debug(f'EastMinster AltNames {alt_tokens} {new_row}')
+
+                if new_row[GeoKeys.Entry.ID] == '11594109':
+                    self.logger.debug(f'ins dbid={dbid} {new_row}\n{row}')
+
                 self.geo_files.geodb.insert(geo_row=new_row, feat_code=lst[GeoDB.Entry.FEAT])
+                self.count += 1

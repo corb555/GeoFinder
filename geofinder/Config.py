@@ -23,7 +23,7 @@ import pickle
 from pathlib import Path
 
 from geofinder import CachedDictionary, GeoKeys
-from geofinder.Widge import Widge
+from geofinder.TKHelper import TKHelper
 
 
 class Config:
@@ -55,7 +55,7 @@ class Config:
         # Verify main directory exists
         if not os.path.exists(self.cache_dir):
             self.logger.warning(f"{self.cache_dir} folder not found.")
-            Widge.fatal_error(f"{self.cache_dir} folder not found.  Please run GeoUtil.py to correct")
+            TKHelper.fatal_error(f"{self.cache_dir} folder not found.  Please run GeoUtil.py to correct")
 
         self.config_cd = CachedDictionary.CachedDictionary(self.cache_dir, fname)
         self.config_cd.read()

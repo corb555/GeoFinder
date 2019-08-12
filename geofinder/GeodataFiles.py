@@ -39,7 +39,7 @@ class GeodataFiles:
     The geoname file is filtered to only include the countries and feature codes specified in the country_list
     dictionary (stored in a pickle file) and the feature_list dictionary (also from a pickle)
          
-     There is a separate GeoUtil.py utility which allows users to:
+     There is a separate UtilMain.py utility which allows users to:
          1. edit country list config file.  Only entries for those countries will be read.    "country_list.pkl"
          2. edit the geoname feature list.  Only those geonames features are included.  "features.pkl"
          3. if files or the above are changed, the utility deletes the DB
@@ -100,7 +100,7 @@ class GeodataFiles:
         # The db only contains important fields and only for supported countries
         # This file is much smaller and faster to read than the geoname files
         # If the db doesn't exist, read the geonames.org files and build it.
-        # the GeoUtil.py allows user changes to config parameters and then requires rebuild of db
+        # the UtilMain.py allows user changes to config parameters and then requires rebuild of db
         # if the user loads a new geonames.org file, we also need to rebuild the db
 
         # Use db if it exists and is newer than the geonames directory
@@ -117,6 +117,7 @@ class GeodataFiles:
                 self.geodb = GeoDB.GeoDB(os.path.join(cache_dir, 'geodata.db'))
                 # Ensure DB has reasonable number of records
                 count = self.geodb.get_row_count()
+                self.logger.info(f'Geoname entries = {count:,}')
                 if count > 1000:
                     # No error if DB has over 1000 records
                     return False
@@ -154,11 +155,12 @@ class GeodataFiles:
             return True
 
         # Put in alias names
-        self.logger.debug(f'geonames files done.  Elapsed ={time.time() - start_time}')
+        self.logger.info(f'geonames files done.  Elapsed ={time.time() - start_time}')
 
         start_time = time.time()
         self.alternate_names.read()
-        self.logger.debug(f'Alt names done.  Elapsed ={time.time() - start_time}')
+        self.logger.info(f'Alternate names done.  Elapsed ={time.time() - start_time}')
+        self.logger.info(f'Geonames entries = {self.geodb.get_row_count():,}')
 
         start_time = time.time()
         self.progress("Create Indices", 95)
@@ -231,6 +233,9 @@ class GeodataFiles:
         geo_row[GeoDB.Entry.LON] = geoname_row.lon
         geo_row[GeoDB.Entry.FEAT] = geoname_row.feat_code
         geo_row[GeoDB.Entry.ID] = geoname_row.id
+        if geoname_row.id == '11594109':
+            self.logger.debug(f'Eastminster {geoname_row}')
+
 
         self.geodb.insert(geo_row=geo_row, feat_code=geoname_row.feat_code)
 

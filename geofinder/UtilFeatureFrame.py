@@ -21,7 +21,7 @@ import logging
 from tkinter import ttk
 
 from geofinder import ListboxFrame
-from geofinder import Widge as Widge
+from geofinder import TKHelper as Widge
 
 default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ", "HSP",
            "HSTS", "ISL", "MSQE", "MSTY", "MT", "MUS", "PAL", "PPL", "PPLA", "PPLA2", "PPLA3", "PPLA4",
@@ -66,9 +66,9 @@ class SetupFeatureFrame(ListboxFrame.ListboxFrame):
 
         # Add these in addition to the standard widgets in ListBoxFrame
         # todo - remove set_grid_position and just use element.grid()
-        Widge.Widge.set_grid_position(self.add_button, "country_button", grd=self.grd)
-        Widge.Widge.set_grid_position(self.feature_label, "country_label", grd=self.grd)
-        Widge.Widge.set_grid_position(self.feature_entry, "country_entry", grd=self.grd)
+        Widge.TKHelper.set_grid_position(self.add_button, "country_button", grd=self.grd)
+        Widge.TKHelper.set_grid_position(self.feature_label, "country_label", grd=self.grd)
+        Widge.TKHelper.set_grid_position(self.feature_entry, "country_entry", grd=self.grd)
 
     def add_handler(self):
         # Allow user to add an item to list.

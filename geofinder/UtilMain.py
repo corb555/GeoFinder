@@ -32,7 +32,7 @@ except ModuleNotFoundError:
 
 
 # Setup and modify config for geonames
-class ReviewWindow:
+class UtilMain:
     """
     Utilities to edit and configure items for Geofinder
     There are 5 tabs:
@@ -106,10 +106,3 @@ class ReviewWindow:
 
         path = self.cfg.get("gedcom_path")
 
-
-def entry():
-    ReviewWindow()
-
-
-if __name__ == "__main__":
-    entry()

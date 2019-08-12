@@ -38,6 +38,7 @@ class Gedcom:
         self.build = False
         self.logger = logging.getLogger(__name__)
         self.progress_bar = progress
+
         self.output_latlon = True
 
         # Sections of a GEDCOM line - Level, label, tag, value
@@ -100,7 +101,7 @@ class Gedcom:
         line = self.infile.readline()
         self.line_num += 1
 
-        # Calculate info for progress bar
+        # update progress bar
         prog = int(self.infile.tell() * 100 / self.filesize)
         if self.line_num % 1000 == 1:
             self.progress(f"Scanning ", prog)
@@ -235,6 +236,7 @@ class Gedcom:
                 break  # END OF FILE
 
             if self.tag == 'NAME' or self.tag == 'HUSB':
+                #self.logger.debug(f'ky=[{self.id}] val=[{self.value}]')
                 if self.id != self.value:
                     self.person_cd.dict[self.id] = self.value
 
@@ -249,7 +251,7 @@ class Gedcom:
 
     def get_name(self, nam: str, depth: int = 0) -> str:
         # Get name of person we are currently on
-        nm = self.person_cd.dict.get(self.id)
+        nm = self.person_cd.dict.get(nam)
         if nm is not None:
             if nm[0] == '@' and depth < 4:
                 # Recursively call to get through the '@' indirect values.  make sure we don't go too deep
@@ -257,7 +259,7 @@ class Gedcom:
         else:
             nm = self.name
 
-        self.logger.debug(f'{nm}: [{self.event_name}] [{self.date}]')
+        self.logger.debug(f'{depth}) ky={self.id} {nm}: [{self.event_name}] [{self.date}]')
 
         return nm.replace('/', '')
 

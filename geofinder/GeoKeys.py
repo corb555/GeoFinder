@@ -19,14 +19,9 @@
 import collections
 import os
 import re
-from pathlib import Path
 
 import phonetics
-
-try:
-    import unidecode
-except ModuleNotFoundError:
-    print('Unidecode missing.  Please run "PIP3 install unidecode" from command line')
+import unidecode
 
 
 class Entry:
@@ -50,21 +45,11 @@ class Result:
     NOT_SUPPORTED = 4
     NO_COUNTRY = 5
     PARTIAL_MATCH = 6
+    DELETE = 7
 
 
 # Result types that are successful matches
 successful_match = [Result.EXACT_MATCH, Result.PARTIAL_MATCH]
-
-"""
-result_type_text = {
-    Result.NO_MATCH: 'No match.',
-    Result.EXACT_MATCH: 'Match!',
-    Result.PARTIAL_MATCH: 'Partial match.',
-    Result.MULTIPLE_MATCHES: 'Multiple Matches.',
-    Result.NOT_SUPPORTED: "Country not supported. SKIP or Run GeoUtil.py.",
-    Result.NO_COUNTRY: "Country not found."
-}
-"""
 
 Query = collections.namedtuple('Query', 'where args result')
 
@@ -83,7 +68,7 @@ def get_cache_directory(dirname):
     return os.path.join(dirname, "cache")
 
 
-def semi_normalize(name) -> str:
+def _phrase_normalize(name) -> str:
     """ Strip spaces and normalize spelling for items such as Saint and County """
     # Replacement patterns to clean up entries
     res = re.sub('saint |st. ', 'st ', name)  # Normalize Saint
@@ -94,15 +79,16 @@ def semi_normalize(name) -> str:
     res = re.sub('cathedral of ([^,]+)', r'\g<1> cathedral', res)  # Normalize 'Township of X' to 'X Township'
     return res
 
-
 def normalize(res) -> str:
     """ Strip commas. Also strip spaces and normalize spelling for items such as Saint and County and chars   ø ß """
+
+    # Convert UT8 to ascii
     res = unidecode.unidecode(res)
 
     # remove all punctuation
     res = str(res).lower()
     res = re.sub(r"[^a-zA-Z0-9 $.*']+", " ", res)
-    res = semi_normalize(res)
+    res = _phrase_normalize(res)
     return res.strip(' ')
 
 

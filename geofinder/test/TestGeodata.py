@@ -144,7 +144,7 @@ class TestGeodata(unittest.TestCase):
     def test_res_code_country01(self):
         test = "Country - bad"
         lat: float = self.run_test(test, "squid")
-        self.assertEqual(GeoKeys.Result.NO_MATCH, self.place.result_type, test)
+        self.assertEqual(GeoKeys.Result.NO_COUNTRY, self.place.result_type, test)
 
     def test_res_code_country02(self):
         test = "No Country - Natuashish"
@@ -185,7 +185,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_code04(self):
         test = "County  prioritize city.  verify place type "
         lat: float = self.run_test(test, "Halifax, Nova Scotia, Canada")
-        self.assertEqual(Loc.PlaceType.CITY, self.place.place_type, test)
+        self.assertEqual(Loc.PlaceType.ADMIN2, self.place.place_type, test)
 
     def test_place_code24(self):
         test = "County  prioritize city.  verify place type "
@@ -195,7 +195,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_code05(self):
         test = "County prioritize city verify place type with prefix "
         lat: float = self.run_test(test, "abc,,Halifax, Nova Scotia, Canada")
-        self.assertEqual(Loc.PlaceType.CITY, self.place.place_type, test)
+        self.assertEqual(Loc.PlaceType.ADMIN2, self.place.place_type, test)
 
     def test_place_code25(self):
         test = "County prioritize city verify place type with prefix "
@@ -270,7 +270,7 @@ class TestGeodata(unittest.TestCase):
     def test_county04(self):
         test = "County - good.  prioritize Halifax city vs County"
         lat: float = self.run_test(test, "Halifax, Nova Scotia, Canada")
-        self.assertEqual(44.71314, lat, test)
+        self.assertEqual(44.86685, lat, test)
 
     def test_county24(self):
         test = "County - good.  prioritize Halifax city vs County"
@@ -301,11 +301,6 @@ class TestGeodata(unittest.TestCase):
     def test_city05(self):
         test = "City - Good name, edberg "
         lat: float = self.run_test(test, "Edberg,,Alberta,Canada")
-        self.assertEqual(52.78343, lat, test)
-
-    def test_city06(self):
-        test = "City - Good name, edburg with U "
-        lat: float = self.run_test(test, "Edburg,,Alberta,Canada")
         self.assertEqual(52.78343, lat, test)
 
     def test_city07(self):
@@ -518,13 +513,13 @@ class TestGeodata(unittest.TestCase):
         test = "County  verify place name "
         lat: float = self.run_test(test, "Halifax, Nova Scotia, Canada")
         nm = self.place.format_full_name()
-        self.assertEqual("Halifax, , Nova Scotia, Canada", self.place.prefix + self.place.prefix_commas + nm, test)
+        self.assertEqual("Halifax County, Nova Scotia, Canada", self.place.prefix + self.place.prefix_commas + nm, test)
 
     def test_place_name05(self):
         test = "County  verify place name with prefix. prioritize city "
         lat: float = self.run_test(test, "abc,,Halifax, Nova Scotia, Canada")
         nm = self.place.format_full_name()
-        self.assertEqual("abc, Halifax, , Nova Scotia, Canada", self.place.prefix + self.place.prefix_commas + nm, test)
+        self.assertEqual("abc, , Halifax County, Nova Scotia, Canada", self.place.prefix + self.place.prefix_commas + nm, test)
 
     def test_place_name25(self):
         test = "County  verify place name with prefix "

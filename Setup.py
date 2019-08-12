@@ -52,6 +52,10 @@ if not VERSION:
     project_slug = NAME.lower().replace("-", "_").replace(" ", "_")
     with open(os.path.join(here, project_slug, '__version__.py')) as f:
         exec(f.read(), about)
+    tkn = about['__version__'].split('.')
+    next_build = int(tkn[-1]) + 1
+    next_ver = f'{tkn[0]}.{tkn[1]}.{next_build}'
+    print(next_ver)
 else:
     about['__version__'] = VERSION
 
@@ -132,39 +136,3 @@ setup(
         'upload': UploadCommand,
     },
 )
-
-"""
-setuptools.setup(
-    name="geofinder",
-    version="0.2.0",
-    author="Mike Herbert",
-    author_email="corb@aol.com",
-    description="GEDCOM Genealogy address validation and geocoding using geonames.org data",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    url="https://github.com/corb555/GeoFinder",
-    packages=setuptools.find_packages(),
-    install_requires=[
-          'unidecode',
-        'phonetics'
-      ],
-    package_data={'geofinder': ['images/*.gif']},
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: BSD License",
-        "Operating System :: OS Independent",
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: End Users/Desktop",
-        "Natural Language :: English",
-        "Topic :: Sociology :: Genealogy"
-    ],
-    # To provide executable scripts, use entry points in preference to the
-    # "scripts" keyword. Entry points provide cross-platform support and allow
-    # pip to create the appropriate form of executable for the target platform.
-    entry_points={
-        'gui_scripts': [
-            'geofinder = geofinder.GeoFinder:entry'
-        ],
-    },
-)
-"""

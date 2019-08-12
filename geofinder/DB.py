@@ -102,7 +102,6 @@ class DB:
         cur.execute('SELECT COUNT(*) FROM main.geodata')
         res = cur.fetchall()
         count = res[0][0]
-        self.logger.debug(f'Count = {count}')
         return count
 
     def begin(self):

@@ -24,7 +24,7 @@ from tkinter import ttk
 from tkinter.ttk import *
 from typing import List
 
-from geofinder import SetupCountriesFrame, SetupErrorFrame, SetupFeatureFrame, SetupReplaceFrame, ListboxFrame, GFStyle
+from geofinder import UtilCountriesFrame, UtilErrorFrame, UtilFeatureFrame, UtilReplaceFrame, ListboxFrame, AppStyle
 
 
 class UtilLayout:
@@ -37,8 +37,8 @@ class UtilLayout:
 
     def start_up(self):
         # Setup styles
-        self.root.configure(background=GFStyle.BG_COLOR)
-        GFStyle.GFStyle()
+        self.root.configure(background=AppStyle.BG_COLOR)
+        AppStyle.GFStyle()
         self.create_util_widgets()
 
         # Start up
@@ -58,15 +58,15 @@ class UtilLayout:
 
         # Error Status Tab
         self.logger.debug('=====error frame')
-        self.status_list = SetupErrorFrame.SetupErrorFrame(self.frames[0], "Configuration Status",
-                                                           self.directory, "errors.pkl", self.error)
+        self.status_list = UtilErrorFrame.SetupErrorFrame(self.frames[0], "Configuration Status",
+                                                          self.directory, "errors.pkl", self.error)
         self.listbox_list.append(self.status_list)
 
         # Country Tab -  (has text entry box to add items)
         self.logger.debug('=====country frame')
-        self.country_list = SetupCountriesFrame.SetupCountriesFrame(self.frames[1],
+        self.country_list = UtilCountriesFrame.SetupCountriesFrame(self.frames[1],
                                                                     "Supported Countries - Load geo data for these countries:",
-                                                                    self.directory, self.cache_dir, "country_list.pkl")
+                                                                   self.directory, self.cache_dir, "country_list.pkl")
         self.listbox_list.append(self.country_list)
 
         # Skiplist Tab - ListboxFrame (simple list)
@@ -77,15 +77,15 @@ class UtilLayout:
 
         # GlobalReplace Tab- ListboxFrame (simple list)
         self.logger.debug('=====gbl replace frame')
-        self.replace_list = SetupReplaceFrame.SetupReplaceFrame(self.frames[3], "Global Replace  - Replace these errors",
-                                                                self.cache_dir, "global_replace.pkl")
+        self.replace_list = UtilReplaceFrame.SetupReplaceFrame(self.frames[3], "Global Replace  - Replace these errors",
+                                                               self.cache_dir, "global_replace.pkl")
         self.listbox_list.append(self.replace_list)
 
         # Feature tab
         self.logger.debug('=====Feature frame')
-        self.feature_list = SetupFeatureFrame.SetupFeatureFrame(self.frames[4],
+        self.feature_list = UtilFeatureFrame.SetupFeatureFrame(self.frames[4],
                                                                 "We will load data for these geoname feature types:",
-                                                                self.cache_dir, "feature_list.pkl")
+                                                               self.cache_dir, "feature_list.pkl")
         self.listbox_list.append(self.feature_list)
 
         # Create Help button below frames

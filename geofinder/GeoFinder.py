@@ -28,17 +28,14 @@ from tkinter import messagebox
 
 from geofinder import Geodata, GeoKeys, Config, Gedcom, Loc, AppLayout, UtilLayout
 from geofinder.CachedDictionary import CachedDictionary
-from geofinder.Widge import Widge
+from geofinder.Geodata import ResultFlags
+from geofinder.TKHelper import TKHelper
 from geofinder import __version__
 
 MISSING_FILES = 'Missing Files.  Please run geoutil and correct errors in Errors Tab'
 
 GEOID_TOKEN = 1
 PREFIX_TOKEN = 2
-
-# Tags to alternate colors in lists
-odd_tag = ('odd',)
-even_tag = ('even',)
 
 
 class GeoFinder:
@@ -74,7 +71,6 @@ class GeoFinder:
         self.user_selected_list = False  # Indicates whether user selected a list entry or text edit entry
         self.err_count = 0
         self.odd = False
-        self.cfg = None
         self.gedcom = None
         self.place = None
         self.skiplist = None
@@ -91,13 +87,11 @@ class GeoFinder:
         # Create App window and configure  window buttons and widgets
         self.w: AppLayout.AppLayout = AppLayout.AppLayout(self)
         self.util = UtilLayout.UtilLayout(root=self.w.root, directory=self.directory, cache_dir=self.cache_dir)
-
         self.w.create_initialization_widgets()
         self.w.config_button.config(state="normal")
 
         # Set up configuration  class
-        if self.cfg is None:
-            self.cfg = Config.Config()
+        self.cfg = Config.Config()
 
         # Ensure GeoFinder directory structure is valid
         if self.cfg.valid_directories():
@@ -107,7 +101,7 @@ class GeoFinder:
                 # Missing files
                 self.logger.warning(f'Missing files')
                 self.w.status.set_text("Click Config to set up Geo Finder")
-                self.set_preferred_button(self.w.config_button, self.w.initialization_buttons)
+                TKHelper.set_preferred_button(self.w.config_button, self.w.initialization_buttons, "Preferred.TButton")
                 self.w.load_button.config(state="disabled")
             else:
                 # No config errors
@@ -117,22 +111,22 @@ class GeoFinder:
                     self.logger.warning(f'error reading {self.cache_dir} config.pkl')
 
                 self.w.original_entry.set_text(self.cfg.get("gedcom_path"))
-                Widge.enable_buttons(self.w.initialization_buttons)
+                TKHelper.enable_buttons(self.w.initialization_buttons)
                 if os.path.exists(self.cfg.get("gedcom_path")):
                     # GEDCOM file is valid.  Prompt user to click Open for GEDCOM file
                     self.w.status.set_text("Click Open to load GEDCOM file")
-                    self.set_preferred_button(self.w.load_button, self.w.initialization_buttons)
+                    TKHelper.set_preferred_button(self.w.load_button, self.w.initialization_buttons, "Preferred.TButton")
                 else:
                     # No file.  prompt user to select a GEDCOM file - GEDCOM file name isn't valid
                     self.w.status.set_text("Choose a GEDCOM file")
                     self.w.load_button.config(state="disabled")
-                    self.set_preferred_button(self.w.choose_button, self.w.initialization_buttons)
+                    TKHelper.set_preferred_button(self.w.choose_button, self.w.initialization_buttons, "Preferred.TButton")
         else:
             # Missing directories
             self.logger.warning(f'Directories not found: {self.cache_dir} ')
             self.w.status.set_text("Click Config to set up Geo Finder")
             self.w.load_button.config(state="disabled")
-            self.set_preferred_button(self.w.config_button, self.w.initialization_buttons)
+            TKHelper.set_preferred_button(self.w.config_button, self.w.initialization_buttons, "Preferred.TButton")
 
             # Create directories for GeoFinder
             self.cfg.create_directories()
@@ -154,7 +148,7 @@ class GeoFinder:
         self.geodata = Geodata.Geodata(directory_name=self.directory, progress_bar=self.w.prog)
         error = self.geodata.read()
         if error:
-            Widge.fatal_error(MISSING_FILES)
+            TKHelper.fatal_error(MISSING_FILES)
 
         # If the list of supported countries is unusually short, display note to user
         num = self.display_country_note()
@@ -163,8 +157,8 @@ class GeoFinder:
         # Read in Geoname Gazeteer file - city names, lat/long, etc.
         error = self.geodata.read_geonames()
         if error:
-            Widge.fatal_error(MISSING_FILES)
-        self.logger.info(f'Geoname dictionary has {self.geodata.geo_files.geodb.get_row_count()} entries')
+            TKHelper.fatal_error(MISSING_FILES)
+        self.logger.debug(f'Geoname dictionary has {self.geodata.geo_files.geodb.get_row_count()} entries')
         self.w.root.update()
         self.w.prog.update_progress(100, " ")
 
@@ -190,15 +184,12 @@ class GeoFinder:
         if self.gedcom is None:
             self.gedcom = Gedcom.Gedcom(in_path=ged_path, out_path=out_path, cache_dir=self.cache_dir,
                                         progress=self.w.prog)  # Routines to open and parse GEDCOM file
-        self.place: Loc.Loc = Loc.Loc()  # Create an object to store info for the current Place
-
-        # Open GEDCOM file
-        # ged_path = self.cfg.get("gedcom_path")
-        # self.gedcom = Gedcom.Gedcom(in_path=ged_path, out_path=ged_path + '.new.ged', cache_dir=self.cache_dir,
-        #                            progress=self.w.prog)  # Routines to open and parse GEDCOM file
-        self.w.root.update()
         if self.gedcom.error:
-            Widge.fatal_error(f"GEDCOM file {ged_path} not found.")
+            TKHelper.fatal_error(f"GEDCOM file {ged_path} not found.")
+
+        self.w.root.update()
+
+        self.place: Loc.Loc = Loc.Loc()  # Create an object to store info for the current Place
 
         # Add GEDCOM filename to Title
         path_parts = os.path.split(ged_path)  # Extract filename from full path
@@ -206,6 +197,26 @@ class GeoFinder:
 
         # Read GEDCOM file, find each place entry and handle it.
         self.handle_place_entry()
+
+    def get_replacement(self, dict, town_entry:str, place):
+        geoid = None
+        replacement = dict.get(town_entry)
+
+        if replacement is not None:
+            if len(replacement) > 0:
+                # parse replacement entry
+                rep_tokens = replacement.split('@')
+                geoid = rep_tokens[GEOID_TOKEN]
+                if len(geoid) > 0:
+                    self.geodata.find_geoid(geoid, place)
+                else:
+                    place.result_type = GeoKeys.Result.DELETE
+
+                # Get prefix if there was one
+                if len(rep_tokens) > 2:
+                    place.prefix = rep_tokens[PREFIX_TOKEN]
+
+        return geoid
 
     def handle_place_entry(self):
         """ Get next PLACE  in users GEDCOM File.  Replace it, skip it, or have user correct it. """
@@ -226,50 +237,49 @@ class GeoFinder:
             if eof:
                 self.end_of_file_shutdown()
 
-            # When we find an error, see if we have a fix (Global Replace) or Skip (ignore).
+            # When we find an error, see if we already have a fix (Global Replace) or Skip (ignore).
             # Otherwise have user handle it
-            if self.global_replace.get(town_entry) is not None:
-                # There is a global change that we can apply to this line.  Get the replacement text
-                replacement = self.global_replace.get(town_entry)
+            geoid = self.get_replacement(self.global_replace, town_entry, self.place)
 
-                # get lat long and write out to gedcom output file
-                rep_token = replacement.split('@')
-                self.geodata.find_geoid(rep_token[GEOID_TOKEN], self.place)
+            if geoid is not None:
+                # There is a global change that we can apply to this line.
 
-                # Get prefix if there was one
-                if len(rep_token) > 2:
-                    self.place.prefix = rep_token[PREFIX_TOKEN]
+                if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
+                    # Output place to GEDCOM file
+                    self.gedcom_output_place(self.place)
 
-                # Output place to GEDCOM file
-                self.gedcom_output_place(self.place)
-
-                # Display status to user
-                if self.shutdown_requested:
-                    self.periodic_update("Shutting down...")
+                    # Display status to user
+                    if self.shutdown_requested:
+                        self.periodic_update("Shutting down...")
+                    else:
+                        self.periodic_update("Applying change")
+                elif self.place.result_type == GeoKeys.Result.DELETE:
+                    continue
                 else:
-                    self.periodic_update("Applying change")
+                    self.logger.debug(f'Error looking up GEOID=[{geoid}] for [{town_entry}] ')
+                    self.place.event_year = int(self.gedcom.event_year)  # Set place date to event date (geo names change over time)
+                    self.geodata.find_location(town_entry, self.place)
+                    break
 
                 continue
-            elif self.user_accepted.get(town_entry) is not None:
+            elif self.get_replacement(self.user_accepted, town_entry, self.place) is not None:
                 # There is an accepted  change that we can use for this line.  Get the replacement text
-                replacement = self.user_accepted.get(town_entry)
-                # self.logger.debug(f'Found Accept {replacement} for {town_entry}')
+                if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
+                    # Output place to GEDCOM file
+                    self.gedcom_output_place(self.place)
 
-                # get lat long and write out to gedcom output file
-                rep_token = replacement.split('@')
-                self.geodata.find_geoid(rep_token[GEOID_TOKEN], self.place)
-
-                # Get prefix if there was one
-                if len(rep_token) > 2:
-                    self.place.prefix = rep_token[PREFIX_TOKEN]
-
-                self.gedcom_output_place(self.place)
-
-                # Display status to user
-                if self.shutdown_requested:
-                    self.periodic_update("Shutting down...")
+                    # Display status to user
+                    if self.shutdown_requested:
+                        self.periodic_update("Shutting down...")
+                    else:
+                        self.periodic_update("Applying change")
                 else:
-                    self.periodic_update("Applying change")
+                    self.logger.debug(f'Error looking up GEOID {town_entry}')
+                    self.place.event_year = int(self.gedcom.event_year)  # Set place date to event date (geo names change over time)
+                    self.geodata.find_location(town_entry, self.place)
+                    self.w.original_entry.set_text(self.place.name)  # Display place
+                    self.w.user_entry.set_text(self.place.name)  # Display place
+                    break
 
                 continue
             elif self.shutdown_requested:
@@ -334,45 +344,54 @@ class GeoFinder:
         # Get the item the user selected in list (tree)
         loc = (self.w.tree.item(self.w.tree.selection(), "text"))
         prefix = (self.w.tree.item(self.w.tree.selection())['values'][0])
-        return f'{prefix}, {loc}'
+        return prefix, loc
 
     def verify_handler(self):
-        """ User clicked verify.  Verify if the users new Place entry has a match in geonames data.  """
+        """ The User clicked verify.  Verify if the users new Place entry has a match in geonames data.  """
         # Do we verify item from listbox or from text edit field?
         if self.user_selected_list:
             # User selected item from listbox - get listbox selection
-            town_entry = self.get_list_selection()
+            pref, town_entry = self.get_list_selection()
+            self.logger.debug(f'first match {town_entry}')
 
             # Update the user edit widget with the List selection item
             # self.w.user_entry.set_text(town_entry)
 
             # Since we are verifying users choice, Get first match.  don't try partial match
             self.geodata.find_first_match(town_entry, self.place)
+            self.place.prefix = pref
         else:
             # User typed in text entry window - get edit field value and look it up
             town_entry: str = self.w.user_entry.get()
-            self.geodata.find_location(town_entry, self.place)
+            if len(town_entry) > 0:
+                self.geodata.find_location(town_entry, self.place)
+            else:
+                # User entry is blank - prompt to delete this entry
+                self.place.clear()
+                self.place.result_type = GeoKeys.Result.DELETE
+                self.logger.debug('Blank: DELETE')
+                self.geodata.process_result(self.place, '', ResultFlags(limited=False, filtered=False))
 
         self.display_result(self.place)
 
     def display_result(self, place):
         """ Display result details for an item  """
         # Enable buttons so user can either click Skip, or edit the item and Click Verify.
-        Widge.enable_buttons(self.w.review_buttons)
+        TKHelper.enable_buttons(self.w.review_buttons)
         nm = place.format_full_name()
-        self.logger.debug(f'disp [{place.prefix}][{place.prefix_commas}][{nm}]')
+        self.logger.debug(f'disp result [{place.prefix}][{place.prefix_commas}][{nm}] res=[{place.result_type}]')
 
         # Enable action buttons based on type of result
         if place.result_type == GeoKeys.Result.MULTIPLE_MATCHES or \
                 place.result_type == GeoKeys.Result.NO_MATCH or \
                 place.result_type == GeoKeys.Result.NO_COUNTRY:
             # Disable the Save & Map button until user clicks Verify and item is found
-            self.disable_save_button(True)
-            self.set_preferred_button(self.w.verify_button, self.w.review_buttons)
+            self.set_save_allowed(False)
+            TKHelper.set_preferred_button(self.w.verify_button, self.w.review_buttons, "Preferred.TButton")
         else:
             # Found a match or Not supported - enable save and verify
-            self.disable_save_button(False)  # Enable save button
-            self.set_preferred_button(self.w.save_button, self.w.review_buttons)
+            self.set_save_allowed(True)  # Enable save button
+            TKHelper.set_preferred_button(self.w.save_button, self.w.review_buttons, "Preferred.TButton")
 
         # Display status and color based on success
         self.set_status_text(place.get_status())
@@ -398,11 +417,12 @@ class GeoFinder:
         self.w.root.update_idletasks()
 
     def list_insert(self, text, prefix):
+        # Tags to alternate colors in lists
         self.odd = not self.odd
         if self.odd:
-            tag = odd_tag
+            tag = ('odd',)
         else:
-            tag = even_tag
+            tag = ('even',)
         self.w.tree.insert('', "end", "", text=text, values=(prefix,), tags=tag)
 
     def clear_display_list(self):
@@ -442,8 +462,13 @@ class GeoFinder:
     def save_handler(self):
         """ Save the Place.  Add Place to global replace list and replace if we see it again. """
         ky = self.w.original_entry.get_text()
+        if self.place.result_type == GeoKeys.Result.DELETE:
+            # Put in a blank as replacement
+            self.place.geoid = ''
+            self.place.prefix = ''
+
         res = '@' + self.place.geoid + '@' + self.place.prefix
-        self.logger.debug(f'[{ky}] :: [{res}]')
+        self.logger.debug(f'Save [{ky}] :: [{res}]')
 
         # Add item to global replace list if user made a change.  This will be cached to disk.
         if self.w.original_entry.get_text() != self.w.user_entry.get_text():
@@ -452,14 +477,17 @@ class GeoFinder:
             # Periodically flush dict to disk
             if self.err_count % 3 == 1:
                 self.global_replace.write()
-            self.logger.debug(f'SAVE SetGblRep for {ky} res={res} Updating DICT')
+            self.logger.debug(f'SAVE SetGblRep for [{ky}] res=[{res}] Updating DICT')
         else:
             # User accepted the item as is.  Add to accept list
+            self.logger.debug(f'SAVE Accept for [{ky}] res=[{res}] Updating DICT')
+
             self.user_accepted.set(ky, res)
             self.user_accepted.write()
 
         # Write out corrected item to GEDCOM output file
-        self.gedcom_output_place(self.place)
+        if self.place.result_type != GeoKeys.Result.DELETE:
+            self.gedcom_output_place(self.place)
 
         # Get next error
         self.w.user_entry.set_text('')
@@ -491,7 +519,7 @@ class GeoFinder:
     def quit_handler(self):
         """ Set flag for shutdown.  Process all global replaces and exit """
         if messagebox.askyesno(' ', '   Exit?'):
-            Widge.disable_buttons(button_list=self.w.review_buttons)
+            TKHelper.disable_buttons(button_list=self.w.review_buttons)
             self.w.quit_button.config(state="disabled")
             self.w.prog.startup = True
 
@@ -506,10 +534,8 @@ class GeoFinder:
 
     def config_handler(self):
         # User clicked on Config button - bring up configuration windows
-        self.w.original_entry.set_text("")
         self.w.remove_initialization_widgets()  # Remove old widgets
-
-        self.util.create_util_widgets()
+        self.util.create_util_widgets()         # Create Util/Config widgets
 
     def filename_handler(self):
         """ Display file open selector dialog """
@@ -521,7 +547,7 @@ class GeoFinder:
             self.cfg.write()  # Write out config file
             self.w.status.set_text("Click Open to load GEDCOM file")
             self.w.original_entry.set_text(self.cfg.get("gedcom_path"))
-            self.set_preferred_button(self.w.load_button, self.w.initialization_buttons)
+            TKHelper.set_preferred_button(self.w.load_button, self.w.initialization_buttons, "Preferred.TButton")
 
     def return_key_event_handler(self, _):
         """ User pressed Return accelerator key.  Call Verify data entry """
@@ -558,16 +584,15 @@ class GeoFinder:
 
     def display_country_note(self) -> int:
         """ display warning if only a small number of countries are enabled """
-        countries, num = self.geodata.geo_files.get_supported_countries()
+        country_list, supported_countries = self.geodata.geo_files.get_supported_countries()
         self.w.root.update()
-        if num == 0:
-            Widge.fatal_error("No countries enabled.\n\nUse geoutil Country Tab to change country list\n")
+        if supported_countries == 0:
+            TKHelper.fatal_error("No countries enabled.\n\nUse Config Country Tab to change country list\n")
 
-        if num < 20:
-            messagebox.showinfo("Info", "{}{}{}".format("Loading geocode data for the following ISO country codes:\n\n",
-                                                        countries,
-                                                        "\n\nUse geoutil Country Tab to change country list\n"))
-        return num
+        if supported_countries < 20:
+            messagebox.showinfo("Info", f"Loading geocode data for the following ISO country codes:"
+            f"\n\n{country_list}\n\nUse Config Country Tab to change country list\n")
+        return supported_countries
 
     @staticmethod
     def setup_logging(msg):
@@ -581,32 +606,39 @@ class GeoFinder:
         # Write out location and lat/lon to gedcom file
         nm = place.format_full_name()
         # self.logger.debug(f'ged write [{place.prefix}][{place.prefix_commas}][{nm}]')
-        self.gedcom.write(place.prefix + place.prefix_commas + nm)
-        self.gedcom.write_lat_lon(lat=place.lat, lon=place.lon)
+        if place.result_type != GeoKeys.Result.DELETE:
+            self.gedcom.write(place.prefix + place.prefix_commas + nm)
+            self.gedcom.write_lat_lon(lat=place.lat, lon=place.lon)
+        else:
+            self.logger.debug('zero len, no output')
 
     def shutdown(self):
         """ Shutdown - write out Gbl Replace and skip file and exit """
         self.w.root.update_idletasks()
-        self.skiplist.write()
-        self.global_replace.write()
-        self.user_accepted.write()
-        self.cfg.write()
-        if self.gedcom is not None:
+        if self.skiplist:
+            self.skiplist.write()
+        if self.global_replace:
+            self.global_replace.write()
+        if self.user_accepted:
+            self.user_accepted.write()
+        if self.cfg:
+            self.cfg.write()
+        if self.gedcom :
             self.gedcom.close()
         self.w.root.quit()
         sys.exit()
 
-    def disable_save_button(self, disable: bool):
-        if disable:
-            # Disable the Save and Map buttons
-            self.save_enabled = False
-            self.w.save_button.config(state="disabled")
-            self.w.map_button.config(state="disabled")
-        else:
+    def set_save_allowed(self, save_allowed: bool):
+        if save_allowed:
             # Enable the Save and Map buttons
             self.save_enabled = True
             self.w.save_button.config(state="normal")  # Match - enable  button
             self.w.map_button.config(state="normal")  # Match - enable  button
+        else:
+            # Disable the Save and Map buttons
+            self.save_enabled = False
+            self.w.save_button.config(state="disabled")
+            self.w.map_button.config(state="disabled")
 
     def set_status_text(self, txt):
         # status text is readonly
@@ -616,7 +648,7 @@ class GeoFinder:
 
     def end_of_file_shutdown(self):
         # End of file reached
-        Widge.disable_buttons(button_list=self.w.review_buttons)
+        TKHelper.disable_buttons(button_list=self.w.review_buttons)
         self.w.status.set_text("Done.  Shutting Down...")
         self.w.original_entry.set_text(" ")
         path = self.cfg.get("gedcom_path")
@@ -631,18 +663,6 @@ class GeoFinder:
             self.w.status.configure(style="Good.TLabel")
             self.w.original_entry.set_text(self.place.name)  # Display place
             self.w.root.update_idletasks()  # Let GUI update
-
-    @staticmethod
-    def set_preferred_button(target_button, button_list):
-        """ Highlight preferred button """
-        # Go through list of buttons and set to normal style, or highlight preferred button
-        for button in button_list:
-            if button == target_button:
-                # Highlight preferred button and ensure it is enabled
-                button.configure(style="Preferred.TButton")  # Make this button the preferred selection
-                button.config(state="normal")
-            else:
-                button.configure(style="TButton")  # set to Normal style
 
     def check_configuration(self):
         file_error = False

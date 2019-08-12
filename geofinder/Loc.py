@@ -26,8 +26,8 @@ from geofinder import GeoKeys
 
 class Loc:
     """
-    Holds the details about a Place: Name, county, state/province, country, lat/long as well as lookup result details
-    Parses a name into Place items (county, state, etc)
+    Holds the details about a Location: Name, county, state/province, country, lat/long as well as lookup result details
+    Parses a name into Loc items (county, state, etc)
     """
 
     def __init__(self):
@@ -87,6 +87,8 @@ class Loc:
 
             # Validate country
             self.country_iso = geo_files.geodb.get_country_iso(self)  # Get Country country_iso
+            self.logger.debug(f'iso = [{self.country_iso}]')
+
             if self.country_iso is '':
                 # Not found.  See if rightmost token is actually Admin1 (state/province).  Look up admin1 and derive its country
                 save_admin1 = self.admin1_name
@@ -96,8 +98,9 @@ class Loc:
                 geo_files.geodb.get_admin1_id(self)
                 self.admin1_name = save_admin1  # Restore Admin1
 
-                if self.country_iso is not None:
+                if self.country_iso != '':
                     # We found the country.  Append it to token list so we now have xx,admin1, country
+                    self.logger.debug(f'iso=[{self.country_iso}]')
                     tokens.append(geo_files.geodb.get_country_name(self.country_iso))
                     self.country_name = tokens[-1].strip(' ').lower()
                     token_count = len(tokens)
@@ -106,7 +109,7 @@ class Loc:
                     # Append blank to token list so we now have xx,admin1, blank_country
                     self.logger.debug(f'didnt find last tkn as adm1 {self.admin1_name}')
                     tokens.append('')
-                    self.country_name = ''
+                    #self.country_name = ''
                     token_count = len(tokens)
                     self.result_type = GeoKeys.Result.NO_COUNTRY
                     self.country_iso = ''

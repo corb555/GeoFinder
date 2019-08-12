@@ -23,8 +23,8 @@ from tkinter import *
 from tkinter import ttk
 from tkinter.ttk import *
 
-from geofinder import Country, GeodataFiles, ListboxFrame, GFStyle
-from geofinder.Widge import Widge
+from geofinder import Country, GeodataFiles, ListboxFrame, AppStyle
+from geofinder.TKHelper import TKHelper
 
 
 class SetupCountriesFrame(ListboxFrame.ListboxFrame):
@@ -48,7 +48,7 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
         self.scrollbar2 = Scrollbar(frame)
 
         self.listbox_all_countries = ttk.Treeview(frame, style="Plain.Treeview")  # , selectmode="browse")
-        self.listbox_all_countries.tag_configure('odd', background=GFStyle.ODD_ROW_COLOR)
+        self.listbox_all_countries.tag_configure('odd', background=AppStyle.ODD_ROW_COLOR)
         self.listbox_all_countries.tag_configure('even', background='white')
 
         self.listbox_all_countries["columns"] = ("pre",)
@@ -73,18 +73,18 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
         super().configure_widgets(frm)
 
         # Add Lable for allow user to Add to list
-        Widge.set_grid_position(self.pad, "pad", grd=self.grd)
+        TKHelper.set_grid_position(self.pad, "pad", grd=self.grd)
 
         # Add Lable for allow user to Add to list
-        Widge.set_grid_position(self.add_label, "add_label", grd=self.grd)
+        TKHelper.set_grid_position(self.add_label, "add_label", grd=self.grd)
 
         # Add Button to allow user to Add to list
-        Widge.set_grid_position(self.add_button, "add_button", grd=self.grd)
+        TKHelper.set_grid_position(self.add_button, "add_button", grd=self.grd)
 
         # Create listbox of countries to add with scrollbar        
-        Widge.set_grid_position(self.listbox_all_countries, "listbox_all_countries", grd=self.grd)
+        TKHelper.set_grid_position(self.listbox_all_countries, "listbox_all_countries", grd=self.grd)
         self.scrollbar2.config(command=self.listbox_all_countries.yview)
-        Widge.set_grid_position(self.scrollbar2, "scrollbar2", grd=self.grd)
+        TKHelper.set_grid_position(self.scrollbar2, "scrollbar2", grd=self.grd)
 
     def load_handler(self):
         # Load in list and display - Need to Reverse the Key and Val

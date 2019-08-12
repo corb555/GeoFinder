@@ -24,8 +24,8 @@ from typing import List
 
 import pkg_resources
 
-import geofinder.GFStyle as GFStyle
-import geofinder.Widge
+import geofinder.AppStyle as GFStyle
+import geofinder.TKHelper
 from geofinder import Progress, Tooltip
 
 # Columns for widgets:
@@ -68,10 +68,10 @@ class AppLayout:
 
     def create_initialization_widgets(self):
         """ Create the  widgets for display during initialization  (File open)  """
-        self.pad: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
-        self.title: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="GEO FINDER", width=30, style='Large.TLabel')
-        self.original_entry: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=50, style='Info.TLabel')
-        self.status: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
+        self.pad: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
+        self.title: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="GEO FINDER", width=30, style='Large.TLabel')
+        self.original_entry: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text=" ", width=50, style='Info.TLabel')
+        self.status: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
         self.prog: Progress.Progress = Progress.Progress(self.root, bar_color=GFStyle.HIGH_COLOR, trough_color=GFStyle.LT_GRAY, status=self.status)
         self.quit_button: ttk.Button = ttk.Button(self.root, text="quit", command=self.main.shutdown,
                                                   width=GFStyle.BTN_WID_WD, image=self.images['exit'], compound="left")
@@ -104,9 +104,11 @@ class AppLayout:
 
         self.initialization_buttons: List[ttk.Button] = [self.quit_button, self.load_button, self.choose_button, self.config_button]
         # disable all buttons and the app will enable appropriate ones
-        geofinder.Widge.Widge.disable_buttons(button_list=self.initialization_buttons)
+        geofinder.TKHelper.TKHelper.disable_buttons(button_list=self.initialization_buttons)
 
     def remove_initialization_widgets(self):
+        #self.w.original_entry.set_text("")
+        self.original_entry.destroy()
         self.title.destroy()
         self.prog.bar.destroy()
         self.status.destroy()
@@ -118,13 +120,13 @@ class AppLayout:
 
     def create_review_widgets(self):
         """ Create all the buttons and entry fields for normal running """
-        self.pad: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
-        self.title: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="GEO FINDER", width=30, style='Large.TLabel')
+        self.pad: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
+        self.title: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="GEO FINDER", width=30, style='Large.TLabel')
 
-        self.original_entry: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="   ", width=GFStyle.TXT_WID, style='Light.TLabel')
-        self.user_entry: geofinder.Widge.CEntry = geofinder.Widge.CEntry(self.root, text="   ", width=GFStyle.TXT_WID, font=(GFStyle.FNT_NAME, 14))
-        self.status: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
-        self.prefix: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, width=GFStyle.TXT_WID, style='Highlight.TLabel')
+        self.original_entry: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="   ", width=GFStyle.TXT_WID, style='Light.TLabel')
+        self.user_entry: geofinder.TKHelper.CEntry = geofinder.TKHelper.CEntry(self.root, text="   ", width=GFStyle.TXT_WID, font=(GFStyle.FNT_NAME, 14))
+        self.status: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
+        self.prefix: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Highlight.TLabel')
 
         self.scrollbar = ttk.Scrollbar(self.root)
 
@@ -141,9 +143,9 @@ class AppLayout:
         self.tree.config(yscrollcommand=self.scrollbar.set)
         self.scrollbar.config(command=self.tree.yview)
 
-        self.ged_event_info: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text=" ", width=GFStyle.TXT_WID, style='Light.TLabel')
-        self.footnote: geofinder.Widge.CLabel = geofinder.Widge.CLabel(self.root, text="Data is from GeoNames.org.  Hover for details",
-                                                                       width=GFStyle.TXT_WID, style='Light.TLabel')
+        self.ged_event_info: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text=" ", width=GFStyle.TXT_WID, style='Light.TLabel')
+        self.footnote: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="Data is from GeoNames.org.  Hover for details",
+                                                                             width=GFStyle.TXT_WID, style='Light.TLabel')
 
         self.prog: Progress.Progress = Progress.Progress(self.root, bar_color=GFStyle.HIGH_COLOR, trough_color=GFStyle.LT_GRAY, status=self.status)
 

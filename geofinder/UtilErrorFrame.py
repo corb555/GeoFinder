@@ -26,8 +26,8 @@ from tkinter import *
 from tkinter.ttk import *
 from typing import Dict
 
-from geofinder import CachedDictionary, GeoKeys, GFStyle
-from geofinder import Widge as Widge
+from geofinder import CachedDictionary, GeoKeys, AppStyle
+from geofinder import TKHelper as Widge
 
 
 class SetupErrorFrame:
@@ -65,7 +65,7 @@ class SetupErrorFrame:
         self.title_label = Widge.CLabel(frame, text=self.title, width=80, style='Info.TLabel')
         self.status = Widge.CLabel(frame, text=" ", width=80, style='Highlight.TLabel')
         self.scrollbar = Scrollbar(frame)
-        self.listbox = Listbox(frame, width=80, height=20, bg=GFStyle.LT_GRAY, selectmode=MULTIPLE,
+        self.listbox = Listbox(frame, width=80, height=20, bg=AppStyle.LT_GRAY, selectmode=MULTIPLE,
                                yscrollcommand=self.scrollbar.set)
         self.add_button = ttk.Button(frame, text="geonames.org", command=self.web_handler, width=12)
 

@@ -51,9 +51,10 @@ class Geodata:
         place.parse_place(place_name=location, geo_files=self.geo_files)
         flags = ResultFlags(limited=False, filtered=False)
 
+        self.logger.debug(f'Find LOCATION Type=[{Loc.place_type_name_dict.get(place.place_type)}] City=[{place.city1}] Adm2=[{place.admin2_name}]\
+        Adm1=[{place.admin1_name}] Prefix=[{place.prefix}] cname=[{place.country_name}] iso=[{place.country_iso}]')
+
         if self.country_is_valid(place):
-            self.logger.debug(f'Find LOCATION Type=[{Loc.place_type_name_dict[place.place_type]}] City=[{place.city1}] Adm2=[{place.admin2_name}]\
-    Adm1=[{place.admin1_name}] Prefix=[{place.prefix}] cname=[{place.country_name}] iso=[{place.country_iso}]')
             # Lookup location
             self.geo_files.geodb.lookup_place(place=place)
         else:
@@ -71,7 +72,8 @@ class Geodata:
             flags = self.build_result_list(place.georow_list, place.event_year)
 
         if len(place.georow_list) == 0:
-            place.result_type = GeoKeys.Result.NO_MATCH
+            if place.result_type != GeoKeys.Result.NO_COUNTRY:
+                place.result_type = GeoKeys.Result.NO_MATCH
         elif len(place.georow_list) > 1:
             self.logger.debug(f'mult matches {len(place.georow_list)}')
             place.result_type = GeoKeys.Result.MULTIPLE_MATCHES
@@ -93,7 +95,8 @@ class Geodata:
 
         if flags.filtered:
             place.status = f'{place.result_type_text} "{st.capwords(targ_name)}" {result_text_list.get(place.result_type)} '
-            place.status += ' *FILTERED BY EVENT DATE*'
+            place.status += ' ***VERIFY EVENT DATE***'
+            place.result_type = GeoKeys.Result.PARTIAL_MATCH
 
     def find_first_match(self, location: st, place: Loc.Loc):
         """
@@ -121,10 +124,14 @@ class Geodata:
 
     def find_geoid(self, geoid: str, place: Loc.Loc):
         place.target = geoid
+        place.georow_list.clear()
         self.geo_files.geodb.lookup_geoid(place=place)
         if len(place.georow_list) > 0:
             # Copy geo row to Place
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
+            place.result_type = GeoKeys.Result.EXACT_MATCH
+        else:
+            place.result_type = GeoKeys.Result.NO_MATCH
 
     def set_place_type_text(self, place: Loc.Loc):
         if place.result_type == GeoKeys.Result.NO_COUNTRY:
@@ -230,7 +237,6 @@ class Geodata:
             if self.validate_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1]) is False:
                 # Skip location if location name  didnt exist at the time of event
                 date_filtered = True
-                continue
 
             if geo_row[GeoKeys.Entry.NAME] != prev_geo_row[GeoKeys.Entry.NAME]:
                 # Name is different.  Add previous item
@@ -269,9 +275,10 @@ result_text_list = {
     GeoKeys.Result.EXACT_MATCH: 'matched! Click Save to accept:',
     GeoKeys.Result.MULTIPLE_MATCHES: 'had multiple matches.  Select one and click Verify.',
     GeoKeys.Result.NO_MATCH: 'not found.  Edit and click Verify.',
-    GeoKeys.Result.NOT_SUPPORTED: ' is not supported. Skip or add in GeoUtil.py',
+    GeoKeys.Result.NOT_SUPPORTED: ' is not supported. Add in Config / Country or Skip',
     GeoKeys.Result.NO_COUNTRY: 'No Country found.',
-    GeoKeys.Result.PARTIAL_MATCH: 'partial match.  Click Save to accept:'
+    GeoKeys.Result.PARTIAL_MATCH: 'partial match.  Click Save to accept:',
+    GeoKeys.Result.DELETE: 'Empty.  Click Save to delete entry.'
 }
 
 

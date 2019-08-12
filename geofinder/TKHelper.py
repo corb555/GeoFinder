@@ -22,20 +22,34 @@ from tkinter import ttk, messagebox
 from typing import List, Dict
 
 
-class Widge:
+class TKHelper:
     """
-    These  routines provide helper functions for Tkint including standardized get and set text.
+    These  routines provide helper functions for Tkint including standardized get and set text and support for Undo
     """
 
     @staticmethod
     def disable_buttons(button_list: List[ttk.Button]) -> None:
+        # Disable a list of buttons
         for button in button_list:
             button.config(state="disabled")
 
     @staticmethod
     def enable_buttons(button_list: List[ttk.Button]) -> None:
+        # Enable a list of buttons
         for button in button_list:
             button.config(state="normal")
+
+    @staticmethod
+    def set_preferred_button(target_button, button_list, pref_style):
+        """ Highlight preferred button """
+        # Go through list of buttons and set them to normal style, and set preferred button to pref_style
+        for button in button_list:
+            if button == target_button:
+                # Highlight preferred button and ensure it is enabled
+                button.configure(style=pref_style)  # Make this button the preferred selection
+                button.config(state="normal")
+            else:
+                button.configure(style="TButton")  # set to Normal style
 
     @staticmethod
     def fatal_error(msg: str) -> None:
@@ -136,6 +150,7 @@ class CEntry(ttk.Entry):
 
 
 """
+    # Add Z layer visibility support to TK
     def add_to_layer(self, layer, command, coords, **kwargs):
         # Add support for Z-Layers.  Add item to specific layer 
         layer_tag = "layer %s" % layer
