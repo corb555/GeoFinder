@@ -3,7 +3,7 @@ GeoFinder reads the place names in a GEDCOM genealogy file, validates and correc
 
 <a name="features"></a>
 ## Features  
-* Rich place name database from geonames.org optimized for Genealogy including including cemeteries, historic locations, and religious locations.
+* Rich place name database from geonames.org optimized for Genealogy including cemeteries, historic locations, and religious locations.
 * Designed for correcting large GEDCOM files
 * Automatic matching wherever possible adds missing information such as missing state/province or county.
 * Cleans up and standardizes placenames
