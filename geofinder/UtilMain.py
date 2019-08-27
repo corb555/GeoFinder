@@ -31,7 +31,6 @@ except ModuleNotFoundError:
     print('Unidecode missing.')
 
 
-# Setup and modify config for geonames
 class UtilMain:
     """
     Utilities to edit and configure items for Geofinder
@@ -52,8 +51,8 @@ class UtilMain:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         fmt = "%(levelname)s %(asctime)s %(name)s.%(funcName)s %(lineno)d: %(message)s"
-        logging.basicConfig(level=logging.INFO, format=fmt)
-        self.logger.info('Setup')
+        logging.basicConfig(level=logging.DEBUG, format=fmt)
+        self.logger.info('Configuration')
 
         self.directory: str = os.path.join(str(Path.home()), GeoKeys.get_directory_name())
         self.cache_dir = GeoKeys.get_cache_directory()

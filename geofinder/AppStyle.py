@@ -26,6 +26,7 @@ BTN_WID_WD = 6
 BTN_PADX = 50
 PAD_PADX = 25
 
+# Color Palette
 LT_GRAY = 'gray97'
 LT_COLOR = 'gray50'
 FG_COLOR = 'gray29'
@@ -35,6 +36,7 @@ ERR_COLOR = 'red2'
 GOOD_COLOR = 'green4'
 ODD_ROW_COLOR = '#E8E8f8'
 
+# Font
 FNT_NAME = 'Helvetica'
 
 FNT_SIZE_SM = 8
@@ -52,6 +54,7 @@ class GFStyle:
         styl.theme_use("clam")
         styl.configure('.', font=(FNT_NAME, FNT_SIZE_MD))  # Default button font
 
+        # Label colors
         styl.configure('Large.TLabel', foreground=HIGH_COLOR, background=BG_COLOR, font=(FNT_NAME, FNT_SIZE_XL))
 
         styl.configure('Error.TLabel', foreground=ERR_COLOR, background=BG_COLOR, font=(FNT_NAME, FNT_SIZE_LG))
@@ -66,19 +69,20 @@ class GFStyle:
         styl.configure('Tiny.TLabel', borderwidth=3, foreground=LT_COLOR, background=BG_COLOR,
                        font=(FNT_NAME, FNT_SIZE_SM))
 
+        # Entry field and button colors
         styl.configure('TEntry', foreground=FG_COLOR)
-
         styl.configure('TButton', foreground=FG_COLOR)
         styl.configure('Preferred.TButton', foreground=GOOD_COLOR)
 
+        # Treeview (listbox) colors
         styl.configure("Plain.Treeview", highlightthickness=0, bd=0, font=(FNT_NAME, FNT_SIZE_MD),
                        foreground=FG_COLOR)  # Modify the font of the body
         styl.configure("Plain.Treeview.Heading", font=(FNT_NAME, FNT_SIZE_MD, 'bold'),
                        foreground=FG_COLOR, background=LT_GRAY, relief="flat")  # Modify the font of
-        # the headings
+        # treeview heading
         styl.layout("Plain.Treeview", [('Plain.Treeview.treearea', {'sticky': 'nswe'})])  # Remove the borders
 
-        # Import the Notebook.tab element from the default theme
+        # Notebook colors
         styl.element_create('Plain.Notebook.tab', "from", 'default')
         # Redefine the TNotebook Tab layout to use the new element
         styl.layout("TNotebook.Tab",
@@ -92,4 +96,6 @@ class GFStyle:
         styl.configure("TNotebook", background=BG_COLOR, borderwidth=0)
         styl.configure("TNotebook.Tab", background="purple", foreground=FG_COLOR,
                        lightcolor='red', borderwidth=0)
+
+        # Frame color
         styl.configure("TFrame", background=BG_COLOR, foreground=FG_COLOR, borderwidth=0)

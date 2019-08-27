@@ -61,7 +61,7 @@ class SetupReplaceFrame(ListboxFrame.ListboxFrame):
                 # Copy geo row to Place
                 self.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
             else:
-                self.logger.debug(f'lkp err item=[{item}] rep=[{replacement}]')
+                #self.logger.debug(f'lkp err item=[{item}] rep=[{replacement}]')
                 if len(place.target) == 0:
                     place.clear()
                     place.city1 = f'<DELETE>'

@@ -442,7 +442,11 @@ class GeoFinder:
         for geo_row in place.georow_list:
             self.geodata.geo_files.geodb.copy_georow_to_place(geo_row, temp_place)
             nm = temp_place.format_full_name()
-            self.list_insert(nm, temp_place.prefix)
+            valid = self.geodata.validate_year_for_location(event_year=place.event_year, iso=temp_place.country_iso, admin1=temp_place.admin1_id)
+            if valid:
+                self.list_insert(nm, temp_place.prefix)
+            else:
+                self.list_insert(nm, "INVALID DATE")
 
         self.w.root.update_idletasks()
 

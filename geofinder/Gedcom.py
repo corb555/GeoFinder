@@ -58,6 +58,8 @@ class Gedcom:
         self.infile = None
         self.out_path: str = out_path
         self.error = False
+        self.date = ''
+        self.abt_flag = False
 
         if out_path is not None:
             # Create an output file with same name with "out.ged" appended
@@ -96,28 +98,6 @@ class Gedcom:
             self.error = True
         return self.error
 
-    def read_and_parse_line(self) -> Tuple[str, bool]:
-        # Read a line from GEDCOM file.  Handle line.
-        line = self.infile.readline()
-        self.line_num += 1
-
-        # update progress bar
-        prog = int(self.infile.tell() * 100 / self.filesize)
-        if self.line_num % 1000 == 1:
-            self.progress(f"Scanning ", prog)
-
-        if line == "":
-            # End of File
-            return "", True
-
-        # Separate the line into GEDCOM parts:  self.level, self.tag, self.label, self.value
-        self.parse_gedcom(line)
-
-        #  Keep track of  lines for this event so we have full view of event
-        self.collect_event_details()
-
-        return line, False
-
     def scan_for_tag(self, target_tag) -> (str, bool):
         # Scan GEDCOM file for specified tag or EOF
         # Output all other lines as-is to outfile
@@ -137,7 +117,29 @@ class Gedcom:
                 if self.out_path is not None:
                     self.outfile.write(line)
 
-    def parse_gedcom(self, line: str):
+    def read_and_parse_line(self) -> Tuple[str, bool]:
+        # Read a line from GEDCOM file.  Handle line.
+        line = self.infile.readline()
+        self.line_num += 1
+
+        # update progress bar
+        prog = int(self.infile.tell() * 100 / self.filesize)
+        if self.line_num % 1000 == 1:
+            self.progress(f"Scanning ", prog)
+
+        if line == "":
+            # End of File
+            return "", True
+
+        # Separate the line into GEDCOM parts:  self.level, self.tag, self.label, self.value
+        self.parse_gedcom_line(line)
+
+        #  Keep track of  lines for this event so we have full view of event
+        self.collect_event_details()
+
+        return line, False
+
+    def parse_gedcom_line(self, line: str):
         # Gedcom file regex:          Digits for level,   @  for label,   text for tag,   text for value
         regex = re.compile(r"^(?P<level>\d+)\s+(?P<label>@\S+@)?\s*(?P<tag>\S+)\s+(?P<value>.*)")
 
@@ -156,17 +158,13 @@ class Gedcom:
             self.level = 99
             self.label = ''
 
-    def clear_date(self):
-        self.event_year = 0
-        self.date = ''
-
     def collect_event_details(self):
         """ Collect details for event - last name, event date, and tag in GEDCOM file."""
 
         # Text names for event tags
         event_names = {'DEAT': 'Death', 'CHR': 'Christening', 'BURI': 'Burial', 'BIRT': 'Birth',
                        'CENS': 'Census', 'MARR': 'Marriage', 'RESI': 'Residence', 'IMMI': 'Immigration', 'EMMI': 'Emmigration',
-                       'OCCU':'Occupation'}
+                       'OCCU': 'Occupation'}
 
         # Level of 0 indicates a new record - reset values
         if self.level == 0:
@@ -225,6 +223,10 @@ class Gedcom:
             if abt is not None:
                 self.abt_flag = True
 
+    def clear_date(self):
+        self.event_year = 0
+        self.date = ''
+
     def build_person_dictionary(self):
         """
         Read gedcom and extract Person names
@@ -236,7 +238,7 @@ class Gedcom:
                 break  # END OF FILE
 
             if self.tag == 'NAME' or self.tag == 'HUSB':
-                #self.logger.debug(f'ky=[{self.id}] val=[{self.value}]')
+                # self.logger.debug(f'ky=[{self.id}] val=[{self.value}]')
                 if self.id != self.value:
                     self.person_cd.dict[self.id] = self.value
 
@@ -293,7 +295,7 @@ class Gedcom:
             if lon != float('NaN'):
                 #  If there is already a MAP LATI LONG entry, eat it without output
                 line: str = self.peak_next_line()
-                self.parse_gedcom(line)
+                self.parse_gedcom_line(line)
 
                 if self.tag == "MAP":
                     # Read this MAP command and do nothing with it
@@ -301,14 +303,14 @@ class Gedcom:
 
                     # Check for LATI line
                     line = self.peak_next_line()
-                    self.parse_gedcom(line)
+                    self.parse_gedcom_line(line)
                     if self.tag == "LATI" or self.tag == "LONG":
                         # Read this LATI command and do nothing with it
                         self.infile.readline()
 
                     # Check for LONG line
                     line = self.peak_next_line()
-                    self.parse_gedcom(line)
+                    self.parse_gedcom_line(line)
                     if self.tag == "LATI" or self.tag == "LONG":
                         # Read this LONG command and do nothing with it
                         self.infile.readline()

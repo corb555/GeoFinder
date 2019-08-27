@@ -3,6 +3,7 @@
 
 
 # To use the 'upload' functionality of this file:
+# This will create a PyPi package and publish it.  It will also tag the version in github
 #   python Setup.py upload
 
 import io

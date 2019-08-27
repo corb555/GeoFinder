@@ -28,6 +28,7 @@ from geofinder import UtilCountriesFrame, UtilErrorFrame, UtilFeatureFrame, Util
 
 
 class UtilLayout:
+    """ Create Configuration utility windows"""
     def __init__(self, root, directory, cache_dir):
         self.logger = logging.getLogger(__name__)
         self.directory = directory

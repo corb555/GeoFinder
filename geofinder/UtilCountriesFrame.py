@@ -40,6 +40,7 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
     def __init__(self, frame, title: str, dir_name: str, cache_dir: str, cache_filename: str):
         self.logger = logging.getLogger(__name__)
         self.logger.debug(f'SetupConfigureCountries dir {dir_name} cache dir {cache_dir} file {cache_filename}')
+        self.country_dict = {}
 
         self.pad = ttk.Label(frame, text="", style='Info.TLabel')  # blank padding row
 
@@ -60,12 +61,13 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
         self.listbox_all_countries.config(yscrollcommand=self.scrollbar2.set)
         self.scrollbar2.config(command=self.listbox_all_countries.yview)
 
-        self.country_dict = {}
         super().__init__(frame, title, cache_dir, cache_filename)
         self.tree.heading("#0", text="Name", anchor=tk.W)
         self.tree.heading("pre", text="Code", anchor=tk.W)
 
+        self.logger.info('geodatafiles loading')
         self.geoFiles = GeodataFiles.GeodataFiles(dir_name, None)
+        self.logger.info('  geodatafiles initialized')
 
         self.load_handler_all()
 
@@ -119,10 +121,11 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
         # Load in list of all countries and display
         # self.listbox_all_countries.delete(0, END)
         self.clear_display_list(self.listbox_all_countries)
+        self.logger.info(f'Building country list:')
         for name in sorted(Country.country_dict):
             row = Country.country_dict[name]
-            # self.listbox_all_countries.insert(END, f"{name.lower()}{self.separator}{row[0].lower()}")
             self.list_insert(self.listbox_all_countries, f"{name.lower()}", f"{row[0].lower()}")
+            self.logger.debug(f'  {name.lower()}')
 
     def add_handler(self):
         # Add items user selected to supported list

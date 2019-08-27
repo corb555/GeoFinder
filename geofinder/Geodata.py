@@ -234,8 +234,12 @@ class Geodata:
         # Create new list without dupes (adjacent items with same name and same lat/lon)
         # Find if two items with same name are similar lat/lon (within Box Distance of 0.5 degrees)
         for geo_row in list_copy:
+            if self.validate_year_for_location(event_year+80, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1]) is False:
+                # Skip location if location name  didnt exist at the time of event WITH 80 years padding
+                continue
+
             if self.validate_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1]) is False:
-                # Skip location if location name  didnt exist at the time of event
+                # Flag if location name  didnt exist at the time of event
                 date_filtered = True
 
             if geo_row[GeoKeys.Entry.NAME] != prev_geo_row[GeoKeys.Entry.NAME]:

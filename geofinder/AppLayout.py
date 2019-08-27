@@ -128,7 +128,8 @@ class AppLayout:
         self.status: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
         self.prefix: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Highlight.TLabel')
 
-        self.scrollbar = ttk.Scrollbar(self.root)
+        # Treeview (list box)
+        self.tree_scrollbar = ttk.Scrollbar(self.root)
 
         self.tree = ttk.Treeview(self.root, style="Plain.Treeview", selectmode="browse")
         self.tree.tag_configure('odd', background=GFStyle.ODD_ROW_COLOR)
@@ -140,8 +141,8 @@ class AppLayout:
         self.tree.heading("#0", text="   Location", anchor=tk.W)
         self.tree.heading("pre", text="   Prefix", anchor=tk.W)
 
-        self.tree.config(yscrollcommand=self.scrollbar.set)
-        self.scrollbar.config(command=self.tree.yview)
+        self.tree.config(yscrollcommand=self.tree_scrollbar.set)
+        self.tree_scrollbar.config(command=self.tree.yview)
 
         self.ged_event_info: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text=" ", width=GFStyle.TXT_WID, style='Light.TLabel')
         self.footnote: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="Data is from GeoNames.org.  Hover for details",
@@ -179,7 +180,7 @@ class AppLayout:
         self.footnote.grid(column=TXT_COL, row=12, padx=0, pady=5, sticky="EW", columnspan=2)
 
         # Column 1 - just the scrollbar
-        self.scrollbar.grid(column=SCRL_COL, row=5, padx=0, pady=5, sticky='WNS')
+        self.tree_scrollbar.grid(column=SCRL_COL, row=5, padx=0, pady=5, sticky='WNS')
 
         # Column 2 Widgets
         self.map_button.grid(column=BTN_COL, row=1, padx=GFStyle.BTN_PADX, pady=6, sticky="NE")
