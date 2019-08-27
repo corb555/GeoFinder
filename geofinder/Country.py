@@ -75,6 +75,7 @@ class Country:
         return False
 
 
+
 country_dict = {
     'Afghanistan': ('AF', 'AFG', '4', '33', '65'),
     'Albania': ('AL', 'ALB', '8', '41', '20'),
