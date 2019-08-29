@@ -233,9 +233,6 @@ class GeodataFiles:
         geo_row[GeoDB.Entry.LON] = geoname_row.lon
         geo_row[GeoDB.Entry.FEAT] = geoname_row.feat_code
         geo_row[GeoDB.Entry.ID] = geoname_row.id
-        if geoname_row.id == '11594109':
-            self.logger.debug(f'Eastminster {geoname_row}')
-
 
         self.geodb.insert(geo_row=geo_row, feat_code=geoname_row.feat_code)
 

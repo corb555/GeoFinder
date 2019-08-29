@@ -65,6 +65,10 @@ class GeoFinder:
     """
 
     def __init__(self):
+        print ('Python {}.{}'.format(sys.version_info[0], sys.version_info[1]))
+        if sys.version_info < (3, 6, 0):
+            raise Exception(f"Must be using Python 3.6 or higher.")
+
         print(f'GeoFinder v{__version__.__version__}')
         self.shutdown_requested: bool = False  # Flag to indicate user requested shutdown
         self.save_enabled = False  # Only allow SAVE when we have an item that was matched in geonames

@@ -4,7 +4,7 @@
 
 # To use the 'upload' functionality of this file:
 # This will create a PyPi package and publish it.  It will also tag the version in github
-#   python Setup.py upload
+#   python3 Setup.py upload
 
 import io
 import os
@@ -36,6 +36,10 @@ EXTRAS = {
 # ------------------------------------------------
 # Except, perhaps the License and Trove Classifiers!
 # If you do change the License, remember to change the Trove Classifier for that!
+
+print('Python {}.{}'.format(sys.version_info[0], sys.version_info[1]))
+if sys.version_info[0] < (3, 6, 0):
+    raise Exception("Must be using Python 3.6 or higher")
 
 here = os.path.abspath(os.path.dirname(__file__))
 
