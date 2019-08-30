@@ -44,7 +44,6 @@ class AppLayout:
         self.logger = logging.getLogger(__name__)
         self.main = main
 
-        print (tk.config )
         self.root = tk.Tk()
         self.root.title("GeoFinder")
         self.root["padx"] = 0

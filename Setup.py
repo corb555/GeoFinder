@@ -38,7 +38,7 @@ EXTRAS = {
 # If you do change the License, remember to change the Trove Classifier for that!
 
 print('Python {}.{}'.format(sys.version_info[0], sys.version_info[1]))
-if sys.version_info[0] < (3, 6, 0):
+if sys.version_info < (3, 6, 0):
     raise Exception("Must be using Python 3.6 or higher")
 
 here = os.path.abspath(os.path.dirname(__file__))
