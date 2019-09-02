@@ -67,7 +67,7 @@ class GeoFinder:
     def __init__(self):
         print ('Python {}.{}'.format(sys.version_info[0], sys.version_info[1]))
         if sys.version_info < (3, 6, 0):
-            raise Exception(f"Must be using Python 3.6 or higher.")
+            raise Exception("Must be using Python 3.6 or higher.")
 
         print(f'GeoFinder v{__version__.__version__}')
         self.shutdown_requested: bool = False  # Flag to indicate user requested shutdown
@@ -676,9 +676,15 @@ class GeoFinder:
         file_error = False
         file_list = ['allCountries.txt', 'cities500.txt']
 
+        # Get country list and validate
         countries = CachedDictionary(self.cache_dir, 'country_list.pkl')
+        self.logger.debug('load country selections list')
+
         countries.read()
         country_dct = countries.dict
+        if len(country_dct) == 0:
+            self.logger.warning('no countries specified')
+            file_error = True
 
         # Ensure that there are some geoname data files
         path = os.path.join(self.directory, "*.txt")
@@ -696,13 +702,6 @@ class GeoFinder:
         if count == 0:
             # No data files, add error to error dictionary
             self.logger.warning('No Geonames files found')
-            file_error = True
-
-        # Get country list and validate
-        self.logger.debug('load countries')
-        # self.supported_countries_cd.read()
-        if len(country_dct) == 0:
-            self.logger.warning('no countries specified')
             file_error = True
 
         return file_error

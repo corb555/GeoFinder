@@ -121,11 +121,12 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
         # Load in list of all countries and display
         # self.listbox_all_countries.delete(0, END)
         self.clear_display_list(self.listbox_all_countries)
-        self.logger.info(f'Building country list:')
+        self.logger.info('Building country list: {} countries'.format(len(Country.country_dict)))
         for name in sorted(Country.country_dict):
             row = Country.country_dict[name]
-            self.list_insert(self.listbox_all_countries, f"{name.lower()}", f"{row[0].lower()}")
-            self.logger.debug(f'  {name.lower()}')
+            self.logger.debug('List Insert {} {}'.format(name.lower(), row[0].lower()))
+
+            self.list_insert(self.listbox_all_countries, name.lower(), row[0].lower())
 
     def add_handler(self):
         # Add items user selected to supported list
