@@ -4,7 +4,7 @@
 
 # To use the 'upload' functionality of this file:
 # This will create a PyPi package and publish it.  It will also tag the version in github
-#   python3 Setup.py upload
+#   python3 Setup.py upload   (increment __version__.py first)
 
 import io
 import os
@@ -66,7 +66,7 @@ else:
 
 
 class UploadCommand(Command):
-    """Support setup.py upload - uploads package to GitHub and PyPi"""
+    """Support setup.py upload - create release version tag in Github.  uploads package to PyPi"""
 
     description = 'Build and publish the package.'
     user_options = []
