@@ -66,10 +66,12 @@ class GeoFinder:
 
     def __init__(self):
         print ('Python {}.{}'.format(sys.version_info[0], sys.version_info[1]))
+        print('GeoFinder v{}'.format(__version__.__version__))
+
         if sys.version_info < (3, 6, 0):
             raise Exception("Must be using Python 3.6 or higher.")
-
-        print(f'GeoFinder v{__version__.__version__}')
+        val = ''
+        print(f'GeoFinder Requires Python 3.6 or higher {val}')
         self.shutdown_requested: bool = False  # Flag to indicate user requested shutdown
         self.save_enabled = False  # Only allow SAVE when we have an item that was matched in geonames
         self.user_selected_list = False  # Indicates whether user selected a list entry or text edit entry
@@ -103,7 +105,7 @@ class GeoFinder:
             err = self.check_configuration()
             if err:
                 # Missing files
-                self.logger.warning(f'Missing files')
+                self.logger.warning('Missing files')
                 self.w.status.set_text("Click Config to set up Geo Finder")
                 TKHelper.set_preferred_button(self.w.config_button, self.w.initialization_buttons, "Preferred.TButton")
                 self.w.load_button.config(state="disabled")
@@ -112,7 +114,7 @@ class GeoFinder:
                 # Read config settings (GEDCOM file path)
                 err = self.cfg.read()
                 if err:
-                    self.logger.warning(f'error reading {self.cache_dir} config.pkl')
+                    self.logger.warning('error reading {} config.pkl'.format(self.cache_dir))
 
                 self.w.original_entry.set_text(self.cfg.get("gedcom_path"))
                 TKHelper.enable_buttons(self.w.initialization_buttons)
@@ -127,7 +129,7 @@ class GeoFinder:
                     TKHelper.set_preferred_button(self.w.choose_button, self.w.initialization_buttons, "Preferred.TButton")
         else:
             # Missing directories
-            self.logger.warning(f'Directories not found: {self.cache_dir} ')
+            self.logger.warning('Directories not found: {} '.format(self.cache_dir))
             self.w.status.set_text("Click Config to set up Geo Finder")
             self.w.load_button.config(state="disabled")
             TKHelper.set_preferred_button(self.w.config_button, self.w.initialization_buttons, "Preferred.TButton")
@@ -156,7 +158,7 @@ class GeoFinder:
 
         # If the list of supported countries is unusually short, display note to user
         num = self.display_country_note()
-        self.logger.info(f'{num} countries will be loaded')
+        self.logger.info('{} countries will be loaded'.format(num))
 
         # Read in Geoname Gazeteer file - city names, lat/long, etc.
         error = self.geodata.read_geonames()
