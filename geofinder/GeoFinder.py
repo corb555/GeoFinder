@@ -75,7 +75,7 @@ class GeoFinder:
         self.user_selected_list = False  # Indicates whether user selected a list entry or text edit entry
         self.err_count = 0
         self.odd = False
-        self.gedcom = None
+        self.ancestry_file = None
         self.place = None
         self.skiplist = None
         self.global_replace = None
@@ -180,15 +180,15 @@ class GeoFinder:
 
         ged_path = self.cfg.get("gedcom_path")  # Get saved config setting for GEDCOM file
         if ged_path is not None:
-            out_path = ged_path + "new.ged"
+            out_suffix =  "new.ged"
         else:
-            out_path = 'unk.new.ged'
+            out_suffix = 'unk.new.ged'
 
         # Initialize routines to read/write GEDCOM file
-        if self.gedcom is None:
-            self.gedcom = Gedcom.Gedcom(in_path=ged_path, out_path=out_path, cache_dir=self.cache_dir,
-                                        progress=self.w.prog)  # Routines to open and parse GEDCOM file
-        if self.gedcom.error:
+        if self.ancestry_file is None:
+            self.ancestry_file = Gedcom.Gedcom(in_path=ged_path, out_suffix=out_suffix, cache_dir=self.cache_dir,
+                                               progress=self.w.prog)  # Routines to open and parse GEDCOM file
+        if self.ancestry_file.error:
             TKHelper.fatal_error(f"GEDCOM file {ged_path} not found.")
 
         self.w.root.update()
@@ -236,7 +236,7 @@ class GeoFinder:
             # Find the next PLACE entry in GEDCOM file
             # Process it and keep looping until we need user input
             self.place.clear()
-            town_entry, eof = self.gedcom.scan_for_tag('PLAC')
+            town_entry, eof = self.ancestry_file.get_next_place()
 
             if eof:
                 self.end_of_file_shutdown()
@@ -250,7 +250,7 @@ class GeoFinder:
 
                 if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
                     # Output place to GEDCOM file
-                    self.gedcom_output_place(self.place)
+                    self.file_output_place(self.place)
 
                     # Display status to user
                     if self.shutdown_requested:
@@ -261,7 +261,7 @@ class GeoFinder:
                     continue
                 else:
                     self.logger.debug(f'Error looking up GEOID=[{geoid}] for [{town_entry}] ')
-                    self.place.event_year = int(self.gedcom.event_year)  # Set place date to event date (geo names change over time)
+                    self.place.event_year = int(self.ancestry_file.event_year)  # Set place date to event date (geo names change over time)
                     self.geodata.find_location(town_entry, self.place)
                     break
 
@@ -270,7 +270,7 @@ class GeoFinder:
                 # There is an accepted  change that we can use for this line.  Get the replacement text
                 if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
                     # Output place to GEDCOM file
-                    self.gedcom_output_place(self.place)
+                    self.file_output_place(self.place)
 
                     # Display status to user
                     if self.shutdown_requested:
@@ -279,7 +279,7 @@ class GeoFinder:
                         self.periodic_update("Applying change")
                 else:
                     self.logger.debug(f'Error looking up GEOID {town_entry}')
-                    self.place.event_year = int(self.gedcom.event_year)  # Set place date to event date (geo names change over time)
+                    self.place.event_year = int(self.ancestry_file.event_year)  # Set place date to event date (geo names change over time)
                     self.geodata.find_location(town_entry, self.place)
                     self.w.original_entry.set_text(self.place.name)  # Display place
                     self.w.user_entry.set_text(self.place.name)  # Display place
@@ -290,19 +290,19 @@ class GeoFinder:
                 # User requested shutdown.  Finish up going thru file, then shut down
                 self.periodic_update("Shutting Down...")
                 self.w.original_entry.set_text(" ")
-                self.gedcom.write(town_entry)
+                self.ancestry_file.write(town_entry)
                 continue
             elif self.skiplist.get(town_entry) is not None:
                 # item is in skiplist - Write out as-is and go to next error
                 # self.logger.debug(f'Found Skip for {town_entry}')
                 self.periodic_update("Skipping")
-                self.gedcom.write(town_entry)
+                self.ancestry_file.write(town_entry)
                 continue
             else:
                 # Found a new PLACE entry
                 # See if it is in our place database
                 # self.place.parse_place(place_name=town_entry, geo_files=self.geodata.geo_files)
-                self.place.event_year = int(self.gedcom.event_year)  # Set place date to event date (geo names change over time)
+                self.place.event_year = int(self.ancestry_file.event_year)  # Set place date to event date (geo names change over time)
                 self.geodata.find_location(town_entry, self.place)
 
                 if self.place.result_type in GeoKeys.successful_match:
@@ -324,7 +324,7 @@ class GeoFinder:
                         if self.err_count % 4 == 1:
                             self.global_replace.write()
 
-                        self.gedcom_output_place(self.place)
+                        self.file_output_place(self.place)
                         continue
                     else:
                         # Have user review the match
@@ -417,7 +417,7 @@ class GeoFinder:
             self.display_one_georow(place.status_detail)
 
         # Display GEDCOM person and event that this location refers to
-        self.w.ged_event_info.set_text(f'{self.gedcom.get_name(self.gedcom.id)}: {self.gedcom.event_name} {self.gedcom.date}')
+        self.w.ged_event_info.set_text(f'{self.ancestry_file.get_name(self.ancestry_file.id)}: {self.ancestry_file.event_name} {self.ancestry_file.date}')
         self.w.root.update_idletasks()
 
     def list_insert(self, text, prefix):
@@ -446,7 +446,8 @@ class GeoFinder:
         for geo_row in place.georow_list:
             self.geodata.geo_files.geodb.copy_georow_to_place(geo_row, temp_place)
             nm = temp_place.format_full_name()
-            valid = self.geodata.validate_year_for_location(event_year=place.event_year, iso=temp_place.country_iso, admin1=temp_place.admin1_id)
+            valid = self.geodata.validate_year_for_location(event_year=place.event_year, iso=temp_place.country_iso,
+                                                            admin1=temp_place.admin1_id, padding= 0)
             if valid:
                 self.list_insert(nm, temp_place.prefix)
             else:
@@ -459,7 +460,7 @@ class GeoFinder:
         self.logger.debug(f'Skip for {self.w.original_entry.get_text()}  Updating SKIP dict')
 
         self.skiplist.set(self.w.original_entry.get_text(), " ")
-        self.gedcom.write(self.w.original_entry.get_text())
+        self.ancestry_file.write(self.w.original_entry.get_text())
 
         # Save Skip info for future runs
         self.skiplist.write()
@@ -495,7 +496,7 @@ class GeoFinder:
 
         # Write out corrected item to GEDCOM output file
         if self.place.result_type != GeoKeys.Result.DELETE:
-            self.gedcom_output_place(self.place)
+            self.file_output_place(self.place)
 
         # Get next error
         self.w.user_entry.set_text('')
@@ -534,7 +535,7 @@ class GeoFinder:
             self.w.user_entry.set_text(" ")
             self.w.status.set_text("Quitting...")
             # Write out the item we are on
-            self.gedcom.write(self.w.original_entry.get_text())
+            self.ancestry_file.write(self.w.original_entry.get_text())
             self.shutdown_requested = True
 
             # We will still continue to go through file, but only handle global replaces
@@ -610,13 +611,13 @@ class GeoFinder:
         logger.info(msg)
         return logger
 
-    def gedcom_output_place(self, place: Loc.Loc):
+    def file_output_place(self, place: Loc.Loc):
         # Write out location and lat/lon to gedcom file
         nm = place.format_full_name()
         # self.logger.debug(f'ged write [{place.prefix}][{place.prefix_commas}][{nm}]')
         if place.result_type != GeoKeys.Result.DELETE:
-            self.gedcom.write(place.prefix + place.prefix_commas + nm)
-            self.gedcom.write_lat_lon(lat=place.lat, lon=place.lon)
+            self.ancestry_file.output_place(place.prefix + place.prefix_commas + nm)
+            self.ancestry_file.write_lat_lon(lat=place.lat, lon=place.lon)
         else:
             self.logger.debug('zero len, no output')
 
@@ -631,8 +632,8 @@ class GeoFinder:
             self.user_accepted.write()
         if self.cfg:
             self.cfg.write()
-        if self.gedcom :
-            self.gedcom.close()
+        if self.ancestry_file :
+            self.ancestry_file.close()
         self.w.root.quit()
         sys.exit()
 

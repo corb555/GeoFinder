@@ -59,14 +59,14 @@ if not VERSION:
         exec(f.read(), about)
     tkn = about['__version__'].split('.')
     next_build = int(tkn[-1]) + 1
-    next_ver = f'{tkn[0]}.{tkn[1]}.{next_build}'
-    print(next_ver)
+    #next_ver = f'{tkn[0]}.{tkn[1]}.{next_build}'
+    #print(next_ver)
 else:
     about['__version__'] = VERSION
 
 
 class UploadCommand(Command):
-    """Support setup.py upload."""
+    """Support setup.py upload - uploads package to GitHub and PyPi"""
 
     description = 'Build and publish the package.'
     user_options = []
@@ -96,13 +96,13 @@ class UploadCommand(Command):
         os.system('python3 -m twine upload  dist/*')
 
         self.status('Pushing git tags…')
-        os.system(f'git tag v{about["__version__"]}')
+        os.system('git tag v{}'.format(about["__version__"]))
         os.system('git push --tags')
 
         sys.exit()
 
 
-# Where the magic happens:
+# Setup:
 setup(
     name=NAME,
     version=about['__version__'],
@@ -128,7 +128,7 @@ setup(
     classifiers=[
         # Trove classifiers
         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
-        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
         "Development Status :: 4 - Beta",

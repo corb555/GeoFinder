@@ -547,16 +547,16 @@ class TestGeodata(unittest.TestCase):
 
     # ======= TEST Event Year
     def test_eventyear01(self):
-        test = "City - good - after start"
+        test = "City - good - and after city start"
         self.place.event_year = 1541
         lat: float = self.run_test(test, "Albanel,, Quebec, Canada")
         self.assertEqual(48.88324, lat, test)
 
     def test_eventyear02(self):
-        test = "City - good - before start"
+        test = "City - good - but before city start"
         self.place.event_year = 1540
         lat: float = self.run_test(test, "Albanel,, Quebec, Canada")
-        self.assertEqual(GeoKeys.Result.NO_MATCH, self.place.result_type, test)
+        self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, test)
 
     def test_eventyear03(self):
         test = "City - not in list"

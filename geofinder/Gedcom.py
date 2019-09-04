@@ -16,60 +16,37 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-import logging
 import os
 import re
-from typing import Match, Union, Tuple
+from typing import Match, Union
 
 from geofinder import Progress
+from geofinder.AncestryFile import AncestryFile
 from geofinder.CachedDictionary import CachedDictionary
 
 
-class Gedcom:
+class Gedcom(AncestryFile):
     """
-    Basic routines to Read/Parse and Write GEDCOM files focused on PLAC entries
-    Scan - Read through gedcom file, find specified Tag entry.
-    Write out all other GEDCOM entries as-is if out_path is not None
-    Keep track of info for current Event
-    Build a dictionary of Person ID to name and Family ID to name
+    Class for Gedcom file handler - based on AncestryFile handler
+    Basic routines to Read/Parse and Write GEDCOM ancestry files focused on place entries.
+    Scan - Read through  file, find Place entry.
+    Write out all other entries as-is if out_path is not None
     """
 
-    def __init__(self, in_path: str, out_path: str, cache_dir: str, progress: Union[None, Progress.Progress]):
-        self.build = False
-        self.logger = logging.getLogger(__name__)
-        self.progress_bar = progress
-
-        self.output_latlon = True
+    def __init__(self, in_path: str, out_suffix: str, cache_dir, progress: Union[None, Progress.Progress]):
+        super().__init__(in_path, out_suffix, cache_dir, progress)
 
         # Sections of a GEDCOM line - Level, label, tag, value
         self.level: int = 0
         self.label: str = ""
-        self.tag: str = ""
-        self.value: str = ""
 
         # GEDCOM  meta data
         self.id: str = ''
         self.name: str = ""
         self.event_year: int = 0
         self.event_name: str = ""
-
-        self.line_num: int = 0
-        self.filesize = 0
-        self.infile = None
-        self.out_path: str = out_path
-        self.error = False
         self.date = ''
         self.abt_flag = False
-
-        if out_path is not None:
-            # Create an output file with same name with "out.ged" appended
-            self.outfile = open(in_path + ".new.ged", "w",
-                                encoding='utf-8')
-
-        # Open GEDCOM file in utf-8.  Replace any non-UTF-8 characters (e.g. Latin)
-        err = self.open(in_path)
-        if err:
-            return
 
         # Build dictionary of name/id pairs and write to pickle cache file.  If pickle file already there, just read it.
         # When we display a location, we use this to display the name the event is tied to
@@ -83,63 +60,26 @@ class Gedcom:
             # File is not there.  Build it - it is a dictionary of GED Name_IDs to Names
             self.build_person_dictionary()
 
-        if self.output_latlon is False:
-            self.logger.warning('### OUTPUT OF LAT/LON IS DISABLED ###')
-
-    def open(self, in_path) -> bool:
-        # Open GEDCOM file
-        if os.path.exists(in_path):
-            self.infile = open(in_path, 'rU', encoding='utf-8', errors='replace')
-            self.filesize: int = int(os.path.getsize(in_path))  # Used for progress bar calculation
-            self.logger.info(f'Opened  {in_path}')
-            self.error: bool = False
-        else:
-            self.logger.error(f"File {in_path} not found")
-            self.error = True
-        return self.error
-
-    def scan_for_tag(self, target_tag) -> (str, bool):
-        # Scan GEDCOM file for specified tag or EOF
+    def get_next_place(self) -> (str, bool):
+        # Scan GEDCOM file for 'PLAC' tag or EOF
         # Output all other lines as-is to outfile
         while True:
             line, err = self.read_and_parse_line()
             if err:
                 return '', True  # End of file reached
 
-            if self.tag == target_tag:
+            if self.tag == 'PLAC':
                 # Found the target line.  Break out of loop
-                entry = self.value.rstrip("\\")
+                entry = self.value
                 if entry is None:
                     continue
                 return entry, False
             else:
                 # Not a target entry.   Write out line as-is
-                if self.out_path is not None:
+                if self.outfile is not None:
                     self.outfile.write(line)
 
-    def read_and_parse_line(self) -> Tuple[str, bool]:
-        # Read a line from GEDCOM file.  Handle line.
-        line = self.infile.readline()
-        self.line_num += 1
-
-        # update progress bar
-        prog = int(self.infile.tell() * 100 / self.filesize)
-        if self.line_num % 1000 == 1:
-            self.progress(f"Scanning ", prog)
-
-        if line == "":
-            # End of File
-            return "", True
-
-        # Separate the line into GEDCOM parts:  self.level, self.tag, self.label, self.value
-        self.parse_gedcom_line(line)
-
-        #  Keep track of  lines for this event so we have full view of event
-        self.collect_event_details()
-
-        return line, False
-
-    def parse_gedcom_line(self, line: str):
+    def parse_line(self, line: str):
         # Gedcom file regex:          Digits for level,   @  for label,   text for tag,   text for value
         regex = re.compile(r"^(?P<level>\d+)\s+(?P<label>@\S+@)?\s*(?P<tag>\S+)\s+(?P<value>.*)")
 
@@ -150,6 +90,7 @@ class Gedcom:
             self.tag = matches.group('tag')  # GEDCOM tag
             self.level = int(matches.group('level'))  # GEDCOM level
             self.value = matches.group('value')  # GEDCOM value for command
+            entry = self.value.rstrip("\\")
             self.label = matches.group('label')  # GEDCOM label
         else:
             # Could not parse
@@ -202,7 +143,7 @@ class Gedcom:
 
     def set_date(self, date: str):
         """ Set Date and Parse string for date/year and set Gedcom year of event """
-        # Only supports simple date and ABT date
+        # Only supports simple date and ABT date, ignores date ranges
         self.date = date
         self.event_year = 0
         self.abt_flag = False  # Flag to indicate that this is an "ABOUT" date
@@ -265,16 +206,9 @@ class Gedcom:
 
         return nm.replace('/', '')
 
-    def peak_next_line(self):
-        """ Return a peak at next line but dont move forward in file """
-        pos = self.infile.tell()
-        line = self.infile.readline()
-        self.infile.seek(pos)  # Back up to where we were
-        return line
-
     def write(self, value: str):
-        """ Write out a GEDCOM line.  Put together the pieces:  level, Label, tag, value """
-        if self.out_path is not None:
+        """ Write out a line.  Put together the pieces:  level, Label, tag, value """
+        if self.outfile is not None:
             if self.label is not None:
                 res = f"{self.level} {self.label} {self.tag} {value}\n"
             else:
@@ -287,7 +221,7 @@ class Gedcom:
         if self.output_latlon is False:
             return
 
-        if self.out_path is not None:
+        if self.outfile is not None:
             map_level: int = self.level + 1
             lati_level: int = self.level + 2
 
@@ -295,7 +229,7 @@ class Gedcom:
             if lon != float('NaN'):
                 #  If there is already a MAP LATI LONG entry, eat it without output
                 line: str = self.peak_next_line()
-                self.parse_gedcom_line(line)
+                self.parse_line(line)
 
                 if self.tag == "MAP":
                     # Read this MAP command and do nothing with it
@@ -303,14 +237,14 @@ class Gedcom:
 
                     # Check for LATI line
                     line = self.peak_next_line()
-                    self.parse_gedcom_line(line)
+                    self.parse_line(line)
                     if self.tag == "LATI" or self.tag == "LONG":
                         # Read this LATI command and do nothing with it
                         self.infile.readline()
 
                     # Check for LONG line
                     line = self.peak_next_line()
-                    self.parse_gedcom_line(line)
+                    self.parse_line(line)
                     if self.tag == "LATI" or self.tag == "LONG":
                         # Read this LONG command and do nothing with it
                         self.infile.readline()
@@ -319,17 +253,3 @@ class Gedcom:
                 self.outfile.write(f"{str(map_level)} MAP\n")
                 self.outfile.write(f"{str(lati_level)} LATI {lat}\n")
                 self.outfile.write(f"{str(lati_level)} LONG {lon}\n")
-
-    def close(self):
-        self.infile.close()
-        if self.out_path is not None:
-            self.outfile.close()
-
-    def progress(self, msg: str, percent: int):
-        """ Display progress update """
-        if percent < 2:
-            percent = 2
-        if self.progress_bar is not None:
-            self.progress_bar.update_progress(percent, msg)
-        else:
-            self.logger.debug('prog is None')

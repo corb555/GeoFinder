@@ -195,9 +195,10 @@ class Geodata:
 
         return is_valid
 
-    def validate_year_for_location(self, event_year: int, iso: str, admin1: str) -> bool:
+    def validate_year_for_location(self, event_year: int, iso: str, admin1: str, padding: int) -> bool:
         # See if this location name was valid at the time of the event
         # Try looking up start year by state/province
+        event_year += padding
         start_year = admin1_name_start_year.get(f'{iso}.{admin1.lower()}')
         if start_year is None:
             # Try looking up start year by country
@@ -205,7 +206,7 @@ class Geodata:
         if start_year is None:
             start_year = -1
 
-        if event_year < start_year and event_year != 0:
+        if event_year < start_year and event_year != 0+padding:
             self.logger.debug(f'Val year:  loc year={start_year}  event yr={event_year} loc={admin1},{iso}')
             return False
         else:
@@ -234,11 +235,11 @@ class Geodata:
         # Create new list without dupes (adjacent items with same name and same lat/lon)
         # Find if two items with same name are similar lat/lon (within Box Distance of 0.5 degrees)
         for geo_row in list_copy:
-            if self.validate_year_for_location(event_year+80, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1]) is False:
+            if self.validate_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1], 80) is False:
                 # Skip location if location name  didnt exist at the time of event WITH 80 years padding
                 continue
 
-            if self.validate_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1]) is False:
+            if self.validate_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1], 0) is False:
                 # Flag if location name  didnt exist at the time of event
                 date_filtered = True
 
