@@ -95,7 +95,7 @@ class ListboxFrame:
             tag = odd_tag
         else:
             tag = even_tag
-        tree.insert('', "end", "", text=col1, values=(col2,), tags=tag)
+        tree.insert(parent='', index="end", iid=None, text=col1, values=(col2,), tags=tag)
 
     def clear_display_list(self, tree):
         self.odd = False
