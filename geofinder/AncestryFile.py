@@ -84,7 +84,6 @@ class AncestryFile:
         # Read a line from file.  Handle line.
         if not self.more_available:
             line = self.infile.readline()
-            self.logger.debug(f'Line: {line}')
         else:
             line = ' '
         self.line_num += 1

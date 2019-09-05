@@ -429,7 +429,7 @@ class GeoFinder:
             tag = ('odd',)
         else:
             tag = ('even',)
-        self.w.tree.insert('', "end", "", text=text, values=(prefix,), tags=tag)
+        self.w.tree.insert(parent='', index="end", iid=None, text=text, values=(prefix,), tags=tag)
 
     def clear_display_list(self):
         self.odd = False
