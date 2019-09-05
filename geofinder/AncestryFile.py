@@ -66,7 +66,7 @@ class AncestryFile:
         if os.path.exists(in_path):
             self.infile = open(in_path, 'rU', encoding='utf-8', errors='replace')
             self.filesize: int = int(os.path.getsize(in_path))  # Used for progress bar calculation
-            self.logger.info(f'Opened  {in_path}')
+            self.logger.info(f'Opened  {in_path} Size={self.filesize}')
             self.error: bool = False
         else:
             self.logger.error(f"File {in_path} not found")
@@ -84,6 +84,9 @@ class AncestryFile:
         # Read a line from file.  Handle line.
         if not self.more_available:
             line = self.infile.readline()
+            self.logger.debug(f'Line: {line}')
+        else:
+            line = ' '
         self.line_num += 1
 
         # update progress bar
