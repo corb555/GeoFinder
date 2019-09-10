@@ -65,12 +65,21 @@ class GeodataFiles:
         self.supported_countries_cd.read()
         self.supported_countries_dct: Dict[str, str] = self.supported_countries_cd.dict
 
+        # Read in dictionary listing languages (ISO2) we should include
+        self.languages_list_cd = CachedDictionary.CachedDictionary(sub_dir, "languages_list.pkl")
+        self.languages_list_cd.read()
+        self.languages_list_dct: Dict[str, str] = self.languages_list_cd.dict
+        lang_list = []
+
+        for item in self.languages_list_dct:
+            lang_list.append(item)
+
         self.entry_place = Loc.Loc()
 
         # Support for Geonames AlternateNames file.  Adds alternate names for entries
         self.alternate_names = AlternateNames.AlternateNames(directory_name=self.directory,
                                                              geo_files=self, progress_bar=self.progress_bar,
-                                                             filename='alternateNamesV2.txt', lang_list=['en'])
+                                                             filename='alternateNamesV2.txt', lang_list=lang_list)
 
     def read(self) -> bool:
         """

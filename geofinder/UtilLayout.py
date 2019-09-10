@@ -89,11 +89,11 @@ class UtilLayout:
         self.listbox_list.append(self.feature_list)
 
         # Languages tab
-        self.logger.debug('=====Language frame')
-        self.language_list = UtilLanguagesFrame.UtilLanguagesFrame(self.frames[5],
+        self.logger.debug('=====Languages frame')
+        self.languages_list = UtilLanguagesFrame.UtilLanguagesFrame(self.frames[5],
                                                                 "Load alternate names for these languages:",
-                                                               self.cache_dir, "language_list.pkl")
-        self.listbox_list.append(self.language_list)
+                                                               self.cache_dir, "languages_list.pkl")
+        self.listbox_list.append(self.languages_list)
 
         # Create Help button below frames
         self.help_button = ttk.Button(self.root, text="help", command=self.help_handler, width=10)
@@ -126,8 +126,8 @@ class UtilLayout:
         for item in self.listbox_list:
             item.write()
 
-        if self.country_list.is_dirty() or self.feature_list.is_dirty():
-            # Delete geoname.pkl so GeoFinder3 will rebuild it with new country list or feature list
+        if self.country_list.is_dirty() or self.feature_list.is_dirty() or self.languages_list.is_dirty():
+            # Delete geoname.db so GeoFinder will rebuild it with new country list or feature list
             for fname in ['geodata.db']:
                 path = os.path.join(self.cache_dir, fname)
                 self.logger.debug(f'Quit - DELETING FILE {path}')

@@ -18,6 +18,7 @@
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 
 # The tab separated columns in geoname.org file rows are as follows
+
 from geofinder import GeodataFiles, GeoKeys, GeoDB
 from geofinder.FileReader import FileReader
 from geofinder.Loc import Loc
