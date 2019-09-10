@@ -552,13 +552,14 @@ class GeoFinder:
             # We will still continue to go through file, but only handle global replaces
             self.handle_place_entry()
         else:
-            self.w.user_entry.set_text(" ")
-            self.w.status.set_text("Quitting...")
+            #self.w.user_entry.set_text(" ")
+            #self.w.status.set_text("Quitting...")
             self.shutdown()
 
     def config_handler(self):
         # User clicked on Config button - bring up configuration windows
         self.w.remove_initialization_widgets()  # Remove old widgets
+        self.w.root.protocol("WM_DELETE_WINDOW", self.shutdown)
         self.util.create_util_widgets()  # Create Util/Config widgets
 
     def filename_handler(self):

@@ -49,8 +49,6 @@ class AppLayout:
         self.root["padx"] = 0
         self.root["pady"] = 20
 
-        self.root.protocol("WM_DELETE_WINDOW", self.main.quit_handler)
-
         # Set column/row weight for responsive resizing
         self.root.columnconfigure(0, weight=1)
         for rw in range(0, 12):
@@ -122,6 +120,8 @@ class AppLayout:
 
     def create_review_widgets(self):
         """ Create all the buttons and entry fields for normal running """
+        self.root.protocol("WM_DELETE_WINDOW", self.main.quit_handler)
+
         self.pad: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
         self.title: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="GEO FINDER", width=30, style='Large.TLabel')
 

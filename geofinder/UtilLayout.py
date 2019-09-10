@@ -24,7 +24,7 @@ from tkinter import ttk
 from tkinter.ttk import *
 from typing import List
 
-from geofinder import UtilCountriesFrame, UtilErrorFrame, UtilFeatureFrame, UtilReplaceFrame, ListboxFrame, AppStyle
+from geofinder import UtilCountriesFrame, UtilErrorFrame, UtilFeatureFrame, UtilReplaceFrame, ListboxFrame, AppStyle, UtilLanguagesFrame
 
 
 class UtilLayout:
@@ -33,7 +33,6 @@ class UtilLayout:
         self.logger = logging.getLogger(__name__)
         self.directory = directory
         self.cache_dir = cache_dir
-
         self.root = root
 
     def start_up(self):
@@ -52,7 +51,7 @@ class UtilLayout:
         self.error = ""
 
         # Add Multiple tabs
-        tab_list = ["Errors", "Countries", "Skip List", "Global Replace", "Features"]
+        tab_list = ["Errors", "Countries", "Skip List", "Global Replace", "Features", "Languages"]
         self.create_tabs(tab_list)
 
         # Create a frame for each tab:
@@ -88,6 +87,13 @@ class UtilLayout:
                                                                 "We will load data for these geoname feature types:",
                                                                self.cache_dir, "feature_list.pkl")
         self.listbox_list.append(self.feature_list)
+
+        # Languages tab
+        self.logger.debug('=====Language frame')
+        self.language_list = UtilLanguagesFrame.UtilLanguagesFrame(self.frames[5],
+                                                                "Load alternate names for these languages:",
+                                                               self.cache_dir, "language_list.pkl")
+        self.listbox_list.append(self.language_list)
 
         # Create Help button below frames
         self.help_button = ttk.Button(self.root, text="help", command=self.help_handler, width=10)
