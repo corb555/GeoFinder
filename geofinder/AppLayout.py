@@ -49,6 +49,8 @@ class AppLayout:
         self.root["padx"] = 0
         self.root["pady"] = 20
 
+        self.root.protocol("WM_DELETE_WINDOW", self.main.quit_handler)
+
         # Set column/row weight for responsive resizing
         self.root.columnconfigure(0, weight=1)
         for rw in range(0, 12):

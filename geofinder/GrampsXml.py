@@ -16,15 +16,12 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-import os
 import re
 import xml.etree.ElementTree as Tree
 from io import BytesIO
-from pathlib import Path
-from typing import Union, Tuple
+from typing import Union
 
-from geofinder import GeoKeys, Progress
-# for rank in root.iter('rank')
+from geofinder import Progress
 from geofinder.AncestryFile import AncestryFile
 
 
@@ -33,183 +30,188 @@ class State:
     PASS_THROUGH = 0
     COLLECT_PLACE_XML = 1
     WALK_PLACE_TREE = 2
-    PLACE_TREE_COMPLETE = 3
 
 
 class GrampsXml(AncestryFile):
+    """
+    Parse and update a Gramps XML DTD 1.7.1 file - sample of Place section below
+    Gramps XML (Family Tree) - Not compressed, Not package
+
+    https://www.gramps-project.org/xml/
+
+    <places>
+    <placeobj handle="_e3e603bc19f6cdb5e7f5932562f" change="1567113428" id="P0000" type="City">
+      <ptitle>Chelsea, Greater London, England, United Kingdom</ptitle>
+      <pname value="Chelsea, Greater London, England, United Kingdom"/>
+      <pname value="Chelsea district, Greater London, England, United Kingdom " lang="en">
+         <dateval val="1987"/>
+      </pname>
+      <coord long="-0.16936" lat="51.48755"/>
+      <placeref hlink="_e40b85dab5b634791e7788893c6"/>
+    </placeobj>
+
+    <placeobj handle="_e3e603bc1c94b85f1b59026fa08" change="1566106543" id="P0001" type="Unknown">
+      <ptitle>Palo Alto, Santa Clara County, California, United States</ptitle>
+      <pname value="Palo Alto, Santa Clara County, California, United States"/>
+      <coord long="-122.14302" lat="37.44188"/>
+    </placeobj>
+    </places>
+
+    """
+
     def __init__(self, in_path: str, out_suffix: str, cache_d, progress: Union[None, Progress.Progress]):
         super().__init__(in_path, out_suffix, cache_d, progress)
-        self.root = None
+        self.elem = None
         self.collect_lines = False
         self.place_xml_lines = b''
-        self.state = State.PASS_THROUGH
-        self.pl = None
+        self.place = None
         self.child = None
-
-    def get_next_place(self) -> (str, bool):
-        # BASE - DO NOT MODIFY *******
-
-        # Scan  file for Place entry or EOF
-        # Output all other lines as-is to outfile
-        while True:
-            line, err = self.read_and_parse_line()
-            if err:
-                return '', True  # End of file reached
-
-            if self.tag == 'PLAC':
-                # Found the target line.  Break out of loop
-                entry = self.value
-                if entry is None:
-                    continue
-                return entry, False
-            else:
-                # Not a target entry.   Write out line as-is
-                if self.outfile is not None:
-                    self.outfile.write(line)
-
-    def read_and_parse_line(self) -> Tuple[str, bool]:
-        # BASE - DO NOT MODIFY ********
-        # Read a line from file.  Handle line.
-        if not self.more_available:
-            line = self.infile.readline()
-            if line == "":
-                # End of File
-                return "", True
-        else:
-            line = ''
-
-        self.line_num += 1
-
-        # update progress bar
-        prog = int(self.infile.tell() * 100 / self.filesize)
-        if self.line_num % 1000 == 1:
-            self.progress(f"Scanning ", prog)
-
-        # Separate the line into  parts
-        self.parse_line(line)
-
-        #  Keep track of  lines for this event so we have full view of event
-        self.collect_event_details()
-
-        return line, False
+        self.state = State.PASS_THROUGH  # Write out each line as-is unless we are in Place section
+        self.got_pname = False
+        self.got_place = False
+        self.lon = 99.9
+        self.lat = 99.9
 
     def parse_line(self, line: str):
         # Called by read_and_parse_line for each line in file
+        # Accumulate all XML place entries into binary string, then build XML tree, then search XML tree
+        # and return each entry in self.value with self.tag set to PLAC
+
+        # Set State
         if '<places>' in line:
-            # Reached the start of Places XML section
-            # Accumulate XML text until end of section
+            # Reached the start of Places XML section.  Accumulate XML text until end of section
             self.state = State.COLLECT_PLACE_XML
         elif '</places>' in line:
             # Reached the end of Places section
+            line += '\n'
             self.place_xml_lines += bytes(line, "utf8")
-            print(f'xml len={len(self.place_xml_lines)}')
+            self.logger.debug(f'xml len={len(self.place_xml_lines)}')
 
             # Build tree from XML string
             try:
-                self.root = Tree.parse(BytesIO(self.place_xml_lines))
+                self.elem = Tree.parse(BytesIO(self.place_xml_lines))
             except TypeError:
-                print(f'XML parse error')
-                self.root = None
+                self.logger.warning(f'XML parse error')
+                self.elem = None
             self.state = State.WALK_PLACE_TREE
+            self.more_available = True
 
-        # Handle based on State
+        # Handle line based on State
         self.tag = 'OTHER'
+
         if self.state == State.COLLECT_PLACE_XML:
             # Collect lines
-
             # Convert all placeobj tags to placeobject tag
-            # This will allow us to keep track of which Place Objects we have processed.
             # As each is processed we convert it back to placeobj
+            # This will allow us to keep track of which Place Objects we have processed.
             line = re.sub('placeobj', 'placeobject', line)
-
             self.place_xml_lines += bytes(line, "utf8")
+            self.tag = 'IGNORE'
         elif self.state == State.PASS_THROUGH:
-            # Just output line
+            #  output line in get_next_place
             pass
         elif self.state == State.WALK_PLACE_TREE:
-            self.more_available = True
-            self.walk_place_tree()
-        elif self.state == State.PLACE_TREE_COMPLETE:
-            # Write out XML tree
-            self.root.write(self.out_path)
-            self.state = State.PASS_THROUGH
+            # Set self.value with next place
+            self.find_xml_place()
+            if not self.more_available:
+                # Got to end of tree.  Write out XML tree to tmp file
+                tmp_name = self.out_path + '.tmp'
+                self.elem.write(tmp_name)
 
-    def walk_place_tree(self):
-        # Find next place entry in Tree
-        # Each time we process a place, add a completion indicator
-        self.pl = self.root.find('placeobject')
+                # Append XML tmp file to our output file
+                self.append_file(tmp_name)
+                self.state = State.PASS_THROUGH
 
-        if self.pl is not None:
-            print(self.pl.tag)
-            self.pl.tag = 'placeobj'
-            for child in self.pl.iter():
-                self.child = child
-                if child.text is not None:
-                    print(f'AA <{child.tag}', end="")
-                    print(f' {child.text}', end="")
+    def append_file(self, fname2):
+        # Append file to our output
+        self.outfile.flush()
+        file2 = open(fname2, 'r')
+        # Read in chunks
+        while True:
+            data = file2.read(65536)
+            if data:
+                self.outfile.write(data)
+            else:
+                break
+        file2.close()
+        self.outfile.flush()
+
+    def find_xml_place(self):
+        # Find next placeobject entry in Tree
+        # Each time we process a place, change XML tag to placeobj and set self.tag to PLAC
+
+        # Find first placeobject
+        self.place = self.elem.find('placeobject')
+
+        if self.place is not None:
+            print(f'\n\nPLACEOBJECT {self.place.tag} =========')
+
+            # Walk thru each entry in place object
+            for place_entry in self.place.iter():
+                self.child = place_entry
+                print(f'tag ={place_entry.tag}')
+                if place_entry.tag == 'ptitle' and self.got_place is False:
+                    # <ptitle>Chelsea, Greater London, England, United Kingdom</ptitle>
+                    print(f'PTITLE tag <{place_entry.tag}')
+                    print(f' entry {place_entry.text}')
                     self.tag = 'PLAC'
-                    self.value = child.text
-                    if 'Chiswick' in child.text:
-                        child.text = 'Secretary,UK'
-                    for key in child.attrib:
-                        print(f' {key}="{child.attrib.get(key)}"', end="")
-                    print('>')
+                    self.value = place_entry.text
+                    self.got_place = True
+                    return
+                elif place_entry.tag == 'pname' and self.got_pname is False:
+                    # <pname value="Chelsea, Greater London, England, United Kingdom"/>
+                    self.tag = 'PLAC'
+                    self.value = place_entry.get('value')
+                    print(f'PNAME <{place_entry.tag} VALUE="{self.value}"/>')
+                    self.got_pname = True
+                    return
+                elif place_entry.tag == 'coord':
+                    # <coord long="-0.16936" lat="51.48755"/>
+                    self.lon = place_entry.attrib.get('long')
+                    self.lat = place_entry.attrib.get('lat')
+                    self.tag = 'IGNORE'
+                    print(f'<{place_entry.tag} LONG="{self.lon}" LAT="{self.lat}"/>')
+                    self.place.remove(place_entry)
                 else:
-                    if child.tag == 'pname':
-                        self.tag = 'PLAC'
-                        self.value = child.get('value')
-                        print(f'BB <{child.tag} VALUE="{self.value}"/>')
-                        if 'Chiswick' in self.value:
-                            # pass
-                            print('set')
-                            child.set('value', 'Apple, France')
-                        if 'Palo' in self.value:
-                            a = Tree.Element("coord")
-                            a.set('long', '71.1234')
-                            a.set('lat', '1.34')
-                            self.pl.append(a)
-                    elif child.tag == 'coord':
-                        lon = child.attrib.get('long')
-                        lat = child.attrib.get('lat')
-                        print(f'CC <{child.tag} LONG="{lon}" LAT="{lat}"/>')
-                    else:
-                        print(f'DD <{child.tag} {child.attrib}>')
+                    print(f'DD <{place_entry.tag} {place_entry.attrib}>')
+
+            # Done walking through place element
+            if self.lat != 99.9:
+                # Create Coord Latitude/Longitude section
+                coord_elem = Tree.Element("coord")
+                coord_elem.set('long', str(self.lon))
+                coord_elem.set('lat', str(self.lat))
+                self.place.append(coord_elem)
+
+            # Change tag back to 'placeobj' so we don't visit it next time we are called
+            self.place.tag = 'placeobj'
+
+            # Reset values
+            self.got_pname = False
+            self.got_place = False
+            self.lon = 99.9
+            self.lat = 99.9
         else:
-            # No more place objects available
-            self.state = State.PLACE_TREE_COMPLETE
+            # Tree completed.  No more place objects available
             self.more_available = False
+            print('TREE DONE')
 
-        print('PROCESS DONE')
-
-    def output_place(self, txt):
-        # Update place entry
+    def write_updated(self, txt):
+        # Update place entry in tree.  Tree will be written out later when entire XML tree is written out
         if self.child.text is not None:
             self.child.text = txt
         else:
             if self.child.tag == 'pname':
                 self.child.set('value', txt)
 
+    def write_asis(self):
+        # Do nothing - No change to place entry
+        # It will be written out later when entire XML tree is written out
+        pass
+
     def write_lat_lon(self, lat: float, lon: float):
-        """ Write out an XML lat/long coordinate enty """
+        """ Create an XML lat/long coordinate enty """
         if self.output_latlon is False:
             return
-
-        # Create Coord Latitude/Longitude section
-        coord_elem = Tree.Element("coord")
-        coord_elem.set('long', str(lon))
-        coord_elem.set('lat', str(lat))
-        self.pl.append(coord_elem)
-
-
-cache_dir = os.path.join(str(Path.home()), GeoKeys.get_directory_name(), 'cache')
-inpath = os.path.join(str(Path.home()), GeoKeys.get_directory_name(), 'cache', 'gramps.xml')
-g_xml = GrampsXml(in_path=inpath, out_suffix='.out.xml', cache_d=cache_dir, progress=None)
-
-# Read Gramps XML file: collect all place entries into b-string, output all else as-is.  Then parse the b-string
-while True:
-    # Find the next PLACE entry in  file
-    # Process it and keep looping until we need user input
-    town_entry, eof = g_xml.get_next_place()
-
-    if eof:
-        break
+        self.lat = lat
+        self.lon = lon

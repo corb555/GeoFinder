@@ -47,9 +47,9 @@ class Tooltip:
         self.wraplength = wraplength  # in pixels, originally 180
         self.widget = widget
         self.text = text
-        self.widget.bind("<Enter>", self.onEnter)
-        self.widget.bind("<Leave>", self.onLeave)
-        self.widget.bind("<ButtonPress>", self.onLeave)
+        #self.widget.bind("<Enter>", self.onEnter)
+        #self.widget.bind("<Leave>", self.onLeave)
+        #self.widget.bind("<ButtonPress>", self.onLeave)
         self.bg = bg
         self.pad = pad
         self.id = None

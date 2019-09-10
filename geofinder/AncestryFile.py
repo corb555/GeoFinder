@@ -31,7 +31,7 @@ class AncestryFile:
     Write out all other entries as-is if out_path is not None
     """
 
-    def __init__(self, in_path: str, out_suffix: str, cache_dir, progress: Union[None, Progress.Progress]):
+    def __init__(self, in_path: str, out_suffix: str, cache_d, progress: Union[None, Progress.Progress]):
         self.build = False
         self.logger = logging.getLogger(__name__)
         self.progress_bar = progress
@@ -40,11 +40,19 @@ class AncestryFile:
         self.filesize = 0
         self.infile = None
         self.error = False
-        self.out_path = in_path + out_suffix
+        self.out_path = in_path + '.' + out_suffix
         self.more_available = False
 
         self.value: str = ""
         self.tag: str = ""        # PLAC indicates this is a Place entry
+
+        # GEDCOM  meta data
+        self.id: str = ''
+        self.name: str = ""
+        self.event_year: int = 0
+        self.event_name: str = ""
+        self.date = ''
+        self.abt_flag = False
 
         if out_suffix is not None:
             # Create an output file with same name with "out.ged" appended
@@ -74,28 +82,48 @@ class AncestryFile:
         return self.error
 
     def get_next_place(self) -> (str, bool):
-        # Scan file for Place Entry or EOF
+        # Scan  file for Place entry or EOF
         # Output all other lines as-is to outfile
-        eof_reached = False
-        town_entry = ''
-        return town_entry, eof_reached
+        while True:
+            line, err = self.read_and_parse_line()
+            if err:
+                return '', True  # End of file reached
+
+            if self.tag == 'PLAC':
+                # Found the target line.  Break out of loop
+                print(f"FOUND PLACE tag={self.tag} entry=[{self.value} ]")
+
+                entry = self.value
+                if entry is None:
+                    continue
+                return entry, False
+            if self.tag == 'IGNORE':
+                print(f"ignore LINE tag={self.tag} {line} ")
+
+                pass
+            else:
+                # Not a target entry.   Write out line as-is
+                print(f"FOUND ASIS tag={self.tag} {line} ")
+
+                if self.outfile is not None:
+                    self.outfile.write(line)
 
     def read_and_parse_line(self) -> Tuple[str, bool]:
         # Read a line from file.  Handle line.
         if not self.more_available:
             line = self.infile.readline()
+            if line == "":
+                # End of File
+                return "", True
         else:
-            line = ' '
+            line = ''
+
         self.line_num += 1
 
         # update progress bar
         prog = int(self.infile.tell() * 100 / self.filesize)
         if self.line_num % 1000 == 1:
             self.progress(f"Scanning ", prog)
-
-        if line == "":
-            # End of File
-            return "", True
 
         # Separate the line into  parts
         self.parse_line(line)
@@ -104,9 +132,6 @@ class AncestryFile:
         self.collect_event_details()
 
         return line, False
-
-    def parse_line(self, line: str):
-        pass
 
     def collect_event_details(self):
         """ Collect details for event - last name, event date, and tag in GEDCOM file."""
@@ -118,17 +143,6 @@ class AncestryFile:
         line = self.infile.readline()
         self.infile.seek(pos)  # Back up to where we were
         return line
-
-    def output_place(self, txt):
-        self.write(txt)
-
-    def write(self, value: str):
-        """ Write out a line.  Put together the pieces:  level, Label, tag, value """
-        pass
-
-    def write_lat_lon(self, lat: float, lon: float):
-        """ Write out a GEDCOM PLACE MAP entry with latitude and longitude. """
-        pass
 
     def close(self):
         self.infile.close()
@@ -143,3 +157,25 @@ class AncestryFile:
             self.progress_bar.update_progress(percent, msg)
         else:
             self.logger.debug('prog is None')
+
+    def get_name(self, nam: str, depth: int = 0) -> str:
+        return ''
+
+    # Derived classes must override these:
+
+    def parse_line(self, line: str):
+        # Called by read_and_parse_line for each line in file
+        # return each entry in self.value with self.tag set to PLAC
+        pass
+
+    def write_updated(self, txt):
+        """ Write updated place out """
+        pass
+
+    def write_asis(self):
+        """ Write out place entry as is.  """
+        pass
+
+    def write_lat_lon(self, lat: float, lon: float):
+        """ Write out a GEDCOM PLACE MAP entry with latitude and longitude. """
+        pass

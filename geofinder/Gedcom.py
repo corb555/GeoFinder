@@ -33,26 +33,18 @@ class Gedcom(AncestryFile):
     Write out all other entries as-is if out_path is not None
     """
 
-    def __init__(self, in_path: str, out_suffix: str, cache_dir, progress: Union[None, Progress.Progress]):
-        super().__init__(in_path, out_suffix, cache_dir, progress)
+    def __init__(self, in_path: str, out_suffix: str, cache_d, progress: Union[None, Progress.Progress]):
+        super().__init__(in_path, out_suffix, cache_d, progress)
 
         # Sections of a GEDCOM line - Level, label, tag, value
         self.level: int = 0
         self.label: str = ""
 
-        # GEDCOM  meta data
-        self.id: str = ''
-        self.name: str = ""
-        self.event_year: int = 0
-        self.event_name: str = ""
-        self.date = ''
-        self.abt_flag = False
-
         # Build dictionary of name/id pairs and write to pickle cache file.  If pickle file already there, just read it.
         # When we display a location, we use this to display the name the event is tied to
         parts = os.path.split(in_path)
         filename = parts[1] + '.pkl'
-        self.person_cd = CachedDictionary(cache_dir, filename)
+        self.person_cd = CachedDictionary(cache_d, filename)
 
         # Try to read pickle file of IDs for this GEDCOM file
         err = self.person_cd.read()
@@ -60,26 +52,10 @@ class Gedcom(AncestryFile):
             # File is not there.  Build it - it is a dictionary of GED Name_IDs to Names
             self.build_person_dictionary()
 
-    def get_next_place(self) -> (str, bool):
-        # Scan GEDCOM file for 'PLAC' tag or EOF
-        # Output all other lines as-is to outfile
-        while True:
-            line, err = self.read_and_parse_line()
-            if err:
-                return '', True  # End of file reached
-
-            if self.tag == 'PLAC':
-                # Found the target line.  Break out of loop
-                entry = self.value
-                if entry is None:
-                    continue
-                return entry, False
-            else:
-                # Not a target entry.   Write out line as-is
-                if self.outfile is not None:
-                    self.outfile.write(line)
-
     def parse_line(self, line: str):
+        # Called by read_and_parse_line for each line in file.  Parse line
+        # and returns each place entry in self.value with self.tag set to PLAC
+
         # Gedcom file regex:          Digits for level,   @  for label,   text for tag,   text for value
         regex = re.compile(r"^(?P<level>\d+)\s+(?P<label>@\S+@)?\s*(?P<tag>\S+)\s+(?P<value>.*)")
 
@@ -90,7 +66,7 @@ class Gedcom(AncestryFile):
             self.tag = matches.group('tag')  # GEDCOM tag
             self.level = int(matches.group('level'))  # GEDCOM level
             self.value = matches.group('value')  # GEDCOM value for command
-            entry = self.value.rstrip("\\")
+            self.value = self.value.rstrip("\\")
             self.label = matches.group('label')  # GEDCOM label
         else:
             # Could not parse
@@ -98,6 +74,64 @@ class Gedcom(AncestryFile):
             self.value = ""
             self.level = 99
             self.label = ''
+
+    def write_updated(self, value: str):
+        """ Write out a place line with updated value.  Put together the pieces:  level, Label, tag, value """
+        if self.outfile is not None:
+            if self.label is not None:
+                res = f"{self.level} {self.label} {self.tag} {value}\n"
+            else:
+                res = f"{self.level} {self.tag} {value}\n"
+
+            self.outfile.write(res)
+
+    def write_asis(self):
+        """ Write out a place line as-is.  Put together the pieces:  level, Label, tag, value """
+        if self.outfile is not None:
+            if self.label is not None:
+                res = f"{self.level} {self.label} {self.tag} {self.value}\n"
+            else:
+                res = f"{self.level} {self.tag} {self.value}\n"
+
+            self.outfile.write(res)
+
+    def write_lat_lon(self, lat: float, lon: float):
+        """ Write out a GEDCOM PLACE MAP entry with latitude and longitude. """
+        if self.output_latlon is False:
+            return
+
+        if self.outfile is not None:
+            map_level: int = self.level + 1
+            lati_level: int = self.level + 2
+
+            # Output Lat / Long
+            if lon != float('NaN'):
+                #  If there is already a MAP LATI LONG entry, eat it without output
+                line: str = self.peak_next_line()
+                self.parse_line(line)
+
+                if self.tag == "MAP":
+                    # Read this MAP command and do nothing with it
+                    self.infile.readline()
+
+                    # Check for LATI line
+                    line = self.peak_next_line()
+                    self.parse_line(line)
+                    if self.tag == "LATI" or self.tag == "LONG":
+                        # Read this LATI command and do nothing with it
+                        self.infile.readline()
+
+                    # Check for LONG line
+                    line = self.peak_next_line()
+                    self.parse_line(line)
+                    if self.tag == "LATI" or self.tag == "LONG":
+                        # Read this LONG command and do nothing with it
+                        self.infile.readline()
+
+                # Write out MAP Latitude/Longitude section
+                self.outfile.write(f"{str(map_level)} MAP\n")
+                self.outfile.write(f"{str(lati_level)} LATI {lat}\n")
+                self.outfile.write(f"{str(lati_level)} LONG {lon}\n")
 
     def collect_event_details(self):
         """ Collect details for event - last name, event date, and tag in GEDCOM file."""
@@ -205,51 +239,3 @@ class Gedcom(AncestryFile):
         self.logger.debug(f'{depth}) ky={self.id} {nm}: [{self.event_name}] [{self.date}]')
 
         return nm.replace('/', '')
-
-    def write(self, value: str):
-        """ Write out a line.  Put together the pieces:  level, Label, tag, value """
-        if self.outfile is not None:
-            if self.label is not None:
-                res = f"{self.level} {self.label} {self.tag} {value}\n"
-            else:
-                res = f"{self.level} {self.tag} {value}\n"
-
-            self.outfile.write(res)
-
-    def write_lat_lon(self, lat: float, lon: float):
-        """ Write out a GEDCOM PLACE MAP entry with latitude and longitude. """
-        if self.output_latlon is False:
-            return
-
-        if self.outfile is not None:
-            map_level: int = self.level + 1
-            lati_level: int = self.level + 2
-
-            # Output Lat / Long
-            if lon != float('NaN'):
-                #  If there is already a MAP LATI LONG entry, eat it without output
-                line: str = self.peak_next_line()
-                self.parse_line(line)
-
-                if self.tag == "MAP":
-                    # Read this MAP command and do nothing with it
-                    self.infile.readline()
-
-                    # Check for LATI line
-                    line = self.peak_next_line()
-                    self.parse_line(line)
-                    if self.tag == "LATI" or self.tag == "LONG":
-                        # Read this LATI command and do nothing with it
-                        self.infile.readline()
-
-                    # Check for LONG line
-                    line = self.peak_next_line()
-                    self.parse_line(line)
-                    if self.tag == "LATI" or self.tag == "LONG":
-                        # Read this LONG command and do nothing with it
-                        self.infile.readline()
-
-                # Write out MAP Latitude/Longitude section
-                self.outfile.write(f"{str(map_level)} MAP\n")
-                self.outfile.write(f"{str(lati_level)} LATI {lat}\n")
-                self.outfile.write(f"{str(lati_level)} LONG {lon}\n")

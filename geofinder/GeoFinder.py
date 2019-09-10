@@ -26,11 +26,11 @@ from pathlib import Path
 from tkinter import filedialog
 from tkinter import messagebox
 
-from geofinder import Geodata, GeoKeys, Config, Gedcom, Loc, AppLayout, UtilLayout
+from geofinder import Geodata, GeoKeys, Config, Gedcom, Loc, AppLayout, UtilLayout, GrampsXml
+from geofinder import __version__
 from geofinder.CachedDictionary import CachedDictionary
 from geofinder.Geodata import ResultFlags
 from geofinder.TKHelper import TKHelper
-from geofinder import __version__
 
 MISSING_FILES = 'Missing Files.  Please run geoutil and correct errors in Errors Tab'
 
@@ -40,8 +40,8 @@ PREFIX_TOKEN = 2
 
 class GeoFinder:
     """
-    Read in a GEDCOM genealogy file and verify that the spelling of each place is correct.
-    If place is found, add the latitude and longitude to the output GEDCOM file.
+    Read in a GEDCOM or Gramps genealogy file and verify that the spelling of each place is correct.
+    If place is found, add the latitude and longitude to the output  file.
     If place can't be found, allow the user to correct it.  If it is corrected, apply the change to
     all matching entries.
     Also allow the user to mark an item to skip if a resolution cant be found.
@@ -58,6 +58,7 @@ class GeoFinder:
     GeoData - The geonames data model routines
     GeoDB -  Database insert/lookup routines
     GEDCOM - routines to read and write GEDCOM files
+    GrampsXML - routines to read and write GrampsXML files
     GeodataFile - routines to read/write geoname data sources
     AppLayout - routines to create the app windows and widgets
     Loc - holds all info for a single location
@@ -65,11 +66,11 @@ class GeoFinder:
     """
 
     def __init__(self):
-        print ('Python {}.{}'.format(sys.version_info[0], sys.version_info[1]))
         print('GeoFinder v{}'.format(__version__.__version__))
+        print('Python {}.{}'.format(sys.version_info[0], sys.version_info[1]))
 
         if sys.version_info < (3, 6, 0):
-            raise Exception("Must be using Python 3.6 or higher.")
+            raise Exception("GeoFinder Requires Python 3.6 or higher.")
         val = ''
         print(f'GeoFinder Requires Python 3.6 or higher {val}')
         self.shutdown_requested: bool = False  # Flag to indicate user requested shutdown
@@ -77,12 +78,13 @@ class GeoFinder:
         self.user_selected_list = False  # Indicates whether user selected a list entry or text edit entry
         self.err_count = 0
         self.odd = False
-        self.ancestry_file = None
+        self.ancestry_file_handler = None
         self.place = None
         self.skiplist = None
         self.global_replace = None
         self.user_accepted = None
         self.geodata = None
+        self.out_suffix = ''
 
         self.logger = self.setup_logging('geofinder Init')
 
@@ -111,7 +113,7 @@ class GeoFinder:
                 self.w.load_button.config(state="disabled")
             else:
                 # No config errors
-                # Read config settings (GEDCOM file path)
+                # Read config settings (Ancetry file path)
                 err = self.cfg.read()
                 if err:
                     self.logger.warning('error reading {} config.pkl'.format(self.cache_dir))
@@ -119,11 +121,11 @@ class GeoFinder:
                 self.w.original_entry.set_text(self.cfg.get("gedcom_path"))
                 TKHelper.enable_buttons(self.w.initialization_buttons)
                 if os.path.exists(self.cfg.get("gedcom_path")):
-                    # GEDCOM file is valid.  Prompt user to click Open for GEDCOM file
+                    #  file is valid.  Prompt user to click Open for  file
                     self.w.status.set_text("Click Open to load GEDCOM file")
                     TKHelper.set_preferred_button(self.w.load_button, self.w.initialization_buttons, "Preferred.TButton")
                 else:
-                    # No file.  prompt user to select a GEDCOM file - GEDCOM file name isn't valid
+                    # No file.  prompt user to select a  file - GEDCOM file name isn't valid
                     self.w.status.set_text("Choose a GEDCOM file")
                     self.w.load_button.config(state="disabled")
                     TKHelper.set_preferred_button(self.w.choose_button, self.w.initialization_buttons, "Preferred.TButton")
@@ -170,9 +172,9 @@ class GeoFinder:
 
     def load_handler(self):
         """
-        User pressed LOAD button to load a GEDCOM file. Switch app display to the Review Widgets
+        User pressed LOAD button to load an Ancestry file. Switch app display to the Review Widgets
         Load in file name and
-        loop through GEDCOM file and find every PLACE entry and verify the entry against the geoname data
+        loop through  file and find every PLACE entry and verify the entry against the geoname data
         """
         self.w.original_entry.set_text("")
         self.w.remove_initialization_widgets()  # Remove old widgets
@@ -180,33 +182,37 @@ class GeoFinder:
 
         self.load_data()
 
-        ged_path = self.cfg.get("gedcom_path")  # Get saved config setting for GEDCOM file
+        ged_path = self.cfg.get("gedcom_path")  # Get saved config setting for  file
+        # Depending on file suffix, load appropriate handler
         if ged_path is not None:
-            out_suffix =  "new.ged"
+            if '.ged' in ged_path:
+                self.out_suffix = "new.ged"
+                self.ancestry_file_handler = Gedcom.Gedcom(in_path=ged_path, out_suffix=self.out_suffix, cache_d=self.cache_dir,
+                                                           progress=self.w.prog)  # Routines to open and parse GEDCOM file
+            elif '.gramps' in ged_path:
+                self.out_suffix = "new.gramps"
+                self.ancestry_file_handler = GrampsXml.GrampsXml(in_path=ged_path, out_suffix=self.out_suffix, cache_d=self.cache_dir,
+                                                                 progress=self.w.prog)  # Routines to open and parse GEDCOM file
         else:
-            out_suffix = 'unk.new.ged'
+            self.out_suffix = 'unk.new.ged'
 
-        # Initialize routines to read/write GEDCOM file
-        if self.ancestry_file is None:
-            self.ancestry_file = Gedcom.Gedcom(in_path=ged_path, out_suffix=out_suffix, cache_dir=self.cache_dir,
-                                               progress=self.w.prog)  # Routines to open and parse GEDCOM file
-        if self.ancestry_file.error:
-            TKHelper.fatal_error(f"GEDCOM file {ged_path} not found.")
+        if self.ancestry_file_handler.error:
+            TKHelper.fatal_error(f"File {ged_path} not found.")
 
         self.w.root.update()
 
         self.place: Loc.Loc = Loc.Loc()  # Create an object to store info for the current Place
 
-        # Add GEDCOM filename to Title
+        # Add  filename to Title
         path_parts = os.path.split(ged_path)  # Extract filename from full path
         self.w.title.set_text(f'GEO FINDER - {path_parts[1]}')
 
-        # Read GEDCOM file, find each place entry and handle it.
+        # Read  file, find each place entry and handle it.
         self.handle_place_entry()
 
-    def get_replacement(self, dict, town_entry:str, place):
+    def get_replacement(self, dct, town_entry: str, place):
         geoid = None
-        replacement = dict.get(town_entry)
+        replacement = dct.get(town_entry)
 
         if replacement is not None:
             if len(replacement) > 0:
@@ -225,7 +231,7 @@ class GeoFinder:
         return geoid
 
     def handle_place_entry(self):
-        """ Get next PLACE  in users GEDCOM File.  Replace it, skip it, or have user correct it. """
+        """ Get next PLACE  in users  File.  Replace it, skip it, or have user correct it. """
         self.w.original_entry.set_text("")
         if self.shutdown_requested:
             self.periodic_update("Shutting down...")
@@ -235,10 +241,10 @@ class GeoFinder:
 
         while True:
             self.err_count += 1  # Counter is used to periodically update
-            # Find the next PLACE entry in GEDCOM file
+            # Find the next PLACE entry in  file
             # Process it and keep looping until we need user input
             self.place.clear()
-            town_entry, eof = self.ancestry_file.get_next_place()
+            town_entry, eof = self.ancestry_file_handler.get_next_place()
 
             if eof:
                 self.end_of_file_shutdown()
@@ -251,8 +257,8 @@ class GeoFinder:
                 # There is a global change that we can apply to this line.
 
                 if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
-                    # Output place to GEDCOM file
-                    self.file_output_place(self.place)
+                    # Output updated place to ancestry file
+                    self.write_updated_place(self.place)
 
                     # Display status to user
                     if self.shutdown_requested:
@@ -263,7 +269,7 @@ class GeoFinder:
                     continue
                 else:
                     self.logger.debug(f'Error looking up GEOID=[{geoid}] for [{town_entry}] ')
-                    self.place.event_year = int(self.ancestry_file.event_year)  # Set place date to event date (geo names change over time)
+                    self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
                     self.geodata.find_location(town_entry, self.place)
                     break
 
@@ -271,8 +277,8 @@ class GeoFinder:
             elif self.get_replacement(self.user_accepted, town_entry, self.place) is not None:
                 # There is an accepted  change that we can use for this line.  Get the replacement text
                 if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
-                    # Output place to GEDCOM file
-                    self.file_output_place(self.place)
+                    # Output place to  file
+                    self.write_updated_place(self.place)
 
                     # Display status to user
                     if self.shutdown_requested:
@@ -281,7 +287,7 @@ class GeoFinder:
                         self.periodic_update("Applying change")
                 else:
                     self.logger.debug(f'Error looking up GEOID {town_entry}')
-                    self.place.event_year = int(self.ancestry_file.event_year)  # Set place date to event date (geo names change over time)
+                    self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
                     self.geodata.find_location(town_entry, self.place)
                     self.w.original_entry.set_text(self.place.name)  # Display place
                     self.w.user_entry.set_text(self.place.name)  # Display place
@@ -292,19 +298,19 @@ class GeoFinder:
                 # User requested shutdown.  Finish up going thru file, then shut down
                 self.periodic_update("Shutting Down...")
                 self.w.original_entry.set_text(" ")
-                self.ancestry_file.write(town_entry)
+                self.ancestry_file_handler.write_asis()
                 continue
             elif self.skiplist.get(town_entry) is not None:
                 # item is in skiplist - Write out as-is and go to next error
                 # self.logger.debug(f'Found Skip for {town_entry}')
                 self.periodic_update("Skipping")
-                self.ancestry_file.write(town_entry)
+                self.ancestry_file_handler.write_asis()
                 continue
             else:
                 # Found a new PLACE entry
                 # See if it is in our place database
                 # self.place.parse_place(place_name=town_entry, geo_files=self.geodata.geo_files)
-                self.place.event_year = int(self.ancestry_file.event_year)  # Set place date to event date (geo names change over time)
+                self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
                 self.geodata.find_location(town_entry, self.place)
 
                 if self.place.result_type in GeoKeys.successful_match:
@@ -326,7 +332,7 @@ class GeoFinder:
                         if self.err_count % 4 == 1:
                             self.global_replace.write()
 
-                        self.file_output_place(self.place)
+                        self.write_updated_place(self.place)
                         continue
                     else:
                         # Have user review the match
@@ -419,7 +425,9 @@ class GeoFinder:
             self.display_one_georow(place.status_detail)
 
         # Display GEDCOM person and event that this location refers to
-        self.w.ged_event_info.set_text(f'{self.ancestry_file.get_name(self.ancestry_file.id)}: {self.ancestry_file.event_name} {self.ancestry_file.date}')
+        self.w.ged_event_info.set_text(
+            f'{self.ancestry_file_handler.get_name(self.ancestry_file_handler.id)}: '
+            f'{self.ancestry_file_handler.event_name} {self.ancestry_file_handler.date}')
         self.w.root.update_idletasks()
 
     def list_insert(self, text, prefix):
@@ -449,7 +457,7 @@ class GeoFinder:
             self.geodata.geo_files.geodb.copy_georow_to_place(geo_row, temp_place)
             nm = temp_place.format_full_name()
             valid = self.geodata.validate_year_for_location(event_year=place.event_year, iso=temp_place.country_iso,
-                                                            admin1=temp_place.admin1_id, padding= 0)
+                                                            admin1=temp_place.admin1_id, padding=0)
             if valid:
                 self.list_insert(nm, temp_place.prefix)
             else:
@@ -462,7 +470,7 @@ class GeoFinder:
         self.logger.debug(f'Skip for {self.w.original_entry.get_text()}  Updating SKIP dict')
 
         self.skiplist.set(self.w.original_entry.get_text(), " ")
-        self.ancestry_file.write(self.w.original_entry.get_text())
+        self.ancestry_file_handler.write_asis()
 
         # Save Skip info for future runs
         self.skiplist.write()
@@ -496,9 +504,9 @@ class GeoFinder:
             self.user_accepted.set(ky, res)
             self.user_accepted.write()
 
-        # Write out corrected item to GEDCOM output file
+        # Write out corrected item to  output file
         if self.place.result_type != GeoKeys.Result.DELETE:
-            self.file_output_place(self.place)
+            self.write_updated_place(self.place)
 
         # Get next error
         self.w.user_entry.set_text('')
@@ -529,7 +537,8 @@ class GeoFinder:
 
     def quit_handler(self):
         """ Set flag for shutdown.  Process all global replaces and exit """
-        if messagebox.askyesno(' ', '   Exit?'):
+        path = self.cfg.get("gedcom_path")
+        if messagebox.askyesno(' ', f'  Updates saved. Do you want to save output file?\n\n {path}.{self.out_suffix}'):
             TKHelper.disable_buttons(button_list=self.w.review_buttons)
             self.w.quit_button.config(state="disabled")
             self.w.prog.startup = True
@@ -537,22 +546,26 @@ class GeoFinder:
             self.w.user_entry.set_text(" ")
             self.w.status.set_text("Quitting...")
             # Write out the item we are on
-            self.ancestry_file.write(self.w.original_entry.get_text())
+            self.ancestry_file_handler.write_asis()
             self.shutdown_requested = True
 
             # We will still continue to go through file, but only handle global replaces
             self.handle_place_entry()
+        else:
+            self.w.user_entry.set_text(" ")
+            self.w.status.set_text("Quitting...")
+            self.shutdown()
 
     def config_handler(self):
         # User clicked on Config button - bring up configuration windows
         self.w.remove_initialization_widgets()  # Remove old widgets
-        self.util.create_util_widgets()         # Create Util/Config widgets
+        self.util.create_util_widgets()  # Create Util/Config widgets
 
     def filename_handler(self):
         """ Display file open selector dialog """
         fname = filedialog.askopenfilename(initialdir=self.directory,
-                                           title="Select GEDCOM file",
-                                           filetypes=(("GEDCOM files", "*.ged"), ("all files", "*.*")))
+                                           title="Select GEDCOM/Gramps file",
+                                           filetypes=[("GEDCOM files", "*.ged"), ("Gramps files", "*.gramps"), ("all files", "*.*")])
         if len(fname) > 1:
             self.cfg.set("gedcom_path", fname)  # Add filename to dict
             self.cfg.write()  # Write out config file
@@ -602,7 +615,7 @@ class GeoFinder:
 
         if supported_countries < 20:
             messagebox.showinfo("Info", f"Loading geocode data for the following ISO country codes:"
-            f"\n\n{country_list}\n\nUse Config Country Tab to change country list\n")
+                                        f"\n\n{country_list}\n\nUse Config Country Tab to change country list\n")
         return supported_countries
 
     @staticmethod
@@ -613,13 +626,13 @@ class GeoFinder:
         logger.info(msg)
         return logger
 
-    def file_output_place(self, place: Loc.Loc):
-        # Write out location and lat/lon to gedcom file
+    def write_updated_place(self, place: Loc.Loc):
+        # Write out updated location and lat/lon to  file
         nm = place.format_full_name()
         # self.logger.debug(f'ged write [{place.prefix}][{place.prefix_commas}][{nm}]')
         if place.result_type != GeoKeys.Result.DELETE:
-            self.ancestry_file.output_place(place.prefix + place.prefix_commas + nm)
-            self.ancestry_file.write_lat_lon(lat=place.lat, lon=place.lon)
+            self.ancestry_file_handler.write_updated(place.prefix + place.prefix_commas + nm)
+            self.ancestry_file_handler.write_lat_lon(lat=place.lat, lon=place.lon)
         else:
             self.logger.debug('zero len, no output')
 
@@ -634,8 +647,8 @@ class GeoFinder:
             self.user_accepted.write()
         if self.cfg:
             self.cfg.write()
-        if self.ancestry_file :
-            self.ancestry_file.close()
+        if self.ancestry_file_handler:
+            self.ancestry_file_handler.close()
         self.w.root.quit()
         sys.exit()
 
@@ -663,8 +676,8 @@ class GeoFinder:
         self.w.status.set_text("Done.  Shutting Down...")
         self.w.original_entry.set_text(" ")
         path = self.cfg.get("gedcom_path")
-        messagebox.showinfo("Info", f"Finished GEDCOM file.\n\nWriting results to\n {path}.new.ged")
-        self.logger.info('End of GEDCOM file')
+        messagebox.showinfo("Info", f"Finished file.\n\nOutput file:\n {path}.{self.out_suffix}")
+        self.logger.info('End of  file')
         self.shutdown()
 
     def periodic_update(self, msg):
