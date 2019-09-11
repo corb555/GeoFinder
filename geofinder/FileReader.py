@@ -47,6 +47,10 @@ class FileReader:
             fsize = os.path.getsize(path)
             with open(path, 'r', newline="", encoding='utf-8', errors='replace') as file:
                 for row in file:
+                    if self.progress_bar is not None:
+                        if self.progress_bar.shutdown_requested:
+                            # User requested cancel
+                            self.cancel()
                     line_num += 1
                     file_pos += len(row)
                     self.handle_line(line_num, row)
@@ -63,7 +67,12 @@ class FileReader:
             self.logger.error(f'Unable to open {path}')
             return True
 
+    def cancel(self):
+        # User requested cancel of file read
+        pass
+
     def handle_line(self, line_num: int, row: str) -> int:
+        # Handle the line we read
         pass
 
     def progress(self, msg, val):

@@ -221,6 +221,11 @@ class GeodataFiles:
                             geoname_row.feat_code in self.feature_code_list_dct:
                         self.insert_georow(geoname_row)
 
+                    if self.progress_bar is not None:
+                        if self.progress_bar.shutdown_requested:
+                            # Abort DB build.  Clear out partial DB
+                            self.geodb.clear_geoname_data()
+
             self.progress("Write Database", 90)
             self.geodb.db.commit()
             self.progress("Database created", 100)

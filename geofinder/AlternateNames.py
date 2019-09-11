@@ -50,6 +50,12 @@ class AlternateNames(FileReader):
         self.geo_files.geodb.db.commit()
         return res
 
+    def cancel(self):
+        # User requested cancel
+        # Abort DB build.  Clear out partial DB
+        self.geo_files.geodb.db.commit()
+        self.geo_files.geodb.clear_geoname_data()
+
     def handle_line(self, line_num, row):
         # This is called as each line is read
         alt_tokens = row.split('\t')

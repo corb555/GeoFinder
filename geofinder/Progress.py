@@ -26,6 +26,7 @@ class Progress:
 
     def __init__(self, window, bar_color, trough_color, status):
         self.window = window
+        self.shutdown_requested = False
 
         style: ttk.Style = ttk.Style()
         style.configure("bar.Horizontal.TProgressbar",

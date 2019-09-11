@@ -112,7 +112,6 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
         for line in items:
             col1 = self.tree.item(line, "text")
             col2 = self.tree.item(line, 'values')[0]
-            self.logger.debug(f'DEL {col1}')
             dct.pop(col2, None)
 
         self.load_handler()  # Reload display
@@ -124,8 +123,6 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
         self.logger.info('Building country list: {} countries'.format(len(Country.country_dict)))
         for name in sorted(Country.country_dict):
             row = Country.country_dict[name]
-            self.logger.debug('List Insert {} {}'.format(name.lower(), row[0].lower()))
-
             self.list_insert(self.listbox_all_countries, name.lower(), row[0].lower())
 
     def add_handler(self):

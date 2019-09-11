@@ -33,6 +33,7 @@ from geofinder.Geodata import ResultFlags
 from geofinder.TKHelper import TKHelper
 
 MISSING_FILES = 'Missing Files.  Please run geoutil and correct errors in Errors Tab'
+file_types = 'GEDCOM / Gramps XML'
 
 GEOID_TOKEN = 1
 PREFIX_TOKEN = 2
@@ -73,7 +74,6 @@ class GeoFinder:
             raise Exception("GeoFinder Requires Python 3.6 or higher.")
         val = ''
         print(f'GeoFinder Requires Python 3.6 or higher {val}')
-        self.shutdown_requested: bool = False  # Flag to indicate user requested shutdown
         self.save_enabled = False  # Only allow SAVE when we have an item that was matched in geonames
         self.user_selected_list = False  # Indicates whether user selected a list entry or text edit entry
         self.err_count = 0
@@ -122,11 +122,11 @@ class GeoFinder:
                 TKHelper.enable_buttons(self.w.initialization_buttons)
                 if os.path.exists(self.cfg.get("gedcom_path")):
                     #  file is valid.  Prompt user to click Open for  file
-                    self.w.status.set_text("Click Open to load GEDCOM file")
+                    self.w.status.set_text(f"Click Open to load {file_types} file")
                     TKHelper.set_preferred_button(self.w.load_button, self.w.initialization_buttons, "Preferred.TButton")
                 else:
                     # No file.  prompt user to select a  file - GEDCOM file name isn't valid
-                    self.w.status.set_text("Choose a GEDCOM file")
+                    self.w.status.set_text(f"Choose a {file_types} file")
                     self.w.load_button.config(state="disabled")
                     TKHelper.set_preferred_button(self.w.choose_button, self.w.initialization_buttons, "Preferred.TButton")
         else:
@@ -233,7 +233,7 @@ class GeoFinder:
     def handle_place_entry(self):
         """ Get next PLACE  in users  File.  Replace it, skip it, or have user correct it. """
         self.w.original_entry.set_text("")
-        if self.shutdown_requested:
+        if self.w.prog.shutdown_requested:
             self.periodic_update("Shutting down...")
         else:
             self.periodic_update("Scanning")
@@ -261,7 +261,7 @@ class GeoFinder:
                     self.write_updated_place(self.place)
 
                     # Display status to user
-                    if self.shutdown_requested:
+                    if self.w.prog.shutdown_requested:
                         self.periodic_update("Shutting down...")
                     else:
                         self.periodic_update("Applying change")
@@ -281,7 +281,7 @@ class GeoFinder:
                     self.write_updated_place(self.place)
 
                     # Display status to user
-                    if self.shutdown_requested:
+                    if self.w.prog.shutdown_requested:
                         self.periodic_update("Shutting down...")
                     else:
                         self.periodic_update("Applying change")
@@ -294,7 +294,7 @@ class GeoFinder:
                     break
 
                 continue
-            elif self.shutdown_requested:
+            elif self.w.prog.shutdown_requested:
                 # User requested shutdown.  Finish up going thru file, then shut down
                 self.periodic_update("Shutting Down...")
                 self.w.original_entry.set_text(" ")
@@ -318,7 +318,7 @@ class GeoFinder:
                     if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
                         # Exact match
                         # Write out line without user verification
-                        if self.shutdown_requested:
+                        if self.w.prog.shutdown_requested:
                             self.periodic_update("Shutting down...")
                         else:
                             self.periodic_update("Scanning")
@@ -538,6 +538,8 @@ class GeoFinder:
     def quit_handler(self):
         """ Set flag for shutdown.  Process all global replaces and exit """
         path = self.cfg.get("gedcom_path")
+        self.w.prog.shutdown_requested = True
+
         if messagebox.askyesno(' ', f'  Updates saved. Do you want to save output file?\n\n {path}.{self.out_suffix}'):
             TKHelper.disable_buttons(button_list=self.w.review_buttons)
             self.w.quit_button.config(state="disabled")
@@ -547,30 +549,32 @@ class GeoFinder:
             self.w.status.set_text("Quitting...")
             # Write out the item we are on
             self.ancestry_file_handler.write_asis()
-            self.shutdown_requested = True
 
             # We will still continue to go through file, but only handle global replaces
             self.handle_place_entry()
         else:
-            #self.w.user_entry.set_text(" ")
-            #self.w.status.set_text("Quitting...")
+            self.logger.info('Shutdown')
             self.shutdown()
 
     def config_handler(self):
         # User clicked on Config button - bring up configuration windows
         self.w.remove_initialization_widgets()  # Remove old widgets
         self.w.root.protocol("WM_DELETE_WINDOW", self.shutdown)
+        # Read config settings (Ancestry file path) - this will create config.pkl if not found
+        err = self.cfg.read()
+        if err:
+            self.logger.warning('error reading {} config.pkl'.format(self.cache_dir))
         self.util.create_util_widgets()  # Create Util/Config widgets
 
     def filename_handler(self):
         """ Display file open selector dialog """
         fname = filedialog.askopenfilename(initialdir=self.directory,
-                                           title="Select GEDCOM/Gramps file",
+                                           title=f"Select {file_types} file",
                                            filetypes=[("GEDCOM files", "*.ged"), ("Gramps files", "*.gramps"), ("all files", "*.*")])
         if len(fname) > 1:
             self.cfg.set("gedcom_path", fname)  # Add filename to dict
             self.cfg.write()  # Write out config file
-            self.w.status.set_text("Click Open to load GEDCOM file")
+            self.w.status.set_text(f"Click Open to load {file_types} file")
             self.w.original_entry.set_text(self.cfg.get("gedcom_path"))
             TKHelper.set_preferred_button(self.w.load_button, self.w.initialization_buttons, "Preferred.TButton")
 
@@ -639,7 +643,7 @@ class GeoFinder:
 
     def shutdown(self):
         """ Shutdown - write out Gbl Replace and skip file and exit """
-        self.w.root.update_idletasks()
+        #self.w.root.update_idletasks()
         if self.skiplist:
             self.skiplist.write()
         if self.global_replace:
@@ -651,7 +655,9 @@ class GeoFinder:
         if self.ancestry_file_handler:
             self.ancestry_file_handler.close()
         self.w.root.quit()
-        sys.exit()
+        self.logger.info('SYS EXIT')
+        #sys.exit()
+        os._exit(0)
 
     def set_save_allowed(self, save_allowed: bool):
         if save_allowed:
