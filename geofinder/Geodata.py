@@ -59,16 +59,29 @@ class Geodata:
             self.geo_files.geodb.lookup_place(place=place)
         else:
             place.target = place.country_name
+            save_prefix = place.prefix
+            place.prefix = f'{place.city1.title()}, {place.admin2_name.title()}'
+            place.place_type = Loc.PlaceType.CITY
             # No country - try city lookup without country
             if len(place.admin1_name) > 0 and place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
+                self.logger.debug(f'No country.  Lookup last token [{place.target}]')
                 self.geo_files.geodb.lookup_place(place=place)
                 if len(place.georow_list) == 0:
-                    place.result_type = GeoKeys.Result.NO_COUNTRY
+                    # Still not found.  Try Adm2 as Target
+                    place.target= place.admin2_name
+                    place.prefix = f'{place.admin1_name.title()}'
+                    self.logger.debug(f'Not found.  Lookup adm2 [{place.target}]')
+                    self.geo_files.geodb.lookup_place(place=place)
+                    if len(place.georow_list) == 0:
+                        place.result_type = GeoKeys.Result.NO_COUNTRY
+                        place.prefix = save_prefix
             else:
                 self.process_result(place=place, targ_name=place.target, flags=flags)
                 return
 
         if len(place.georow_list) > 0:
+            #if place.city1 == 'amsterdam' and place.event_year == 0:
+            #    place.event_year = 1300
             flags = self.build_result_list(place.georow_list, place.event_year)
 
         if len(place.georow_list) == 0:

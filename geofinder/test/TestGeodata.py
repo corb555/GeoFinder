@@ -487,7 +487,7 @@ class TestGeodata(unittest.TestCase):
     def test_parse03(self):
         test = "***** Test Parse city with punctuation"
         print(test)
-        self.place.parse_place(place_name="aaa,Banff!@#^&()_+-=;:<>/?,Alberta's Rockies,Alberta,Canada", geo_files=TestGeodata.geodata.geo_files)
+        self.place.parse_place(place_name="aaa,Banff!@#^&)_+-=;:<>/?,Alberta's Rockies,Alberta,Canada", geo_files=TestGeodata.geodata.geo_files)
         self.assertEqual("banff", self.place.city1, test)
 
     def test_parse04(self):

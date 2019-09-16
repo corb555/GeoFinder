@@ -91,20 +91,16 @@ class AncestryFile:
 
             if self.tag == 'PLAC':
                 # Found the target line.  Break out of loop
-                print(f"FOUND PLACE tag={self.tag} entry=[{self.value} ]")
+                #self.logger.debug(f"FOUND PLACE tag={self.tag} entry=[{self.value} ]")
 
                 entry = self.value
                 if entry is None:
                     continue
                 return entry, False
             if self.tag == 'IGNORE':
-                print(f"ignore LINE tag={self.tag} {line} ")
-
                 pass
             else:
                 # Not a target entry.   Write out line as-is
-                print(f"FOUND ASIS tag={self.tag} {line} ")
-
                 if self.outfile is not None:
                     self.outfile.write(line)
 

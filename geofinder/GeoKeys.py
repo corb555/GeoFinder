@@ -71,7 +71,7 @@ def get_cache_directory(dirname):
 def _phrase_normalize(name) -> str:
     """ Strip spaces and normalize spelling for items such as Saint and County """
     # Replacement patterns to clean up entries
-    res = re.sub('saint |st. ', 'st ', name)  # Normalize Saint
+    res = re.sub('saints |sainte |sint |saint |st. ', 'st ', name)  # Normalize Saint
     res = re.sub(r' co\.', ' county', res)  # Normalize County
     res = re.sub('  +', ' ', res)  # Strip multiple space
     res = re.sub('county of ([^,]+)', r'\g<1> county', res)  # Normalize 'Township of X' to 'X Township'
@@ -79,15 +79,18 @@ def _phrase_normalize(name) -> str:
     res = re.sub('cathedral of ([^,]+)', r'\g<1> cathedral', res)  # Normalize 'Township of X' to 'X Township'
     return res
 
+
 def normalize(res) -> str:
     """ Strip commas. Also strip spaces and normalize spelling for items such as Saint and County and chars   ø ß """
 
     # Convert UT8 to ascii
     res = unidecode.unidecode(res)
 
-    # remove all punctuation
     res = str(res).lower()
+
+    # remove all punctuation
     res = re.sub(r"[^a-zA-Z0-9 $.*']+", " ", res)
+
     res = _phrase_normalize(res)
     return res.strip(' ')
 

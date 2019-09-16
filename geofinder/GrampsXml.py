@@ -57,6 +57,7 @@ class GrampsXml(AncestryFile):
     </placeobj>
     </places>
 
+    xmllint --c14n one.xml > 1.xml
     """
 
     def __init__(self, in_path: str, out_suffix: str, cache_d, progress: Union[None, Progress.Progress]):
@@ -144,16 +145,16 @@ class GrampsXml(AncestryFile):
         self.place = self.elem.find('placeobject')
 
         if self.place is not None:
-            print(f'\n\nPLACEOBJECT {self.place.tag} =========')
+            #print(f'\n\nPLACEOBJECT {self.place.tag} =========')
 
             # Walk thru each entry in place object
             for place_entry in self.place.iter():
                 self.child = place_entry
-                print(f'tag ={place_entry.tag}')
+                #print(f'tag ={place_entry.tag}')
                 if place_entry.tag == 'ptitle' and self.got_place is False:
                     # <ptitle>Chelsea, Greater London, England, United Kingdom</ptitle>
-                    print(f'PTITLE tag <{place_entry.tag}')
-                    print(f' entry {place_entry.text}')
+                    #print(f'PTITLE tag <{place_entry.tag}')
+                    #print(f' entry {place_entry.text}')
                     self.tag = 'PLAC'
                     self.value = place_entry.text
                     self.got_place = True
@@ -162,7 +163,7 @@ class GrampsXml(AncestryFile):
                     # <pname value="Chelsea, Greater London, England, United Kingdom"/>
                     self.tag = 'PLAC'
                     self.value = place_entry.get('value')
-                    print(f'PNAME <{place_entry.tag} VALUE="{self.value}"/>')
+                    #print(f'PNAME <{place_entry.tag} VALUE="{self.value}"/>')
                     self.got_pname = True
                     return
                 elif place_entry.tag == 'coord':
@@ -170,10 +171,11 @@ class GrampsXml(AncestryFile):
                     self.lon = place_entry.attrib.get('long')
                     self.lat = place_entry.attrib.get('lat')
                     self.tag = 'IGNORE'
-                    print(f'<{place_entry.tag} LONG="{self.lon}" LAT="{self.lat}"/>')
+                    #print(f'<{place_entry.tag} LONG="{self.lon}" LAT="{self.lat}"/>')
                     self.place.remove(place_entry)
                 else:
-                    print(f'DD <{place_entry.tag} {place_entry.attrib}>')
+                    #print(f'DD <{place_entry.tag} {place_entry.attrib}>')
+                    pass
 
             # Done walking through place element
             if self.lat != 99.9:
@@ -194,7 +196,7 @@ class GrampsXml(AncestryFile):
         else:
             # Tree completed.  No more place objects available
             self.more_available = False
-            print('TREE DONE')
+            #print('TREE DONE')
 
     def write_updated(self, txt):
         # Update place entry in tree.  Tree will be written out later when entire XML tree is written out

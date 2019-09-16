@@ -18,10 +18,13 @@
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 
 import logging
+import re
 import string as st
 from typing import List, Tuple
 
 from geofinder import GeoKeys
+
+default_country = 'nederland'
 
 
 class Loc:
@@ -72,7 +75,11 @@ class Loc:
         self.clear()
         self.name = place_name
 
-        tokens = place_name.split(",")
+        # Convert open-brace and open-paren to comma
+        res = re.sub('\[', ',', place_name)
+        res = re.sub('\(', ',', res)
+
+        tokens = res.split(",")
         token_count = len(tokens)
         self.place_type = PlaceType.CITY
 
@@ -109,10 +116,13 @@ class Loc:
                     # Append blank to token list so we now have xx,admin1, blank_country
                     self.logger.debug(f'didnt find last tkn as adm1 {self.admin1_name}')
                     tokens.append('')
-                    #self.country_name = ''
+
                     token_count = len(tokens)
                     self.result_type = GeoKeys.Result.NO_COUNTRY
                     self.country_iso = ''
+
+                    # Validate country
+                    self.country_iso = geo_files.geodb.get_country_iso(self)  # Get Country country_iso
 
             self.target = self.country_name
 
@@ -159,9 +169,9 @@ class Loc:
             self.admin2_name = 'new york city'
             self.target = self.admin2_name
 
-        self.logger.debug(f"*** PARSE  #={token_count} City [{self.city1}] Adm2 [{self.admin2_name}]"
-                          f"  Adm1 [{self.admin1_name}] Cntry [{self.country_name}] Pref=[{self.prefix}] Com=[{self.prefix_commas}]"
-                          f" Typ={place_type_name_dict[self.place_type]}")
+        self.logger.debug(f"*** PARSE {token_count} tokens. City [{self.city1}] Adm2 [{self.admin2_name}]"
+                          f"  Adm1 [{self.admin1_name}] Cntry [{self.country_name}] Pref=[{self.prefix}] Commas=[{self.prefix_commas}]"
+                          f" Typ=[{place_type_name_dict[self.place_type]}] type_id={self.place_type}")
         return
 
     def set_place_type(self):

@@ -69,17 +69,17 @@ class GeodataFiles:
         self.languages_list_cd = CachedDictionary.CachedDictionary(sub_dir, "languages_list.pkl")
         self.languages_list_cd.read()
         self.languages_list_dct: Dict[str, str] = self.languages_list_cd.dict
-        lang_list = []
+        self.lang_list = []
 
         for item in self.languages_list_dct:
-            lang_list.append(item)
+            self.lang_list.append(item)
 
         self.entry_place = Loc.Loc()
 
         # Support for Geonames AlternateNames file.  Adds alternate names for entries
         self.alternate_names = AlternateNames.AlternateNames(directory_name=self.directory,
                                                              geo_files=self, progress_bar=self.progress_bar,
-                                                             filename='alternateNamesV2.txt', lang_list=lang_list)
+                                                             filename='alternateNamesV2.txt', lang_list=self.lang_list)
 
     def read(self) -> bool:
         """
@@ -133,7 +133,7 @@ class GeodataFiles:
 
         # DB  is stale or not available, rebuild it from geoname files
         self.geodb = GeoDB.GeoDB(os.path.join(cache_dir, 'geodata.db'))
-        self.country = Country.Country(self.progress_bar, geodb=self.geodb)
+        self.country = Country.Country(self.progress_bar, geodb=self.geodb, lang_list=self.lang_list)
 
         # walk thru list of files ending in .txt e.g US.txt, FR.txt, all_countries.txt, etc
         self.logger.debug(f'{fullpath} not new.  Building db ')
@@ -247,6 +247,9 @@ class GeodataFiles:
         geo_row[GeoDB.Entry.LON] = geoname_row.lon
         geo_row[GeoDB.Entry.FEAT] = geoname_row.feat_code
         geo_row[GeoDB.Entry.ID] = geoname_row.id
+
+        if 'bonaf' in geo_row[GeoDB.Entry.NAME]:
+            print(f'INS {geo_row[GeoDB.Entry.NAME]}')
 
         self.geodb.insert(geo_row=geo_row, feat_code=geoname_row.feat_code)
 

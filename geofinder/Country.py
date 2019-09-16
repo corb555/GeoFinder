@@ -34,12 +34,13 @@ class C_Row:
 
 
 class Country:
-    def __init__(self, progress, geodb):
+    def __init__(self, progress, geodb, lang_list):
         self.logger = logging.getLogger(__name__)
         self.geodb = geodb
         self.progress = progress
         self.country_dict: Dict[str, str] = {}  # Dictionary of Country Name to country iso code
         self.iso_dict: Dict[str, str] = {}  # Reverse dictionary - Country ISO code to country name
+        self.lang_list = lang_list
 
     def read(self) -> bool:
         """
@@ -52,8 +53,14 @@ class Country:
         # This also includes some common aliases
         self.geodb.db.begin()
 
-        #  create lowercase dictionary and reverse dictionary - iso to name
+        self.logger.debug(self.lang_list)
+
+        #  Create lowercase dictionary and reverse dictionary - iso to name
         for ky, row in country_dict.items():
+            # Localize Netherlands if lang_list contains nl
+            if ky == 'Netherlands' and 'nl' in self.lang_list:
+                ky = 'Nederland'
+
             # Create Geo_row
             # ('paris', 'fr', '07', '012', '12.345', '45.123', 'PPL')
             geo_row = [None] * GeoDB.Entry.MAX
@@ -73,7 +80,6 @@ class Country:
 
         self.geodb.db.commit()
         return False
-
 
 
 country_dict = {

@@ -618,9 +618,9 @@ class GeoFinder:
         if supported_countries == 0:
             TKHelper.fatal_error("No countries enabled.\n\nUse Config Country Tab to change country list\n")
 
-        if supported_countries < 20:
-            messagebox.showinfo("Info", f"Loading geocode data for the following ISO country codes:"
-                                        f"\n\n{country_list}\n\nUse Config Country Tab to change country list\n")
+        # if supported_countries < 3:
+        #    messagebox.showinfo("Info", f"Loading geocode data for the following ISO country codes:"
+        #                                f"\n\n{country_list}\n\nUse Config Country Tab to change country list\n")
         return supported_countries
 
     @staticmethod
@@ -643,7 +643,7 @@ class GeoFinder:
 
     def shutdown(self):
         """ Shutdown - write out Gbl Replace and skip file and exit """
-        #self.w.root.update_idletasks()
+        # self.w.root.update_idletasks()
         if self.skiplist:
             self.skiplist.write()
         if self.global_replace:
@@ -656,7 +656,7 @@ class GeoFinder:
             self.ancestry_file_handler.close()
         self.w.root.quit()
         self.logger.info('SYS EXIT')
-        #sys.exit()
+        # sys.exit()
         os._exit(0)
 
     def set_save_allowed(self, save_allowed: bool):
@@ -709,7 +709,13 @@ class GeoFinder:
             self.logger.warning('no countries specified')
             file_error = True
 
-        # Ensure that there are some geoname data files
+        # Ensure that there is geo DB or there are some geoname data files
+        path = os.path.join(self.directory, self.cache_dir, "geodata.db")
+        if os.path.exists(path):
+            self.logger.info(f'Found {path}')
+            file_error = False
+            return file_error
+
         path = os.path.join(self.directory, "*.txt")
         self.logger.info(f'Geoname path {path}')
         count = 0
