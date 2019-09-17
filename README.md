@@ -1,5 +1,5 @@
 # GeoFinder 
-GeoFinder reads the place names in a GEDCOM genealogy file, validates and corrects them and adds their latitude and longitude.  For unrecognized places, it supports wildcard searches and phonetic searches from the 20M entry geoname.org database.  
+GeoFinder reads the place names in a GEDCOM or Gramps XML genealogy file, validates and corrects them and adds their latitude and longitude.  For unrecognized places, it supports wildcard searches and phonetic searches from the 20M entry geoname.org database.  
 
 <a name="features"></a>
 ## Features  
