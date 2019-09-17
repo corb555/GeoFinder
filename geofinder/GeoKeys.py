@@ -71,7 +71,7 @@ def get_cache_directory(dirname):
 def _phrase_normalize(name) -> str:
     """ Strip spaces and normalize spelling for items such as Saint and County """
     # Replacement patterns to clean up entries
-    res = re.sub('saints |sainte |sint |saint |st. ', 'st ', name)  # Normalize Saint
+    res = re.sub('saints |sainte |sint |saint |sankt |st. ', 'st ', name)  # Normalize Saint
     res = re.sub(r' co\.', ' county', res)  # Normalize County
     res = re.sub('  +', ' ', res)  # Strip multiple space
     res = re.sub('county of ([^,]+)', r'\g<1> county', res)  # Normalize 'Township of X' to 'X Township'

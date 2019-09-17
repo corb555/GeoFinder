@@ -25,7 +25,7 @@ import phonetics
 from geofinder import GeoDB, GeoKeys
 
 
-class C_Row:
+class CnRow:
     ISO = 0
     ISO3 = 1
     NUM = 2
@@ -44,7 +44,7 @@ class Country:
 
     def read(self) -> bool:
         """
-        Read in list of country names and ISO codes
+           Read in list of country names and ISO codes
         """
         if self.progress is not None:
             self.progress.update_progress(100, "Read ISO countries...")
@@ -55,11 +55,16 @@ class Country:
 
         self.logger.debug(self.lang_list)
 
-        #  Create lowercase dictionary and reverse dictionary - iso to name
+        #  Add country names to DB
         for ky, row in country_dict.items():
-            # Localize Netherlands if lang_list contains nl
-            if ky == 'Netherlands' and 'nl' in self.lang_list:
-                ky = 'Nederland'
+            # Localize country names to Dutch if lang_list contains nl
+            for lang in self.lang_list:
+                # If we have a translation table for this language, then get it
+                if trans_table.get(lang):
+                    tbl = trans_table.get(lang)
+                    # Look up the country translation
+                    if tbl.get(ky):
+                        ky = tbl.get(ky)
 
             # Create Geo_row
             # ('paris', 'fr', '07', '012', '12.345', '45.123', 'PPL')
@@ -68,13 +73,13 @@ class Country:
             sdx = phonetics.dmetaphone(geo_row[GeoDB.Entry.NAME])
             geo_row[GeoDB.Entry.SDX] = sdx[0]
 
-            geo_row[GeoDB.Entry.ISO] = row[C_Row.ISO].lower()
+            geo_row[GeoDB.Entry.ISO] = row[CnRow.ISO].lower()
             geo_row[GeoDB.Entry.ADM1] = ''
             geo_row[GeoDB.Entry.ADM2] = ''
-            geo_row[GeoDB.Entry.LAT] = row[C_Row.LAT]
-            geo_row[GeoDB.Entry.LON] = row[C_Row.LON]
+            geo_row[GeoDB.Entry.LAT] = row[CnRow.LAT]
+            geo_row[GeoDB.Entry.LON] = row[CnRow.LON]
             geo_row[GeoDB.Entry.FEAT] = 'ADM0'
-            geo_row[GeoDB.Entry.ID] = row[C_Row.ISO].lower()
+            geo_row[GeoDB.Entry.ID] = row[CnRow.ISO].lower()
 
             self.geodb.insert(geo_row=geo_row, feat_code='ADM0')
 
@@ -338,4 +343,205 @@ country_dict = {
     'Yemen': ('YE', 'YEM', '887', '15', '48'),
     'Zambia': ('ZM', 'ZMB', '894', '-15', '30'),
     'Zimbabwe': ('ZW', 'ZWE', '716', '-20', '30')
+}
+
+
+nl_trans = {
+    "Afghanistan": "Afghanistan",
+    "Albania": "Albanië",
+    "Algeria": "Algerije",
+    "Andorra": "Andorra",
+    "Angola": "Angola",
+    "Antigua and Barbuda": "Antigua en Barbuda",
+    "Argentina": "Argentinië",
+    "Armenia": "Armenië",
+    "Australia": "Australië",
+    "Austria": "Oostenrijk",
+    "Azerbaijan": "Azerbeidzjan",
+    "Bahamas": "Bahama’s",
+    "Bahrain": "Bahrein",
+    "Bangladesh": "Bangladesh",
+    "Barbados": "Barbados",
+    "Belarus": "Wit-Rusland",
+    "Belgium": "België",
+    "Belize": "Belize",
+    "Benin": "Benin",
+    "Bhutan": "Bhutan",
+    "Bolivia": "Bolivia",
+    "Bosnia and Herzegovina": "Bosnië en Herzegovina",
+    "Botswana": "Botswana",
+    "Brazil": "Brazilië",
+    "Brunei": "Brunei",
+    "Bulgaria": "Bulgarije",
+    "Burkina Faso": "Burkina Faso",
+    "Burundi": "Burundi",
+    "Cambodia": "Cambodja",
+    "Cameroon": "Kameroen",
+    "Canada": "Canada",
+    "Cape Verde": "Kaapverdië",
+    "Central African Republic": "Centraal-Afrikaanse Republiek",
+    "Chad": "Tsjaad",
+    "Chile": "Chili",
+    "China": "China",
+    "Colombia": "Colombia",
+    "Comoros": "Comoren",
+    "Costa Rica": "Costa Rica",
+    "Côte d’Ivoire": "Ivoorkust",
+    "Croatia": "Kroatië",
+    "Cuba": "Cuba",
+    "Cyprus": "Cyprus",
+    "Czech Republic": "Tsjechië",
+    "Democratic Republic of the Congo": "Democratische Republiek Congo",
+    "Denmark": "Denemarken",
+    "Djibouti": "Djibouti",
+    "Dominica": "Dominica",
+    "Dominican Republic": "Dominicaanse Republiek",
+    "East Timor": "Oost-Timor",
+    "Ecuador": "Ecuador",
+    "Egypt": "Egypte",
+    "El Salvador": "El Salvador",
+    "Equatorial Guinea": "Equatoriaal-Guinea",
+    "Eritrea": "Eritrea",
+    "Estonia": "Estland",
+    "Ethiopia": "Ethiopië",
+    "Fiji": "Fiji",
+    "Finland": "Finland",
+    "France": "Frankrijk",
+    "Gabon": "Gabon",
+    "Gambia": "Gambia",
+    "Georgia": "Georgië",
+    "Germany": "Duitsland",
+    "Ghana": "Ghana",
+    "Greece": "Griekenland",
+    "Grenada": "Grenada",
+    "Guatemala": "Guatemala",
+    "Guinea": "Guinea",
+    "Guinea-Bissau": "Guinee-Bissau",
+    "Guyana": "Guyana",
+    "Haiti": "Haïti",
+    "Honduras": "Honduras",
+    "Hungary": "Hongarije",
+    "Iceland": "IJsland",
+    "India": "Indië",
+    "Indonesia": "Indonesië",
+    "Iran": "Iran",
+    "Iraq": "Irak",
+    "Ireland": "Ierland",
+    "Israel": "Israël",
+    "Italy": "Italië",
+    "Jamaica": "Jamaica",
+    "Japan": "Japan",
+    "Jordan": "Jordanië",
+    "Kazakhstan": "Kazachstan",
+    "Kenya": "Kenia",
+    "Kiribati": "Kiribati",
+    "Kuwait": "Koeweit",
+    "Kyrgyzstan": "Kirgizië",
+    "Laos": "Laos",
+    "Latvia": "Letland",
+    "Lebanon": "Libanon",
+    "Lesotho": "Lesotho",
+    "Liberia": "Liberia",
+    "Libya": "Libië",
+    "Liechtenstein": "Liechtenstein",
+    "Lithuania": "Litouwen",
+    "Luxembourg": "Luxemburg",
+    "Madagascar": "Madagaskar",
+    "Malawi": "Malawi",
+    "Malaysia": "Maleisië",
+    "Maldives": "Maldiven",
+    "Mali": "Mali",
+    "Malta": "Malta",
+    "Marshall Islands": "Marshalleilanden",
+    "Mauritania": "Mauritanië",
+    "Mauritius": "Mauritius",
+    "Mexico": "Mexico",
+    "Micronesia": "Micronesië",
+    "Moldova": "Moldavië",
+    "Monaco": "Monaco",
+    "Mongolia": "Mongolië",
+    "Montenegro": "Montenegro",
+    "Morocco": "Marokko",
+    "Mozambique": "Mozambique",
+    "Myanmar": "Myanmar",
+    "Namibia": "Namibië",
+    "Nauru": "Nauru",
+    "Nepal": "Nepal",
+    "Netherlands": "Nederland",
+    "New Zealand": "Nieuw-Zeeland",
+    "Nicaragua": "Nicaragua",
+    "Niger": "Niger",
+    "Nigeria": "Nigeria",
+    "North Korea": "Noord-Korea",
+    "Norway": "Noorwegen",
+    "Oman": "Oman",
+    "Pakistan": "Pakistan",
+    "Palau": "Palau",
+    "Panama": "Panama",
+    "Papua New Guinea": "Papoea-Nieuw-Guinea",
+    "Paraguay": "Paraguay",
+    "Peru": "Peru",
+    "Philippines": "Filipijnen",
+    "Poland": "Polen",
+    "Portugal": "Portugal",
+    "Qatar": "Qatar",
+    "Republic of the Congo": "Republiek Congo",
+    "Republic of Macedonia": "Macedonië",
+    "Romania": "Roemenië",
+    "Russia": "Rusland",
+    "Rwanda": "Rwanda",
+    "Saint Kitts and Nevis": "Saint Kitts en Nevis",
+    "Saint Lucia": "Saint Lucia",
+    "Saint Vincent and the Grenadines": "Saint Vincent en de Grenadines",
+    "Samoa": "Samoa",
+    "San Marino": "San Marino",
+    "Sao Tome and Principe": "Sao Tomé en Principe",
+    "Saudi Arabia": "Saoedi-Arabië",
+    "Senegal": "Senegal",
+    "Serbia": "Servië",
+    "Seychelles": "Seychellen",
+    "Sierra Leone": "Sierra Leone",
+    "Singapore": "Singapore",
+    "Slovakia": "Slowakije",
+    "Slovenia": "Slovenië",
+    "Solomon Islands": "Salomonseilanden",
+    "Somalia": "Somalië",
+    "South Africa": "Zuid-Afrika",
+    "South Korea": "Zuid-Korea",
+    "South Sudan": "Zuid-Soedan",
+    "Spain": "Spanje",
+    "Sri Lanka": "Sri Lanka",
+    "Sudan": "Soedan",
+    "Suriname": "Suriname",
+    "Swaziland": "Swaziland",
+    "Sweden": "Zweden",
+    "Switzerland": "Zwitserland",
+    "Syria": "Syrië",
+    "Tajikistan": "Tadzjikistan",
+    "Tanzania": "Tanzania",
+    "Thailand": "Thailand",
+    "Togo": "Togo",
+    "Tonga": "Tonga",
+    "Trinidad and Tobago": "Trinidad en Tobago",
+    "Tunisia": "Tunesië",
+    "Turkey": "Turkije",
+    "Turkmenistan": "Turkmenistan",
+    "Tuvalu": "Tuvalu",
+    "Uganda": "Oeganda",
+    "Ukraine": "Oekraïne",
+    "United Arab Emirates": "Verenigde Arabische Emiraten",
+    "United Kingdom": "Verenigd Koninkrijk",
+    "United States of America": "Verenigde Staten",
+    "Uruguay": "Uruguay",
+    "Uzbekistan": "Oezbekistan",
+    "Vanuatu": "Vanuatu",
+    "Venezuela": "Venezuela",
+    "Vietnam": "Vietnam",
+    "Yemen": "Jemen",
+    "Zambia": "Zambia",
+    "Zimbabwe": "Zimbabwe",
+}
+
+trans_table = {
+    'nl' : nl_trans
 }
