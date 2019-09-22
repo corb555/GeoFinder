@@ -30,6 +30,7 @@ BUTTON_WIDTH = 6
 odd_tag = ('odd',)
 even_tag = ('even',)
 
+default = []
 
 class ListboxFrame:
     """
@@ -111,6 +112,11 @@ class ListboxFrame:
                 self.list_insert(self.tree, f"{item}", f"{self.dict[item]}")
             else:
                 self.list_insert(self.tree, f"{item}", '')
+
+    def load_defaults(self):
+        for item in default:
+            self.dict[item] = ""  # Add item to dict
+        self.add_handler()
 
     def delete_handler(self):
         # Delete selected items in list

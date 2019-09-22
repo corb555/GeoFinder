@@ -43,8 +43,8 @@ class UtilLanguagesFrame(ListboxFrame.ListboxFrame):
 
         # Add these in addition to the standard widgets we inherit from ListBoxFrame
         self.add_button = ttk.Button(frame, text="add", command=self.add_handler, width=ListboxFrame.BUTTON_WIDTH)
-        self.feature_label = Widge.CLabel(frame, text="Enter 2 letter ISO language codes below and click on Add button to add", style='Info.TLabel')
-        self.feature_entry: Widge.CEntry = Widge.CEntry(frame, text="   ", width=15)  # , style='Info.TLabel')
+        self.add_label = Widge.CLabel(frame, text="Enter 2 letter ISO language codes below and click on Add button to add", style='Info.TLabel')
+        self.add_entry: Widge.CEntry = Widge.CEntry(frame, text="   ", width=15)  # , style='Info.TLabel')
         super().__init__(frame, title, dir_name, cache_filename)
 
         # If dictionary is empty, load in defaults
@@ -53,11 +53,6 @@ class UtilLanguagesFrame(ListboxFrame.ListboxFrame):
             self.load_defaults()
             super().add_handler()
 
-    def load_defaults(self):
-        for item in default:
-            self.dict[item] = ""  # Add item to dict
-        super().add_handler()
-
     def configure_widgets(self, frm):
         # Add the standard widgets in ListBoxFrame
         super().configure_widgets(frm)
@@ -65,11 +60,11 @@ class UtilLanguagesFrame(ListboxFrame.ListboxFrame):
         # Add these in addition to the standard widgets in ListBoxFrame
         # todo - remove set_grid_position and just use element.grid()
         Widge.TKHelper.set_grid_position(self.add_button, "country_button", grd=self.grd)
-        Widge.TKHelper.set_grid_position(self.feature_label, "country_label", grd=self.grd)
-        Widge.TKHelper.set_grid_position(self.feature_entry, "country_entry", grd=self.grd)
+        Widge.TKHelper.set_grid_position(self.add_label, "country_label", grd=self.grd)
+        Widge.TKHelper.set_grid_position(self.add_entry, "country_entry", grd=self.grd)
 
     def add_handler(self):
         # Allow user to add an item to list.
-        val: str = self.feature_entry.get_text()
+        val: str = self.add_entry.get_text()
         self.dict[val.lower()] = ""  # Add item to dict
         super().add_handler()
