@@ -135,6 +135,7 @@ class GrampsXml(AncestryFile):
             else:
                 break
         file2.close()
+        self.outfile.write('\n')
         self.outfile.flush()
 
     def find_xml_place(self):
@@ -201,10 +202,10 @@ class GrampsXml(AncestryFile):
     def write_updated(self, txt):
         # Update place entry in tree.  Tree will be written out later when entire XML tree is written out
         if self.child.text is not None:
-            self.child.text = txt
+            self.child.text = txt.strip(', ')
         else:
             if self.child.tag == 'pname':
-                self.child.set('value', txt)
+                self.child.set('value', txt.strip(', '))
 
     def write_asis(self):
         # Do nothing - No change to place entry

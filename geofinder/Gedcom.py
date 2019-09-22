@@ -75,13 +75,13 @@ class Gedcom(AncestryFile):
             self.level = 99
             self.label = ''
 
-    def write_updated(self, value: str):
+    def write_updated(self, txt: str):
         """ Write out a place line with updated value.  Put together the pieces:  level, Label, tag, value """
         if self.outfile is not None:
             if self.label is not None:
-                res = f"{self.level} {self.label} {self.tag} {value}\n"
+                res = f"{self.level} {self.label} {self.tag} {txt.strip(', ')}\n"
             else:
-                res = f"{self.level} {self.tag} {value}\n"
+                res = f"{self.level} {self.tag} {txt.strip(', ')}\n"
 
             self.outfile.write(res)
 
