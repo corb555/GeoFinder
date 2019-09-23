@@ -72,6 +72,8 @@ class GrampsXml(AncestryFile):
         self.got_place = False
         self.lon = 99.9
         self.lat = 99.9
+        self.place_total = 0
+        self.place_complete = 0
 
     def parse_line(self, line: str):
         # Called by read_and_parse_line for each line in file
@@ -84,6 +86,7 @@ class GrampsXml(AncestryFile):
             self.state = State.COLLECT_PLACE_XML
         elif '</places>' in line:
             # Reached the end of Places section
+            # TODO - Handle case where there is additional data on </places> line, such as '</places> <objects>'
             line += '\n'
             self.place_xml_lines += bytes(line, "utf8")
             self.logger.debug(f'xml len={len(self.place_xml_lines)}')
@@ -104,7 +107,9 @@ class GrampsXml(AncestryFile):
             # Collect lines
             # Convert all placeobj tags to placeobject tag
             # As each is processed we convert it back to placeobj
-            # This will allow us to keep track of which Place Objects we have processed.
+            # This allows us to keep track of which Place Objects we have processed.
+            if 'placeobj' in line:
+                self.place_total += 1
             line = re.sub('placeobj', 'placeobject', line)
             self.place_xml_lines += bytes(line, "utf8")
             self.tag = 'IGNORE'
@@ -114,6 +119,11 @@ class GrampsXml(AncestryFile):
         elif self.state == State.WALK_PLACE_TREE:
             # Set self.value with next place
             self.find_xml_place()
+            self.place_complete += 1
+            # update progress bar
+            prog = int(self.place_complete * 100 / self.place_total)
+            self.progress(f" ", prog)
+
             if not self.more_available:
                 # Got to end of tree.  Write out XML tree to tmp file
                 tmp_name = self.out_path + '.tmp'

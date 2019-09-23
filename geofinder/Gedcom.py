@@ -75,6 +75,11 @@ class Gedcom(AncestryFile):
             self.level = 99
             self.label = ''
 
+        # update progress bar
+        prog = int(self.infile.tell() * 100 / self.filesize)
+        if self.line_num % 1000 == 1:
+            self.progress(f"Scanning ", prog)
+
     def write_updated(self, txt: str):
         """ Write out a place line with updated value.  Put together the pieces:  level, Label, tag, value """
         if self.outfile is not None:

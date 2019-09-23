@@ -116,11 +116,6 @@ class AncestryFile:
 
         self.line_num += 1
 
-        # update progress bar
-        prog = int(self.infile.tell() * 100 / self.filesize)
-        if self.line_num % 1000 == 1:
-            self.progress(f"Scanning ", prog)
-
         # Separate the line into  parts
         self.parse_line(line)
 
