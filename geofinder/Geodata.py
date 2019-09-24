@@ -54,6 +54,8 @@ class Geodata:
         self.logger.debug(f'Find LOCATION Type=[{Loc.place_type_name_dict.get(place.place_type)}] City=[{place.city1}] Adm2=[{place.admin2_name}]\
         Adm1=[{place.admin1_name}] Prefix=[{place.prefix}] cname=[{place.country_name}] iso=[{place.country_iso}]')
 
+        save_city = place.city1
+
         if self.country_is_valid(place):
             # Lookup location
             self.geo_files.geodb.lookup_place(place=place)
@@ -79,12 +81,23 @@ class Geodata:
                 self.process_result(place=place, targ_name=place.target, flags=flags)
                 return
 
+        if len(place.georow_list) == 0:
+            # Try Admin2 as city
+            place.city1 = place.admin2_name
+            place.target = place.admin2_name
+            place.admin2_name = ''
+            place.prefix = save_city.title()
+
+            # Lookup
+            self.geo_files.geodb.lookup_place(place=place)
+
         if len(place.georow_list) > 0:
-            #if place.city1 == 'amsterdam' and place.event_year == 0:
-            #    place.event_year = 1300
             flags = self.build_result_list(place.georow_list, place.event_year)
 
         if len(place.georow_list) == 0:
+            place.city1 = save_city
+            place.admin2_name = place.target
+
             if place.result_type != GeoKeys.Result.NO_COUNTRY:
                 place.result_type = GeoKeys.Result.NO_MATCH
         elif len(place.georow_list) > 1:

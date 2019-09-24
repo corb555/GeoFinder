@@ -75,7 +75,7 @@ class Loc:
         self.clear()
         self.name = place_name
 
-        # Convert open-brace and open-paren to comma
+        # Convert open-brace and open-paren to comma.  close brace/paren will be stripped by normalize()
         res = re.sub('\[', ',', place_name)
         res = re.sub('\(', ',', res)
 
@@ -97,7 +97,8 @@ class Loc:
             self.logger.debug(f'iso = [{self.country_iso}]')
 
             if self.country_iso is '':
-                # Not found.  See if rightmost token is actually Admin1 (state/province).  Look up admin1 and derive its country
+                # Country not found.
+                # See if rightmost token is actually Admin1 (state/province).  Look up admin1 and derive its country
                 save_admin1 = self.admin1_name
                 self.admin1_name = GeoKeys.normalize(self.country_name)
 
@@ -107,6 +108,7 @@ class Loc:
 
                 if self.country_iso != '':
                     # We found the country.  Append it to token list so we now have xx,admin1, country
+                    self.logger.debug(f'Last tkn is state/province {self.admin1_name}')
                     self.logger.debug(f'iso=[{self.country_iso}]')
                     tokens.append(geo_files.geodb.get_country_name(self.country_iso))
                     self.country_name = tokens[-1].strip(' ').lower()
@@ -140,9 +142,9 @@ class Loc:
             self.admin2_name = GeoKeys.normalize(tokens[-3])
             if len(self.admin2_name) > 0:
                 self.place_type = PlaceType.ADMIN2
-                if self.admin2_name == 'london':
+                #if self.admin2_name == 'london':
                     # Change to Greater London
-                    self.admin2_name = 'greater london'
+                    #self.admin2_name = 'greater london'
                 self.target = self.admin2_name
             # else:
             #    self.place_type = PlaceType.CITY

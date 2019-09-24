@@ -144,7 +144,7 @@ class TestGeodata(unittest.TestCase):
     def test_res_code_country01(self):
         test = "Country - bad"
         lat: float = self.run_test(test, "squid")
-        self.assertEqual(GeoKeys.Result.NO_COUNTRY, self.place.result_type, test)
+        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, test)
 
     def test_res_code_country02(self):
         test = "No Country - Natuashish"
