@@ -224,6 +224,9 @@ class GeoDB:
                   result=Result.PARTIAL_MATCH),
             Query(where="name LIKE ? AND country = ? AND f_code=?",
                   args=(self.create_wildcard(lookup_target), place.country_iso, 'ADM2'),
+                  result=Result.PARTIAL_MATCH),
+            Query(where="name LIKE ? AND country = ? AND f_code=?",
+                  args=(self.create_county_wildcard(lookup_target), place.country_iso, 'ADM2'),
                   result=Result.PARTIAL_MATCH)
         ]
 
@@ -354,6 +357,9 @@ class GeoDB:
             query_list.append(Query(where="name LIKE ? AND country = ? and admin1_id = ? AND f_code=?",
                                     args=(self.create_wildcard(lookup_target), place.country_iso, place.admin1_id, 'ADM2'),
                                     result=Result.PARTIAL_MATCH))
+            query_list.append(Query(where="name LIKE ? AND country = ? and admin1_id = ? AND f_code=?",
+                                    args=(self.create_county_wildcard(lookup_target), place.country_iso, place.admin1_id, 'ADM2'),
+                                    result=Result.PARTIAL_MATCH))
         else:
             query_list.append(Query(where="name = ? AND country = ? AND f_code=?",
                                     args=(lookup_target, place.country_iso, 'ADM2'),
@@ -361,8 +367,12 @@ class GeoDB:
             query_list.append(Query(where="name LIKE ? AND country = ? AND f_code=?",
                                     args=(self.create_wildcard(lookup_target), place.country_iso, 'ADM2'),
                                     result=Result.PARTIAL_MATCH))
+            query_list.append(Query(where="name LIKE ? AND country = ? AND f_code=?",
+                                    args=(self.create_county_wildcard(lookup_target), place.country_iso, 'ADM2'),
+                                    result=Result.PARTIAL_MATCH))
 
         row_list, res = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
+        self.logger.debug(f'wild=[{self.create_county_wildcard(lookup_target)}]')
 
         # self.logger.debug(f'get adm2 id nm={lookup_target} res={row_list}')
 
@@ -492,9 +502,9 @@ class GeoDB:
             Query(where="name = ? AND f_code = ? ",
                   args=(lookup_target, 'ADM0'),
                   result=Result.EXACT_MATCH),
-            Query(where="name LIKE ?  AND f_code = ? ",
-                  args=(self.create_wildcard(lookup_target), 'ADM0'),
-                  result=Result.PARTIAL_MATCH)  #,
+            #Query(where="name LIKE ?  AND f_code = ? ",
+            #      args=(self.create_wildcard(lookup_target), 'ADM0'),
+            #      result=Result.PARTIAL_MATCH)  #,
             #Query(where="sdx = ?  AND f_code = ? ",
             #      args=(GeoKeys.get_soundex (lookup_target), 'ADM0'),
             #      result=Result.PARTIAL_MATCH)
@@ -592,3 +602,14 @@ class GeoDB:
             return re.sub(r"\*", "%", pattern)
         else:
             return f'%{pattern}%'
+
+    @staticmethod
+    def create_county_wildcard(pattern):
+        # Try pattern with 'shire' removed
+        pattern = re.sub(r"shire", "", pattern)
+        # Create SQL wildcard pattern (convert * to %).  Add % on end
+        if '*' in pattern:
+            return re.sub(r"\*", "%", pattern)
+        else:
+            return f'%{pattern}%'
+

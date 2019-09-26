@@ -55,34 +55,40 @@ class Geodata:
         Adm1=[{place.admin1_name}] Prefix=[{place.prefix}] cname=[{place.country_name}] iso=[{place.country_iso}]')
 
         save_city = place.city1
+        save_prefix = place.prefix
+        save_type = place.place_type
 
         if self.country_is_valid(place):
             # Lookup location
+            self.logger.debug('valid country')
             self.geo_files.geodb.lookup_place(place=place)
         else:
-            place.target = place.country_name
-            save_prefix = place.prefix
-            place.prefix = f'{place.city1.title()}, {place.admin2_name.title()}'
+            #place.prefix = f'{place.city1.title()}, {place.admin2_name.title()}'
             place.place_type = Loc.PlaceType.CITY
-            # No country - try city lookup without country
-            if len(place.admin1_name) > 0 and place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
-                self.logger.debug(f'No country.  Lookup last token [{place.target}]')
+            # No country - try adm2 lookup without country
+            if len(place.admin2_name) > 0 and place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
+                place.target = place.admin2_name
+                place.prefix += f' {place.admin1_name.title()}'
+                self.logger.debug(f'No country.  Lookup adm2  [{place.target}]')
+                self.geo_files.geodb.lookup_place(place=place)
+
+            if len(place.georow_list) == 0 and place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
+                # Still not found.  Try Adm1 as Target
+                place.target= place.admin1_name
+                place.prefix += f' {place.admin2_name.title()}'
+                self.logger.debug(f'Not found.  Lookup adm1 [{place.target}]')
                 self.geo_files.geodb.lookup_place(place=place)
                 if len(place.georow_list) == 0:
-                    # Still not found.  Try Adm2 as Target
-                    place.target= place.admin2_name
-                    place.prefix = f'{place.admin1_name.title()}'
-                    self.logger.debug(f'Not found.  Lookup adm2 [{place.target}]')
-                    self.geo_files.geodb.lookup_place(place=place)
-                    if len(place.georow_list) == 0:
-                        place.result_type = GeoKeys.Result.NO_COUNTRY
-                        place.prefix = save_prefix
+                    place.result_type = GeoKeys.Result.NO_COUNTRY
+                    place.prefix = save_prefix
             else:
                 self.process_result(place=place, targ_name=place.target, flags=flags)
                 return
 
         if len(place.georow_list) == 0:
             # Try Admin2 as city
+            place.place_type = Loc.PlaceType.CITY
+            self.logger.debug(f'Try adm2 as city {place.admin2_name}')
             place.city1 = place.admin2_name
             place.target = place.admin2_name
             place.admin2_name = ''
@@ -95,6 +101,7 @@ class Geodata:
             flags = self.build_result_list(place.georow_list, place.event_year)
 
         if len(place.georow_list) == 0:
+            place.place_type = save_type
             place.city1 = save_city
             place.admin2_name = place.target
 
@@ -213,6 +220,7 @@ class Geodata:
             place.result_type = GeoKeys.Result.NO_COUNTRY
             is_valid = False
         elif place.country_iso not in self.geo_files.supported_countries_dct:
+            self.logger.debug(f'[{place.country_iso}] not supported')
             place.result_type = GeoKeys.Result.NOT_SUPPORTED
             place.place_type = Loc.PlaceType.COUNTRY
             is_valid = False
