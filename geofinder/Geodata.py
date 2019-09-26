@@ -57,13 +57,13 @@ class Geodata:
         save_city = place.city1
         save_prefix = place.prefix
         save_type = place.place_type
+        save_admin2 = place.admin2_name
 
         if self.country_is_valid(place):
             # Lookup location
             self.logger.debug('valid country')
             self.geo_files.geodb.lookup_place(place=place)
         else:
-            #place.prefix = f'{place.city1.title()}, {place.admin2_name.title()}'
             place.place_type = Loc.PlaceType.CITY
             # No country - try adm2 lookup without country
             if len(place.admin2_name) > 0 and place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
@@ -72,7 +72,8 @@ class Geodata:
                 self.logger.debug(f'No country.  Lookup adm2  [{place.target}]')
                 self.geo_files.geodb.lookup_place(place=place)
 
-            if len(place.georow_list) == 0 and place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
+            if len(place.georow_list) == 0 and place.result_type is not GeoKeys.Result.NOT_SUPPORTED and\
+                    len(place.admin1_name) > 0:
                 # Still not found.  Try Adm1 as Target
                 place.target= place.admin1_name
                 place.prefix += f' {place.admin2_name.title()}'
@@ -85,30 +86,22 @@ class Geodata:
                 self.process_result(place=place, targ_name=place.target, flags=flags)
                 return
 
-        if len(place.georow_list) == 0:
-            # Try Admin2 as city
-            place.place_type = Loc.PlaceType.CITY
-            self.logger.debug(f'Try adm2 as city {place.admin2_name}')
-            place.city1 = place.admin2_name
-            place.target = place.admin2_name
-            place.admin2_name = ''
-            place.prefix = save_city.title()
-
-            # Lookup
-            self.geo_files.geodb.lookup_place(place=place)
-
         if len(place.georow_list) > 0:
+            # Build list - sort and remove duplicates
             flags = self.build_result_list(place.georow_list, place.event_year)
 
         if len(place.georow_list) == 0:
+            # NO MATCH
             place.place_type = save_type
             place.city1 = save_city
-            place.admin2_name = place.target
+            place.admin2_name = save_admin2
 
             if place.result_type != GeoKeys.Result.NO_COUNTRY:
                 place.result_type = GeoKeys.Result.NO_MATCH
         elif len(place.georow_list) > 1:
+
             self.logger.debug(f'mult matches {len(place.georow_list)}')
+
             place.result_type = GeoKeys.Result.MULTIPLE_MATCHES
 
         # Process the results
