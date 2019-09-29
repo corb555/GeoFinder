@@ -22,6 +22,7 @@ from tkinter import ttk
 TXT_WID = 65
 BTN_WID = 5
 BTN_WID_WD = 6
+THIN_WID = 6
 
 BTN_PADX = 50
 PAD_PADX = 25

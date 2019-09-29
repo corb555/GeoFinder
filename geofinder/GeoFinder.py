@@ -77,6 +77,8 @@ class GeoFinder:
         self.save_enabled = False  # Only allow SAVE when we have an item that was matched in geonames
         self.user_selected_list = False  # Indicates whether user selected a list entry or text edit entry
         self.err_count = 0
+        self.clean_count = 0
+        self.skip_count = 0
         self.odd = False
         self.ancestry_file_handler = None
         self.place = None
@@ -183,6 +185,7 @@ class GeoFinder:
         self.load_data()
 
         ged_path = self.cfg.get("gedcom_path")  # Get saved config setting for  file
+
         # Depending on file suffix, load appropriate handler
         if ged_path is not None:
             if '.ged' in ged_path:
@@ -192,7 +195,7 @@ class GeoFinder:
             elif '.gramps' in ged_path:
                 self.out_suffix = "new.gramps"
                 self.ancestry_file_handler = GrampsXml.GrampsXml(in_path=ged_path, out_suffix=self.out_suffix, cache_d=self.cache_dir,
-                                                                 progress=self.w.prog)  # Routines to open and parse GEDCOM file
+                                                                 progress=self.w.prog)  # Routines to open and parse Gramps file
         else:
             self.out_suffix = 'unk.new.ged'
 
@@ -233,6 +236,7 @@ class GeoFinder:
     def handle_place_entry(self):
         """ Get next PLACE  in users  File.  Replace it, skip it, or have user correct it. """
         self.w.original_entry.set_text("")
+
         if self.w.prog.shutdown_requested:
             self.periodic_update("Shutting down...")
         else:
@@ -241,6 +245,10 @@ class GeoFinder:
 
         while True:
             self.err_count += 1  # Counter is used to periodically update
+            # Update statistics
+            self.w.statistics_text.set_text(f'Done={self.clean_count}   Skipped={self.skip_count}   '
+                                            f'Remaining={self.ancestry_file_handler.place_total - (self.clean_count + self.skip_count)}')
+
             # Find the next PLACE entry in  file
             # Process it and keep looping until we need user input
             self.place.clear()
@@ -255,6 +263,7 @@ class GeoFinder:
 
             if geoid is not None:
                 # There is a global change that we can apply to this line.
+                self.clean_count += 1
 
                 if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
                     # Output updated place to ancestry file
@@ -276,6 +285,8 @@ class GeoFinder:
                 continue
             elif self.get_replacement(self.user_accepted, town_entry, self.place) is not None:
                 # There is an accepted  change that we can use for this line.  Get the replacement text
+                self.clean_count += 1
+
                 if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
                     # Output place to  file
                     self.write_updated_place(self.place)
@@ -303,6 +314,8 @@ class GeoFinder:
             elif self.skiplist.get(town_entry) is not None:
                 # item is in skiplist - Write out as-is and go to next error
                 # self.logger.debug(f'Found Skip for {town_entry}')
+                self.skip_count += 1
+
                 self.periodic_update("Skipping")
                 self.ancestry_file_handler.write_asis()
                 continue
@@ -315,6 +328,7 @@ class GeoFinder:
 
                 if self.place.result_type in GeoKeys.successful_match:
                     # Found a match
+                    self.clean_count += 1
                     if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
                         # Exact match
                         # Write out line without user verification
@@ -400,6 +414,10 @@ class GeoFinder:
             # Disable the Save & Map button until user clicks Verify and item is found
             self.set_save_allowed(False)
             TKHelper.set_preferred_button(self.w.verify_button, self.w.review_buttons, "Preferred.TButton")
+        elif place.result_type == GeoKeys.Result.NOT_SUPPORTED:
+            # Found a match or Not supported - enable save and verify
+            #self.set_save_allowed(True)  # Enable save button
+            TKHelper.set_preferred_button(self.w.skip_button, self.w.review_buttons, "Preferred.TButton")
         else:
             # Found a match or Not supported - enable save and verify
             self.set_save_allowed(True)  # Enable save button
@@ -467,6 +485,7 @@ class GeoFinder:
 
     def skip_handler(self):
         """ Write out original entry as-is and skip any matches in future  """
+        self.skip_count += 1
         self.logger.debug(f'Skip for {self.w.original_entry.get_text()}  Updating SKIP dict')
 
         self.skiplist.set(self.w.original_entry.get_text(), " ")
@@ -480,6 +499,8 @@ class GeoFinder:
 
     def save_handler(self):
         """ Save the Place.  Add Place to global replace list and replace if we see it again. """
+        self.clean_count += 1
+
         ky = self.w.original_entry.get_text()
         if self.place.result_type == GeoKeys.Result.DELETE:
             # Put in a blank as replacement

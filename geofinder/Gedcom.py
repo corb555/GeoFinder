@@ -24,6 +24,8 @@ from geofinder import Progress
 from geofinder.AncestryFile import AncestryFile
 from geofinder.CachedDictionary import CachedDictionary
 
+PLACE_TOTAL_KEY = 'PLACE_TOTAL'
+
 
 class Gedcom(AncestryFile):
     """
@@ -51,6 +53,10 @@ class Gedcom(AncestryFile):
         if err:
             # File is not there.  Build it - it is a dictionary of GED Name_IDs to Names
             self.build_person_dictionary()
+        else:
+            # Get Place count from person dictionary
+            self.place_total = self.person_cd.dict.get(PLACE_TOTAL_KEY)
+            self.logger.debug(f'Place Total ={self.place_total}')
 
     def parse_line(self, line: str):
         # Called by read_and_parse_line for each line in file.  Parse line
@@ -76,9 +82,9 @@ class Gedcom(AncestryFile):
             self.label = ''
 
         # update progress bar
-        prog = int(self.infile.tell() * 100 / self.filesize)
+        self.percent_complete = int(self.infile.tell() * 100 / self.filesize)
         if self.line_num % 1000 == 1:
-            self.progress(f"Scanning ", prog)
+            self.progress(f"Scanning ", self.percent_complete)
 
     def write_updated(self, txt: str):
         """ Write out a place line with updated value.  Put together the pieces:  level, Label, tag, value """
@@ -221,6 +227,13 @@ class Gedcom(AncestryFile):
                 # self.logger.debug(f'ky=[{self.id}] val=[{self.value}]')
                 if self.id != self.value:
                     self.person_cd.dict[self.id] = self.value
+
+            if self.tag == 'PLAC':
+                self.place_total += 1
+
+        # Save place total
+        self.person_cd.dict[PLACE_TOTAL_KEY] = self.place_total
+        self.logger.debug(f'Place Total ={self.place_total}')
 
         # Write out cached dictionary
         self.person_cd.write()

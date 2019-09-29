@@ -72,7 +72,6 @@ class GrampsXml(AncestryFile):
         self.got_place = False
         self.lon = 99.9
         self.lat = 99.9
-        self.place_total = 0
         self.place_complete = 0
 
     def parse_line(self, line: str):
@@ -119,10 +118,6 @@ class GrampsXml(AncestryFile):
         elif self.state == State.WALK_PLACE_TREE:
             # Set self.value with next place
             self.find_xml_place()
-            self.place_complete += 1
-            # update progress bar
-            prog = int(self.place_complete * 100 / self.place_total)
-            self.progress(f" ", prog)
 
             if not self.more_available:
                 # Got to end of tree.  Write out XML tree to tmp file
@@ -198,6 +193,10 @@ class GrampsXml(AncestryFile):
 
             # Change tag back to 'placeobj' so we don't visit it next time we are called
             self.place.tag = 'placeobj'
+            self.place_complete += 1
+            # update progress bar
+            self.percent_complete = int(self.place_complete * 100 / self.place_total)
+            self.progress(f" ", self.percent_complete)
 
             # Reset values
             self.got_pname = False

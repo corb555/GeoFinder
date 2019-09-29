@@ -130,6 +130,11 @@ class AppLayout:
         self.status: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
         self.prefix: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Highlight.TLabel')
 
+        # User fix statistics
+        self.statistics_text: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="",
+                                                                                    width=GFStyle.TXT_WID,
+                                                                                  style='Light.TLabel')
+
         # Treeview (list box)
         self.tree_scrollbar = ttk.Scrollbar(self.root)
 
@@ -180,6 +185,8 @@ class AppLayout:
         self.tree.grid(column=TXT_COL, row=5, padx=0, pady=5, sticky="EW")
         self.ged_event_info.grid(column=TXT_COL, row=7, padx=0, pady=6, sticky="W", columnspan=2)
         self.footnote.grid(column=TXT_COL, row=12, padx=0, pady=5, sticky="EW", columnspan=2)
+        self.statistics_text.grid(column=TXT_COL, row=11, padx=0, pady=5, sticky='EW', columnspan=2)
+
 
         # Column 1 - just the scrollbar
         self.tree_scrollbar.grid(column=SCRL_COL, row=5, padx=0, pady=5, sticky='WNS')
@@ -189,6 +196,7 @@ class AppLayout:
         self.search_button.grid(column=BTN_COL, row=2, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
         self.verify_button.grid(column=BTN_COL, row=4, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
         self.save_button.grid(column=BTN_COL, row=5, padx=GFStyle.BTN_PADX, pady=6, sticky="NE")
+
         self.skip_button.grid(column=BTN_COL, row=6, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
         self.help_button.grid(column=BTN_COL, row=8, padx=GFStyle.BTN_PADX, pady=5, sticky="E")
         self.quit_button.grid(column=BTN_COL, row=12, padx=GFStyle.BTN_PADX, pady=6, sticky="SE")

@@ -216,6 +216,7 @@ class Geodata:
             self.logger.debug(f'[{place.country_iso}] not supported')
             place.result_type = GeoKeys.Result.NOT_SUPPORTED
             place.place_type = Loc.PlaceType.COUNTRY
+            place.target = place.country_name
             is_valid = False
         else:
             is_valid = True
@@ -307,7 +308,7 @@ result_text_list = {
     GeoKeys.Result.EXACT_MATCH: 'matched! Click Save to accept:',
     GeoKeys.Result.MULTIPLE_MATCHES: 'had multiple matches.  Select one and click Verify.',
     GeoKeys.Result.NO_MATCH: 'not found.  Edit and click Verify.',
-    GeoKeys.Result.NOT_SUPPORTED: ' is not supported. Add in Config / Country or Skip',
+    GeoKeys.Result.NOT_SUPPORTED: ' is not supported. Skip or Add Country in Config',
     GeoKeys.Result.NO_COUNTRY: 'No Country found.',
     GeoKeys.Result.PARTIAL_MATCH: 'partial match.  Click Save to accept:',
     GeoKeys.Result.DELETE: 'Empty.  Click Save to delete entry.'

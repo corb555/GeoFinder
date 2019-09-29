@@ -36,12 +36,14 @@ class AncestryFile:
         self.logger = logging.getLogger(__name__)
         self.progress_bar = progress
         self.output_latlon = True
-        self.line_num: int = 0
         self.filesize = 0
         self.infile = None
         self.error = False
         self.out_path = in_path + '.' + out_suffix
         self.more_available = False
+
+        self.place_total = 0
+        self.line_num = 0
 
         self.value: str = ""
         self.tag: str = ""        # PLAC indicates this is a Place entry
@@ -91,8 +93,6 @@ class AncestryFile:
 
             if self.tag == 'PLAC':
                 # Found the target line.  Break out of loop
-                #self.logger.debug(f"FOUND PLACE tag={self.tag} entry=[{self.value} ]")
-
                 entry = self.value
                 if entry is None:
                     continue
@@ -108,13 +108,12 @@ class AncestryFile:
         # Read a line from file.  Handle line.
         if not self.more_available:
             line = self.infile.readline()
+            self.line_num += 1
             if line == "":
                 # End of File
                 return "", True
         else:
             line = ''
-
-        self.line_num += 1
 
         # Separate the line into  parts
         self.parse_line(line)
