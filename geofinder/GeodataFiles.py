@@ -21,11 +21,12 @@ import csv
 import glob
 import logging
 import os
+import re
 import time
 from collections import namedtuple
 from typing import Dict
 
-from geofinder import CachedDictionary, Country, GeoDB, GeoKeys, Loc, AlternateNames
+from geofinder import CachedDictionary, Country, GeoDB, GeoKeys, Loc, AlternateNames, UtilFeatureFrame
 
 
 class GeodataFiles:
@@ -59,6 +60,13 @@ class GeodataFiles:
         self.feature_code_list_cd = CachedDictionary.CachedDictionary(sub_dir, "feature_list.pkl")
         self.feature_code_list_cd.read()
         self.feature_code_list_dct: Dict[str, str] = self.feature_code_list_cd.dict
+        if len(self.feature_code_list_dct) < 3:
+            self.logger.warning('Feature list is empty. Setting defaults')
+            self.feature_code_list_dct.clear()
+            feature_list = UtilFeatureFrame.default
+            for feat in feature_list:
+                self.feature_code_list_dct[feat] = ''
+            self.feature_code_list_cd.write()
 
         # Read in dictionary listing countries (ISO2) we should include
         self.supported_countries_cd = CachedDictionary.CachedDictionary(sub_dir, "country_list.pkl")
@@ -172,7 +180,7 @@ class GeodataFiles:
         self.logger.info(f'Geonames entries = {self.geodb.get_row_count():,}')
 
         start_time = time.time()
-        self.progress("Create Indices", 95)
+        self.progress("Final Step: Creating Indices for Database...", 95)
         self.geodb.create_geoid_index()
         self.geodb.create_indices()
         self.logger.debug(f'Indices done.  Elapsed ={time.time() - start_time}')
@@ -199,7 +207,7 @@ class GeodataFiles:
             fsize = os.path.getsize(path)
             bytes_per_line = 128
             with open(path, 'r', newline="", encoding='utf-8', errors='replace') as geofile:
-                self.progress("Loading {}".format(file), 2)  # initialize progress bar
+                self.progress("Building Database from {}".format(file), 2)  # initialize progress bar
                 reader = csv.reader(geofile, delimiter='\t')
                 self.geodb.db.begin()
 
@@ -208,7 +216,7 @@ class GeodataFiles:
                     self.line_num += 1
                     if self.line_num % 80000 == 0:
                         # Periodically update progress
-                        self.progress(msg="Loading {}".format(file), val=self.line_num * bytes_per_line * 100 / fsize)
+                        self.progress(msg="1) Building Database from {}".format(file), val=self.line_num * bytes_per_line * 100 / fsize)
                     try:
                         geoname_row = Geofile_row._make(line)
                     except TypeError:
@@ -248,8 +256,11 @@ class GeodataFiles:
         geo_row[GeoDB.Entry.FEAT] = geoname_row.feat_code
         geo_row[GeoDB.Entry.ID] = geoname_row.id
 
-        if 'bonaf' in geo_row[GeoDB.Entry.NAME]:
-            print(f'INS {geo_row[GeoDB.Entry.NAME]}')
+        if geoname_row.feat_code == 'PPLQ':
+            geo_row[GeoDB.Entry.NAME] = re.sub(r' historical', '', geo_row[GeoDB.Entry.NAME])
+
+        #if 'mount ' in geo_row[GeoDB.Entry.NAME]:
+            #self.logger.debug(f'INS {geo_row[GeoDB.Entry.NAME]}')
 
         self.geodb.insert(geo_row=geo_row, feat_code=geoname_row.feat_code)
 

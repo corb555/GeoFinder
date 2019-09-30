@@ -186,14 +186,14 @@ class GeoFinder:
 
         ged_path = self.cfg.get("gedcom_path")  # Get saved config setting for  file
 
-        # Depending on file suffix, load appropriate handler
+        self.out_suffix = "import"
+
+        # Load appropriate handler based on file type
         if ged_path is not None:
             if '.ged' in ged_path:
-                self.out_suffix = "new.ged"
                 self.ancestry_file_handler = Gedcom.Gedcom(in_path=ged_path, out_suffix=self.out_suffix, cache_d=self.cache_dir,
                                                            progress=self.w.prog)  # Routines to open and parse GEDCOM file
             elif '.gramps' in ged_path:
-                self.out_suffix = "new.gramps"
                 self.ancestry_file_handler = GrampsXml.GrampsXml(in_path=ged_path, out_suffix=self.out_suffix, cache_d=self.cache_dir,
                                                                  progress=self.w.prog)  # Routines to open and parse Gramps file
         else:
@@ -433,6 +433,10 @@ class GeoFinder:
         else:
             self.w.status.configure(style="Error.TLabel")
 
+        if len(place.georow_list) > 1:
+            TKHelper.set_preferred_button(self.w.verify_button, self.w.review_buttons, "Preferred.TButton")
+            self.set_save_allowed(False)
+
         if len(place.georow_list) > 0:
             # Display matches in listbox
             self.w.tree.focus()  # Set focus to listbox
@@ -561,7 +565,11 @@ class GeoFinder:
         path = self.cfg.get("gedcom_path")
         self.w.prog.shutdown_requested = True
 
-        if messagebox.askyesno(' ', f'  Updates saved. Do you want to save output file?\n\n {path}.{self.out_suffix}'):
+        if messagebox.askyesno(' ', f'  All updates saved. Do you want to generate a file for import to Gedcom/Gramps?\n\n {path}.{self.out_suffix}'):
+            # Write file for importing back
+            messagebox.showinfo("Generate Import File", "Reminder -  make sure the export file you are working on is up to date before "
+                                                        "generating a file to import back!")
+
             TKHelper.disable_buttons(button_list=self.w.review_buttons)
             self.w.quit_button.config(state="disabled")
             self.w.prog.startup = True
@@ -574,6 +582,7 @@ class GeoFinder:
             # We will still continue to go through file, but only handle global replaces
             self.handle_place_entry()
         else:
+            # Immediate exit
             self.logger.info('Shutdown')
             self.shutdown()
 
@@ -665,6 +674,8 @@ class GeoFinder:
     def shutdown(self):
         """ Shutdown - write out Gbl Replace and skip file and exit """
         # self.w.root.update_idletasks()
+        if self.geodata:
+            self.geodata.geo_files.geodb.close()
         if self.skiplist:
             self.skiplist.write()
         if self.global_replace:
@@ -704,7 +715,7 @@ class GeoFinder:
         self.w.status.set_text("Done.  Shutting Down...")
         self.w.original_entry.set_text(" ")
         path = self.cfg.get("gedcom_path")
-        messagebox.showinfo("Info", f"Finished file.\n\nOutput file:\n {path}.{self.out_suffix}")
+        messagebox.showinfo("Info", f"Finished.  Created file for Import to Ancestry software:\n\n {path}.{self.out_suffix}")
         self.logger.info('End of  file')
         self.shutdown()
 
