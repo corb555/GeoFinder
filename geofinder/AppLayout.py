@@ -123,7 +123,7 @@ class AppLayout:
         self.root.protocol("WM_DELETE_WINDOW", self.main.quit_handler)
 
         self.pad: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
-        self.title: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="GEO FINDER", width=30, style='Large.TLabel')
+        self.title: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="GEO FINDER", width=40, style='Large.TLabel')
 
         self.original_entry: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="   ", width=GFStyle.TXT_WID, style='Light.TLabel')
         self.user_entry: geofinder.TKHelper.CEntry = geofinder.TKHelper.CEntry(self.root, text="   ", width=GFStyle.TXT_WID, font=(GFStyle.FNT_NAME, 14))
