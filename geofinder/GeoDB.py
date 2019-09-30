@@ -110,6 +110,8 @@ class GeoDB:
             self.select_admin2(place)
         elif place.place_type == Loc.PlaceType.COUNTRY:
             self.select_country(place)
+        elif place.place_type == Loc.PlaceType.FILTER:
+            self.filter(place)
         else:
             self.get_admin1_id(place=place)
             self.get_admin2_id(place=place)
@@ -117,6 +119,28 @@ class GeoDB:
 
         if place.result_type == Result.EXACT_MATCH and len(place.prefix) > 0:
             place.result_type = Result.PARTIAL_MATCH
+
+    def filter(self, place: Loc):
+        """
+        Search for  entry - try the most exact match first, then less exact matches
+        """
+        lookup_target = place.target
+        if len(lookup_target) == 0:
+            return
+        pattern = self.create_wildcard(lookup_target)
+        iso_pattern = self.create_wildcard(place.country_iso)
+        feature_pattern = self.create_wildcard(place.feature)
+        self.logger.debug(f'CITY FILTER lookup. Targ=[{pattern}] feature=[{feature_pattern}]'
+                          f'  iso=[{iso_pattern}] ')
+
+        query_list = []
+        query_list.append(Query(where="name LIKE ? AND country LIKE ? AND f_code LIKE ?",
+                                args=(pattern, iso_pattern, feature_pattern),
+                                result=Result.PARTIAL_MATCH))
+
+        place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
+        admin_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
+        place.georow_list.extend(admin_list)
 
     def select_city(self, place: Loc):
         """
@@ -140,6 +164,9 @@ class GeoDB:
             # lookup by wildcard name, admin1
             query_list.append(Query(where="name LIKE ?",
                                     args=(pattern,),
+                                    result=Result.PARTIAL_MATCH))
+            query_list.append(Query(where="name LIKE ?",
+                                    args=(pattern + ' historical',),
                                     result=Result.PARTIAL_MATCH))
             query_list.append(Query(where="sdx = ?",
                                     args=(sdx,),
@@ -612,4 +639,8 @@ class GeoDB:
             return re.sub(r"\*", "%", pattern)
         else:
             return f'%{pattern}%'
+
+    def close(self):
+        self.logger.info('Closing Database')
+        self.db.conn.close()
 

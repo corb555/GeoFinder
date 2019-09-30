@@ -16,13 +16,14 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-
+import argparse
 import logging
 import re
 import string as st
 from typing import List, Tuple
 
 from geofinder import GeoKeys
+from geofinder.ArgumentParserNoExit import ArgumentParserNoExit
 
 default_country = 'nederland'
 
@@ -66,6 +67,30 @@ class Loc:
 
         self.georow_list.clear()
 
+    def filter(self, place_name, geo_files):
+        # Separate out arguments
+        tokens = place_name.split(",")
+        args = []
+        for tkn in tokens:
+            if '--' in tkn:
+                args.append(tkn.strip(' '))
+
+        # Parse options in place name
+        parser = ArgumentParserNoExit(description="Parses command.")
+        parser.add_argument("-f", "--feature", help=argparse.SUPPRESS)
+        parser.add_argument("-i", "--iso", help=argparse.SUPPRESS)
+        try:
+            options = parser.parse_args(args)
+            self.city1 = GeoKeys.normalize(tokens[0])
+            self.target = self.city1
+            if options.iso:
+                self.country_iso = options.iso.lower()
+            if options.feature:
+                self.feature = options.feature.upper()
+            self.place_type = PlaceType.FILTER
+        except Exception as e:
+            self.logger.debug(e)
+
     def parse_place(self, place_name: str, geo_files):
         """
         Given a comma separated place name, parse into its city, AdminID, country_iso and type of entity (city, country etc)
@@ -86,8 +111,15 @@ class Loc:
         # Parse City, Admin2, Admin2, Country scanning from the right.  When there are more tokens, we capture more fields
         # Place type is the leftmost item we found - either City, Admin2, Admin2, or Country
 
-        #  COUNTRY - right-most token should be country
-        if token_count > 0:
+        self.logger.debug(f'place={place_name}')
+
+        if '--' in place_name:
+            # Pull out filter flags if present
+            self.logger.debug('filter')
+            self.filter(place_name, geo_files)
+            return
+        elif token_count > 0:
+            #  COUNTRY - right-most token should be country
             #  Format: Country
             self.place_type = PlaceType.COUNTRY
             self.country_name = GeoKeys.normalize(tokens[-1])
@@ -227,11 +259,13 @@ class PlaceType:
     ADMIN1 = 1
     ADMIN2 = 2
     CITY = 3
+    FILTER = 4
 
 
 place_type_name_dict = {
     PlaceType.COUNTRY: 'Country',
     PlaceType.ADMIN1: 'STATE/PROVINCE',
     PlaceType.ADMIN2: 'COUNTY',
-    PlaceType.CITY: ' '
+    PlaceType.CITY: ' ',
+    PlaceType.FILTER: ' '
 }
