@@ -59,7 +59,10 @@ class Geodata:
         save_type = place.place_type
         save_admin2 = place.admin2_name
 
-        if self.country_is_valid(place):
+        if place.place_type == Loc.PlaceType.FILTER:
+            # Lookup location
+            self.geo_files.geodb.lookup_place(place=place)
+        elif self.country_is_valid(place):
             # Lookup location
             self.logger.debug('valid country')
             self.geo_files.geodb.lookup_place(place=place)
@@ -123,6 +126,9 @@ class Geodata:
             place.status = f'{place.result_type_text} "{st.capwords(targ_name)}" {result_text_list.get(place.result_type)} '
             place.status += ' ***VERIFY EVENT DATE***'
             place.result_type = GeoKeys.Result.PARTIAL_MATCH
+
+        if len(place.georow_list) > 1:
+            place.result_type = GeoKeys.Result.MULTIPLE_MATCHES
 
     def find_first_match(self, location: st, place: Loc.Loc):
         """
