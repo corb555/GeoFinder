@@ -110,8 +110,7 @@ class Loc:
 
         # Parse City, Admin2, Admin2, Country scanning from the right.  When there are more tokens, we capture more fields
         # Place type is the leftmost item we found - either City, Admin2, Admin2, or Country
-
-        self.logger.debug(f'place={place_name}')
+        self.logger.debug(f'***** PLACE [{place_name}] *****')
 
         if '--' in place_name:
             # Pull out filter flags if present
@@ -129,28 +128,28 @@ class Loc:
             self.logger.debug(f'iso = [{self.country_iso}]')
 
             if self.country_iso is '':
-                # Country not found.
-                # See if rightmost token is actually Admin1 (state/province).  Look up admin1 and derive its country
+                # NO COUNTRY
+                # See if rightmost token is  Admin1 (state/province).
                 save_admin1 = self.admin1_name
                 self.admin1_name = GeoKeys.normalize(self.country_name)
+                self.country_name = ''
 
                 # Lookup last token as admin1.  This will fill in country ISO if admin1 is found
                 geo_files.geodb.get_admin1_id(self)
-                self.admin1_name = save_admin1  # Restore Admin1
 
                 if self.country_iso != '':
-                    # We found the country.  Append it to token list so we now have xx,admin1, country
+                    # We found Admin1 and the country.  Append country to token list so we now have xx,admin1, country
                     self.logger.debug(f'Last tkn is state/province {self.admin1_name}')
                     self.logger.debug(f'iso=[{self.country_iso}]')
                     tokens.append(geo_files.geodb.get_country_name(self.country_iso))
                     self.country_name = tokens[-1].strip(' ').lower()
                     token_count = len(tokens)
                 else:
-                    # No country found for this
+                    # No country or admin1 found for this
                     # Append blank to token list so we now have xx,admin1, blank_country
-                    self.logger.debug(f'didnt find last tkn as adm1 {self.admin1_name}')
+                    self.logger.debug(f'last tkn [{self.admin1_name}] is not an admin1 or country ')
+                    self.admin1_name = save_admin1  # Restore Admin1 field
                     tokens.append('')
-
                     token_count = len(tokens)
                     self.result_type = GeoKeys.Result.NO_COUNTRY
                     self.country_iso = ''
@@ -167,6 +166,14 @@ class Loc:
             if len(self.admin1_name) > 0:
                 self.place_type = PlaceType.ADMIN1
                 self.target = self.admin1_name
+                # Lookup Admin1
+                geo_files.geodb.get_admin1_id(self)
+                if self.admin1_id == '':
+                    # Last token is not Admin1 or country
+                    self.admin1_name = ''
+                    # Append blank token for admin1 position
+                    tokens.append('')
+                    token_count = len(tokens)
 
         if token_count > 2:
             #  Format: Admin2, Admin1, Country
@@ -174,12 +181,7 @@ class Loc:
             self.admin2_name = GeoKeys.normalize(tokens[-3])
             if len(self.admin2_name) > 0:
                 self.place_type = PlaceType.ADMIN2
-                #if self.admin2_name == 'london':
-                    # Change to Greater London
-                    #self.admin2_name = 'greater london'
                 self.target = self.admin2_name
-            # else:
-            #    self.place_type = PlaceType.CITY
 
         if token_count > 3:
             # Format: Prefix, City, Admin2, Admin1, Country
@@ -196,16 +198,14 @@ class Loc:
                     self.prefix += ' '
                 self.prefix += item.strip(' ')
 
-            # self.prefix.strip(' ')
-
         # Special case for New York, New York which normally refers to the City, not county
         if self.admin2_name == 'new york' and self.place_type == PlaceType.ADMIN2:
             self.admin2_name = 'new york city'
             self.target = self.admin2_name
 
-        self.logger.debug(f"*** PARSE {token_count} tokens. City [{self.city1}] Adm2 [{self.admin2_name}]"
+        self.logger.debug(f"***** PARSE Done:  {token_count} tokens. City [{self.city1}] Adm2 [{self.admin2_name}]"
                           f"  Adm1 [{self.admin1_name}] Cntry [{self.country_name}] Pref=[{self.prefix}] Commas=[{self.prefix_commas}]"
-                          f" Typ=[{place_type_name_dict[self.place_type]}] type_id={self.place_type}")
+                          f" type_id={self.place_type}")
         return
 
     def set_place_type(self):
@@ -234,20 +234,21 @@ class Loc:
 
         if self.place_type == PlaceType.COUNTRY:
             nm = f"{st.capwords(self.country_name)}"
-            self.prefix_commas = ', , , , '
         elif self.place_type == PlaceType.ADMIN1:
             nm = f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
-            self.prefix_commas = ', , , '
         elif self.place_type == PlaceType.ADMIN2:
             nm = f"{st.capwords(self.admin2_name)}," \
                 f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
-            self.prefix_commas = ', , '
         else:
             nm = f"{st.capwords(self.city1)}, {st.capwords(self.admin2_name)}, " \
                 f"{st.capwords(self.admin1_name)}, {st.capwords(str(self.country_name))}"
-            self.prefix_commas = ', '
 
-        if len(self.prefix) == 0:
+        if self.prefix in nm:
+            self.prefix = ''
+
+        if len(self.prefix) > 0:
+            self.prefix_commas = ', '
+        else:
             self.prefix_commas = ''
         # self.logger.debug(f' [{self.prefix}][{self.prefix_commas}][{nm}]')
         return nm

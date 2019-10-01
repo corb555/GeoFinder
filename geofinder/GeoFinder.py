@@ -565,9 +565,10 @@ class GeoFinder:
         path = self.cfg.get("gedcom_path")
         self.w.prog.shutdown_requested = True
 
-        if messagebox.askyesno(' ', f'  All updates saved. Do you want to generate a file for import to Gedcom/Gramps?\n\n {path}.{self.out_suffix}'):
+        if messagebox.askyesno('Generate Import File?', f'All updates saved.\n\nDo you want to generate a file for import'
+        f' to Gedcom/Gramps?\n\n {path}.{self.out_suffix}'):
             # Write file for importing back
-            messagebox.showinfo("Generate Import File", "Reminder -  make sure the export file you are working on is up to date before "
+            messagebox.showinfo("Generate Import File", "Reminder -  make sure the ancestry export file you are working on is up to date before "
                                                         "generating a file to import back!")
 
             TKHelper.disable_buttons(button_list=self.w.review_buttons)
@@ -664,7 +665,7 @@ class GeoFinder:
     def write_updated_place(self, place: Loc.Loc):
         # Write out updated location and lat/lon to  file
         nm = place.format_full_name()
-        # self.logger.debug(f'ged write [{place.prefix}][{place.prefix_commas}][{nm}]')
+        self.logger.debug(f'WRITE [{place.prefix}{place.prefix_commas}{nm}]')
         if place.result_type != GeoKeys.Result.DELETE:
             self.ancestry_file_handler.write_updated(place.prefix + place.prefix_commas + nm)
             self.ancestry_file_handler.write_lat_lon(lat=place.lat, lon=place.lon)

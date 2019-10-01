@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 #  Copyright (c) 2019.       Mike Herbert
 #
 #   This program is free software; you can redistribute it and/or modify
@@ -16,9 +15,8 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-
-import tkinter as tk
 import os
+import tkinter as tk
 
 from geofinder import ListboxFrame, GeoDB, Loc
 
@@ -61,7 +59,6 @@ class SetupReplaceFrame(ListboxFrame.ListboxFrame):
                 # Copy geo row to Place
                 self.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
             else:
-                #self.logger.debug(f'lkp err item=[{item}] rep=[{replacement}]')
                 if len(place.target) == 0:
                     place.clear()
                     place.city1 = f'<DELETE>'

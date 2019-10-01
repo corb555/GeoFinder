@@ -62,15 +62,14 @@ def get_soundex(txt):
 def get_directory_name() -> str:
     return "geoname_data"
 
-
 def get_cache_directory(dirname):
     """ Return the directory for cache files """
     return os.path.join(dirname, "cache")
 
-
 def _phrase_normalize(res) -> str:
     """ Strip spaces and normalize spelling for items such as Saint and County """
     # Replacement patterns to clean up entries
+    res = re.sub('r.k. |r k ', 'rooms katholieke ',res)
     res = re.sub('saints |sainte |sint |saint |sankt |st. ', 'st ', res)  # Normalize Saint
     res = re.sub(r' co\.', ' county', res)  # Normalize County
 
