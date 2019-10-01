@@ -123,10 +123,11 @@ class GeodataFiles:
         # Use db if it exists and is newer than the geonames directory
         cache_dir = GeoKeys.get_cache_directory(self.directory)
         fullpath = os.path.join(cache_dir, 'geodata.db')
-        self.logger.debug(f'read_geo db: {fullpath}')
+        self.logger.debug(f'path for geodata.db: {fullpath}')
 
         if os.path.exists(fullpath):
             # See if db exists and is fresh (newer than other files)
+            self.logger.debug('DB exists')
             dir_time = os.path.getmtime(self.directory)
             cache_time = os.path.getmtime(fullpath)
             if cache_time > dir_time:
@@ -140,11 +141,11 @@ class GeodataFiles:
                     return False
 
         # DB  is stale or not available, rebuild it from geoname files
+        self.logger.debug(f'{fullpath} not new.  Building db ')
         self.geodb = GeoDB.GeoDB(os.path.join(cache_dir, 'geodata.db'))
         self.country = Country.Country(self.progress_bar, geodb=self.geodb, lang_list=self.lang_list)
 
         # walk thru list of files ending in .txt e.g US.txt, FR.txt, all_countries.txt, etc
-        self.logger.debug(f'{fullpath} not new.  Building db ')
         file_count = 0
 
         # Clear out all geo_data data since we are rebuilding
@@ -159,7 +160,7 @@ class GeodataFiles:
         for fname in glob.glob(os.path.join(self.directory, "*.txt")):
             # Read all geoname files except the  utility files and add to db
             if os.path.basename(fname) not in ["admin2Codes.txt", "admin1CodesASCII.txt",
-                                               "alternateNamesV2.txt", "alternateNames.txt"]:
+                                               "alternateNamesV2.txt", "alternateNames.txt", "iso-languagecodes.txt"]:
                 error = self.read_geoname_file(fname)  # Read in info (lat/long) for all places from
 
                 if error:
@@ -216,11 +217,12 @@ class GeodataFiles:
                     self.line_num += 1
                     if self.line_num % 80000 == 0:
                         # Periodically update progress
-                        self.progress(msg="1) Building Database from {}".format(file), val=self.line_num * bytes_per_line * 100 / fsize)
+                        prog = self.line_num * bytes_per_line * 100 / fsize
+                        self.progress(msg=f"1) Building Database from {file} {prog:.0f}%", val=prog)
                     try:
                         geoname_row = Geofile_row._make(line)
                     except TypeError:
-                        self.logger.error(f'Unable to read Geoname file {file}.  Line {self.line_num}')
+                        self.logger.error(f'Unable to parse geoname location info in {file}  line {self.line_num}')
                         continue
 
                     # Only handle line if it's  for a country we follow and its
