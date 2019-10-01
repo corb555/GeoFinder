@@ -18,8 +18,12 @@
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 import logging
 import sqlite3
+import sys
+from tkinter import messagebox
 
 from geofinder.GeoKeys import Query, Result
+
+DB_CORRUPT_MSG = 'Database is corrupt'
 
 
 class DB:
@@ -56,9 +60,10 @@ class DB:
             self.logger.info(f'DB {db_filename} connected')
             return conn
         except Exception as e:
+            messagebox.showwarning('Error', DB_CORRUPT_MSG)
+            self.err = True
             self.logger.error(e)
-
-        return None
+            sys.exit()
 
     def set_params(self, select_str: str, order_str: str, limit_str: str):
         # Set values for SELECT, ORDER BY, and LIMIT
@@ -80,22 +85,34 @@ class DB:
             c = self.conn.cursor()
             c.execute(create_table_sql)
             self.conn.commit()
-            self.logger.info(f'Create DB table {create_table_sql[27:37]}')  # Lazy attempt to get table name for logging
+            self.logger.info(f'Create DB table {create_table_sql[27:36]}')  # Lazy attempt to get table name for logging
         except Exception as e:
+            messagebox.showwarning('Error', DB_CORRUPT_MSG)
+            self.err = True
             self.logger.error(e)
+            sys.exit()
 
     def create_index(self, create_table_sql: str):
         try:
             c = self.conn.cursor()
             c.execute(create_table_sql)
             self.conn.commit()
-        except sqlite3.OperationalError as e:
-            self.logger.debug(e)
+        except Exception as e:
+            messagebox.showwarning('Error', DB_CORRUPT_MSG)
+            self.err = True
+            self.logger.error(e)
+            sys.exit()
 
     def delete_table(self, tbl):
         cur = self.conn.cursor()
         # noinspection SqlWithoutWhere
-        cur.execute(f'DELETE FROM {tbl}')
+        try:
+            cur.execute(f'DELETE FROM {tbl}')
+        except Exception as e:
+            messagebox.showwarning('Error', DB_CORRUPT_MSG)
+            self.err = True
+            self.logger.error(e)
+            sys.exit()
 
     def get_row_count(self):
         cur = self.conn.cursor()
@@ -109,7 +126,13 @@ class DB:
         self.cur.execute('BEGIN')
 
     def execute(self, sql, args):
-        self.cur.execute(sql, args)
+        try:
+            self.cur.execute(sql, args)
+        except Exception as e:
+            messagebox.showwarningZZ('Error', DB_CORRUPT_MSG)
+            self.err = True
+            self.logger.error(e)
+            sys.exit()
         return self.cur.lastrowid
 
     def commit(self):
@@ -119,9 +142,33 @@ class DB:
     def select(self, where, from_tbl, args):
         cur = self.conn.cursor()
         sql = f"SELECT {self.select_str} FROM {from_tbl} WHERE {where} {self.order_str} {self.limit_str}"
-        cur.execute(sql, args)
-        res = cur.fetchall()
+        res = [""]
+        try:
+            cur.execute(sql, args)
+            res = cur.fetchall()
+        except Exception as e:
+            messagebox.showwarning('Error', DB_CORRUPT_MSG)
+            self.err = True
+            self.logger.error(e)
+            sys.exit()
         return res
+
+    def db_test(self, from_tbl: str):
+        where = 'name like ? AND country like ?'
+        args = ('b%','b%')
+
+        cur = self.conn.cursor()
+        sql = f"SELECT {self.select_str} FROM {from_tbl} WHERE {where} {self.order_str} {self.limit_str}"
+
+        self.logger.debug(f'db test sql={sql} args=[{args}]')
+        try:
+            cur.execute(sql, args)
+            res = cur.fetchall()
+            self.logger.debug('DB no error')
+            return False
+        except Exception as e:
+            self.logger.debug('DB ERROR')
+            return True
 
     def process_query_list(self, from_tbl: str, query_list: [Query]):
         # Try each query in list until we find a match
