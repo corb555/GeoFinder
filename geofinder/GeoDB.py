@@ -17,10 +17,13 @@
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 import logging
+import os
 import re
+import sys
 import time
+from tkinter import messagebox
 
-from geofinder import DB, Loc, GeoKeys
+from geofinder import DB, Loc
 from geofinder.GeoKeys import Query, Result, Entry, get_soundex
 
 
@@ -32,11 +35,34 @@ class GeoDB:
     def __init__(self, database):
         self.logger = logging.getLogger(__name__)
         self.start = 0
+        self.database = database
+        # See if DB exists
+        if os.path.exists(database):
+            db_exists = True
+        else:
+            db_exists = False
+
         self.db = DB.DB(database)
         if self.db.err:
             self.logger.error(f"Error! cannot open database {database}.")
             raise ValueError('Cannot open database')
+
+        # If DB exists
+        if db_exists:
+            # Run sanity test on DB
+            res = self.db.db_test('main.geodata')
+
+            if res:
+                self.logger.debug(f'DB error for {database}')
+                if messagebox.askyesno('Error',
+                                       f'Geoname database is empty or corrupt:\n\n {database} \n\nDo you want to delete it and rebuild?'):
+                    messagebox.showinfo('', 'Deleting Geoname database')
+                    self.db.conn.close()
+                    os.remove(database)
+
+                sys.exit()
         else:
+            # DB didnt exist.  Create tables.
             self.create_tables()
 
         self.db.set_speed_pragmas()
@@ -399,9 +425,6 @@ class GeoDB:
                                     result=Result.PARTIAL_MATCH))
 
         row_list, res = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
-        self.logger.debug(f'wild=[{self.create_county_wildcard(lookup_target)}]')
-
-        # self.logger.debug(f'get adm2 id nm={lookup_target} res={row_list}')
 
         if len(row_list) > 0:
             row = row_list[0]
