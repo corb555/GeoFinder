@@ -23,6 +23,7 @@ import string as st
 from operator import itemgetter
 
 from geofinder import GeodataFiles, GeoKeys, Loc
+from geofinder.GeoKeys import Entry
 
 
 class Geodata:
@@ -51,7 +52,7 @@ class Geodata:
         place.parse_place(place_name=location, geo_files=self.geo_files)
         flags = ResultFlags(limited=False, filtered=False)
 
-        self.logger.debug(f'Find LOCATION Type=[{Loc.place_type_name_dict.get(place.place_type)}] City=[{place.city1}] Adm2=[{place.admin2_name}]\
+        self.logger.debug(f'Find LOCATION Type={place.place_type} City=[{place.city1}] Adm2=[{place.admin2_name}]\
         Adm1=[{place.admin1_name}] Prefix=[{place.prefix}] cname=[{place.country_name}] iso=[{place.country_iso}]')
 
         save_city = place.city1
@@ -66,27 +67,30 @@ class Geodata:
             # Lookup location
             self.logger.debug('valid country')
             self.geo_files.geodb.lookup_place(place=place)
-        else:
+        elif place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
+            # No country - try adm2 as target
             place.place_type = Loc.PlaceType.CITY
-            # No country - try adm2 lookup without country
-            if len(place.admin2_name) > 0 and place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
-                place.target = place.admin2_name
-                place.prefix += f' {place.admin1_name.title()}'
-                self.logger.debug(f'No country.  Lookup adm2  [{place.target}]')
+
+            if len(place.georow_list) == 0 and len(place.city1) > 0:
+                # Still not found.  Try City as Target
+                place.target = place.city1
+                self.logger.debug(f' Try city [{place.target}] as city')
                 self.geo_files.geodb.lookup_place(place=place)
 
-            if len(place.georow_list) == 0 and place.result_type is not GeoKeys.Result.NOT_SUPPORTED and\
-                    len(place.admin1_name) > 0:
-                # Still not found.  Try Adm1 as Target
-                place.target= place.admin1_name
-                place.prefix += f' {place.admin2_name.title()}'
-                self.logger.debug(f'Not found.  Lookup adm1 [{place.target}]')
+            if len(place.georow_list) == 0 and len(place.admin2_name) > 0:
+                place.target = place.admin2_name
+                place.prefix = save_prefix + f' {place.city1.title()}'
+                self.logger.debug(f'Not found.  Try admin2  [{place.target}] as city')
                 self.geo_files.geodb.lookup_place(place=place)
-                if len(place.georow_list) == 0:
-                    place.result_type = GeoKeys.Result.NO_COUNTRY
-                    place.prefix = save_prefix
+
+            if len(place.georow_list) == 0:
+                self.logger.debug(f'Not found. Giving up')
+                # place.result_type = GeoKeys.Result.NO_COUNTRY
+                place.prefix = save_prefix
             else:
                 self.process_result(place=place, targ_name=place.target, flags=flags)
+                if len(place.prefix) > 0:
+                    place.prefix_commas = ', '
                 return
 
         if len(place.georow_list) > 0:
@@ -99,13 +103,14 @@ class Geodata:
             place.city1 = save_city
             place.admin2_name = save_admin2
 
-            if place.result_type != GeoKeys.Result.NO_COUNTRY:
+            if place.result_type != GeoKeys.Result.NO_COUNTRY and place.result_type != GeoKeys.Result.NOT_SUPPORTED:
                 place.result_type = GeoKeys.Result.NO_MATCH
         elif len(place.georow_list) > 1:
-
-            self.logger.debug(f'mult matches {len(place.georow_list)}')
-
+            self.logger.debug(f'Success!  {len(place.georow_list)} matches')
             place.result_type = GeoKeys.Result.MULTIPLE_MATCHES
+
+        if len(place.prefix) > 0:
+            place.prefix_commas = ', '
 
         # Process the results
         self.process_result(place=place, targ_name=place.target, flags=flags)
@@ -240,7 +245,7 @@ class Geodata:
         if start_year is None:
             start_year = -1
 
-        if event_year < start_year and event_year != 0+padding:
+        if event_year < start_year and event_year != 0 + padding:
             self.logger.debug(f'Val year:  loc year={start_year}  event yr={event_year} loc={admin1},{iso}')
             return False
         else:
@@ -250,7 +255,7 @@ class Geodata:
         # Create a sorted version of result_list without any dupes
         # Add flag if we hit the lookup limit
         # Discard location names that didnt exist at time of event and add to result flag
-        date_filtered = False   # Flag to indicate whether we dropped locations due to event date
+        date_filtered = False  # Flag to indicate whether we dropped locations due to event date
 
         if len(georow_list) > 299:
             limited_flag = True
@@ -320,9 +325,7 @@ result_text_list = {
     GeoKeys.Result.DELETE: 'Empty.  Click Save to delete entry.'
 }
 
-
 ResultFlags = collections.namedtuple('ResultFlags', 'limited filtered')
-
 
 # Starting year this country name was valid
 country_name_start_year = {
