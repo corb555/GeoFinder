@@ -57,7 +57,7 @@ class FileReader:
                     if line_num % 80000 == 1:
                         # Periodically update progress
                         prog = file_pos * 100 / fsize
-                        self.progress(f"Loading {self.fname} {prog:.0f}%", prog)
+                        self.progress(f"2) Loading {self.fname} {prog:.0f}%", prog)
 
             self.cache_changed = True
             self.progress("", 100)
