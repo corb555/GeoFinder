@@ -66,5 +66,6 @@ class UtilLanguagesFrame(ListboxFrame.ListboxFrame):
     def add_handler(self):
         # Allow user to add an item to list.
         val: str = self.add_entry.get_text()
-        self.dict[val.lower()] = ""  # Add item to dict
-        super().add_handler()
+        if len(val) == 2:
+            self.dict[val.lower()] = ""  # Add item to dict
+            super().add_handler()
