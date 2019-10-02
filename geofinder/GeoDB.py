@@ -71,55 +71,6 @@ class GeoDB:
         self.geoid_admin_dict = {}  # Key is GEOID, Value is DB ID for entry
         self.place_type = ''
 
-    def insert(self, geo_row: (), feat_code: str):
-        # We split the data into 2  tables, 1) Admin: ADM0/ADM1/ADM2,  and 2) city data
-        if feat_code == 'ADM1' or feat_code == 'ADM0' or feat_code == 'ADM2':
-            sql = ''' INSERT OR IGNORE INTO admin(name,country, admin1_id,admin2_id,lat,lon,f_code, geoid, sdx)
-                      VALUES(?,?,?,?,?,?,?,?,?) '''
-            row_id = self.db.execute(sql, geo_row)
-            # Add name to dictionary.  Used by AlternateNames for fast lookup during DB build
-            self.geoid_admin_dict[geo_row[Entry.ID]] = row_id
-        else:
-            sql = ''' INSERT OR IGNORE INTO geodata(name, country, admin1_id, admin2_id, lat, lon, f_code, geoid, sdx)
-                      VALUES(?,?,?,?,?,?,?,?,?) '''
-            row_id = self.db.execute(sql, geo_row)
-            # Add name to dictionary.  Used by AlternateNames for fast lookup during DB build
-            self.geoid_main_dict[geo_row[Entry.ID]] = row_id
-
-        return row_id
-
-    def create_tables(self):
-        # name, country, admin1_id, admin2_id, lat, lon, f_code, geoid
-        sql_geodata_table = """CREATE TABLE IF NOT EXISTS geodata    (
-                id           integer primary key autoincrement not null,
-                name     text,
-                country     text,
-                admin1_id     text,
-                admin2_id text,
-                lat      text,
-                lon       text,
-                f_code      text,
-                geoid      text,
-                sdx     text
-                                    );"""
-
-        # name, country, admin1_id, admin2_id, lat, lon, f_code, geoid
-        sql_admin_table = """CREATE TABLE IF NOT EXISTS admin    (
-                id           integer primary key autoincrement not null,
-                name     text,
-                country     text,
-                admin1_id     text,
-                admin2_id text,
-                lat      text,
-                lon       text,
-                f_code      text,
-                geoid      text,
-                sdx     text
-                                    );"""
-
-        for tbl in [sql_geodata_table, sql_admin_table]:
-            self.db.create_table(tbl)
-
     def lookup_place(self, place: Loc.Loc) -> []:
         """
         Lookup a place in our geoname.org dictionary and update place with Geo_result with lat, long, District, etc
@@ -137,7 +88,7 @@ class GeoDB:
         elif place.place_type == Loc.PlaceType.COUNTRY:
             self.select_country(place)
         elif place.place_type == Loc.PlaceType.FILTER:
-            self.filter(place)
+            self.advanced_search(place)
         else:
             self.get_admin1_id(place=place)
             self.get_admin2_id(place=place)
@@ -146,9 +97,9 @@ class GeoDB:
         if place.result_type == Result.EXACT_MATCH and len(place.prefix) > 0:
             place.result_type = Result.PARTIAL_MATCH
 
-    def filter(self, place: Loc):
+    def advanced_search(self, place: Loc):
         """
-        Search for  entry - try the most exact match first, then less exact matches
+        Advanced search - support parameters for ISO and Feature class
         """
         lookup_target = place.target
         if len(lookup_target) == 0:
@@ -328,7 +279,7 @@ class GeoDB:
                   args=(pattern, place.country_iso, 'ADM1'),
                   result=Result.PARTIAL_MATCH),
             Query(where="sdx = ? AND country = ? AND f_code=?",
-                  args=(sdx,  place.country_iso, 'ADM1'),
+                  args=(sdx, place.country_iso, 'ADM1'),
                   result=Result.PARTIAL_MATCH)
         ]
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
@@ -552,10 +503,10 @@ class GeoDB:
             Query(where="name = ? AND f_code = ? ",
                   args=(lookup_target, 'ADM0'),
                   result=Result.EXACT_MATCH),
-            #Query(where="name LIKE ?  AND f_code = ? ",
+            # Query(where="name LIKE ?  AND f_code = ? ",
             #      args=(self.create_wildcard(lookup_target), 'ADM0'),
             #      result=Result.PARTIAL_MATCH)  #,
-            #Query(where="sdx = ?  AND f_code = ? ",
+            # Query(where="sdx = ?  AND f_code = ? ",
             #      args=(GeoKeys.get_soundex (lookup_target), 'ADM0'),
             #      result=Result.PARTIAL_MATCH)
         ]
@@ -661,9 +612,57 @@ class GeoDB:
         if '*' in pattern:
             return re.sub(r"\*", "%", pattern)
         else:
-            return f'%{pattern}%'
+            return f'{pattern}'
 
     def close(self):
         self.logger.info('Closing Database')
         self.db.conn.close()
 
+    def insert(self, geo_row: (), feat_code: str):
+        # We split the data into 2  tables, 1) Admin: ADM0/ADM1/ADM2,  and 2) city data
+        if feat_code == 'ADM1' or feat_code == 'ADM0' or feat_code == 'ADM2':
+            sql = ''' INSERT OR IGNORE INTO admin(name,country, admin1_id,admin2_id,lat,lon,f_code, geoid, sdx)
+                      VALUES(?,?,?,?,?,?,?,?,?) '''
+            row_id = self.db.execute(sql, geo_row)
+            # Add name to dictionary.  Used by AlternateNames for fast lookup during DB build
+            self.geoid_admin_dict[geo_row[Entry.ID]] = row_id
+        else:
+            sql = ''' INSERT OR IGNORE INTO geodata(name, country, admin1_id, admin2_id, lat, lon, f_code, geoid, sdx)
+                      VALUES(?,?,?,?,?,?,?,?,?) '''
+            row_id = self.db.execute(sql, geo_row)
+            # Add name to dictionary.  Used by AlternateNames for fast lookup during DB build
+            self.geoid_main_dict[geo_row[Entry.ID]] = row_id
+
+        return row_id
+
+    def create_tables(self):
+        # name, country, admin1_id, admin2_id, lat, lon, f_code, geoid
+        sql_geodata_table = """CREATE TABLE IF NOT EXISTS geodata    (
+                id           integer primary key autoincrement not null,
+                name     text,
+                country     text,
+                admin1_id     text,
+                admin2_id text,
+                lat      text,
+                lon       text,
+                f_code      text,
+                geoid      text,
+                sdx     text
+                                    );"""
+
+        # name, country, admin1_id, admin2_id, lat, lon, f_code, geoid
+        sql_admin_table = """CREATE TABLE IF NOT EXISTS admin    (
+                id           integer primary key autoincrement not null,
+                name     text,
+                country     text,
+                admin1_id     text,
+                admin2_id text,
+                lat      text,
+                lon       text,
+                f_code      text,
+                geoid      text,
+                sdx     text
+                                    );"""
+
+        for tbl in [sql_geodata_table, sql_admin_table]:
+            self.db.create_table(tbl)

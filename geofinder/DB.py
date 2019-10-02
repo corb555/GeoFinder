@@ -129,7 +129,7 @@ class DB:
         try:
             self.cur.execute(sql, args)
         except Exception as e:
-            messagebox.showwarningZZ('Error', DB_CORRUPT_MSG)
+            messagebox.showwarning('Error', DB_CORRUPT_MSG)
             self.err = True
             self.logger.error(e)
             sys.exit()

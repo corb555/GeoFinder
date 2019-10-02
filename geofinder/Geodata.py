@@ -23,7 +23,6 @@ import string as st
 from operator import itemgetter
 
 from geofinder import GeodataFiles, GeoKeys, Loc
-from geofinder.GeoKeys import Entry
 
 
 class Geodata:
@@ -64,53 +63,49 @@ class Geodata:
             # Lookup location
             self.geo_files.geodb.lookup_place(place=place)
         elif self.country_is_valid(place):
-            # Lookup location
+            # Try City as target
             self.logger.debug('valid country')
             self.geo_files.geodb.lookup_place(place=place)
+            if len(place.georow_list) == 0 and len(place.admin2_name) > 0:
+                # Not found.  Try Admin2 as target
+                place.target = place.admin2_name
+                place.prefix = save_prefix + f' {place.city1.title()}'
+                self.logger.debug(f'Not found.  Try admin2  [{place.target}] as city')
+                self.geo_files.geodb.lookup_place(place=place)
         elif place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
-            # No country - try adm2 as target
             place.place_type = Loc.PlaceType.CITY
-
             if len(place.georow_list) == 0 and len(place.city1) > 0:
-                # Still not found.  Try City as Target
+                #  Try City as target
                 place.target = place.city1
+                place.prefix = save_prefix + f' {place.admin2_name.title()}'
                 self.logger.debug(f' Try city [{place.target}] as city')
                 self.geo_files.geodb.lookup_place(place=place)
 
             if len(place.georow_list) == 0 and len(place.admin2_name) > 0:
+                # Not found.  Try Admin2 as target
                 place.target = place.admin2_name
                 place.prefix = save_prefix + f' {place.city1.title()}'
                 self.logger.debug(f'Not found.  Try admin2  [{place.target}] as city')
                 self.geo_files.geodb.lookup_place(place=place)
 
-            if len(place.georow_list) == 0:
-                self.logger.debug(f'Not found. Giving up')
-                # place.result_type = GeoKeys.Result.NO_COUNTRY
-                place.prefix = save_prefix
-            else:
-                self.process_result(place=place, targ_name=place.target, flags=flags)
-                if len(place.prefix) > 0:
-                    place.prefix_commas = ', '
-                return
-
         if len(place.georow_list) > 0:
             # Build list - sort and remove duplicates
+            self.process_result(place=place, targ_name=place.target, flags=flags)
             flags = self.build_result_list(place.georow_list, place.event_year)
 
         if len(place.georow_list) == 0:
             # NO MATCH
+            self.logger.debug(f'Not found.')
             place.place_type = save_type
             place.city1 = save_city
             place.admin2_name = save_admin2
+            place.prefix = save_prefix
 
             if place.result_type != GeoKeys.Result.NO_COUNTRY and place.result_type != GeoKeys.Result.NOT_SUPPORTED:
                 place.result_type = GeoKeys.Result.NO_MATCH
         elif len(place.georow_list) > 1:
             self.logger.debug(f'Success!  {len(place.georow_list)} matches')
             place.result_type = GeoKeys.Result.MULTIPLE_MATCHES
-
-        if len(place.prefix) > 0:
-            place.prefix_commas = ', '
 
         # Process the results
         self.process_result(place=place, targ_name=place.target, flags=flags)
@@ -121,7 +116,9 @@ class Geodata:
         self.logger.debug(f'**PROCESS RESULT:  Res={place.result_type}  Georow_list={place.georow_list}')
         if place.result_type in GeoKeys.successful_match:
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
+            place.format_full_name()
 
+        place.prefix = place.prefix.strip(' ')
         self.set_place_type_text(place=place)
         place.status = f'{place.result_type_text} "{st.capwords(targ_name)}" {result_text_list.get(place.result_type)} '
         if flags.limited:
@@ -132,8 +129,11 @@ class Geodata:
             place.status += ' ***VERIFY EVENT DATE***'
             place.result_type = GeoKeys.Result.PARTIAL_MATCH
 
-        if len(place.georow_list) > 1:
-            place.result_type = GeoKeys.Result.MULTIPLE_MATCHES
+        #if len(place.georow_list) > 1:
+        #    place.result_type = GeoKeys.Result.MULTIPLE_MATCHES
+
+        if len(place.prefix) > 0:
+            place.prefix_commas = ', '
 
     def find_first_match(self, location: st, place: Loc.Loc):
         """

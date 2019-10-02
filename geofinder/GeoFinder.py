@@ -665,7 +665,6 @@ class GeoFinder:
     def write_updated_place(self, place: Loc.Loc):
         # Write out updated location and lat/lon to  file
         nm = place.format_full_name()
-        self.logger.debug(f'WRITE [{place.prefix}{place.prefix_commas}{nm}]')
         if place.result_type != GeoKeys.Result.DELETE:
             self.ancestry_file_handler.write_updated(place.prefix + place.prefix_commas + nm)
             self.ancestry_file_handler.write_lat_lon(lat=place.lat, lon=place.lon)
