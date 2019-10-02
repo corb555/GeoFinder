@@ -235,7 +235,7 @@ class Loc:
         if self.place_type == PlaceType.COUNTRY:
             nm = f"{st.capwords(self.country_name)}"
         elif self.place_type == PlaceType.ADMIN1:
-            nm = f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
+            nm = f"{st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
         elif self.place_type == PlaceType.ADMIN2:
             nm = f"{st.capwords(self.admin2_name)}," \
                 f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
@@ -251,6 +251,7 @@ class Loc:
         else:
             self.prefix_commas = ''
         # self.logger.debug(f' [{self.prefix}][{self.prefix_commas}][{nm}]')
+        self.prefix = self.prefix.title()
         return nm
 
 

@@ -52,6 +52,7 @@ class SetupFeatureFrame(ListboxFrame.ListboxFrame):
         # If dictionary is empty, load in defaults
         if len(self.dict) == 0:
             self.logger.error('Feature list is empty. loading defaults')
+            self.set_default(default)
             self.load_defaults()
             super().add_handler()
 

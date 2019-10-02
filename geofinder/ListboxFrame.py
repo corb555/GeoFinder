@@ -30,7 +30,6 @@ BUTTON_WIDTH = 6
 odd_tag = ('odd',)
 even_tag = ('even',)
 
-default = []
 
 class ListboxFrame:
     """
@@ -54,6 +53,7 @@ class ListboxFrame:
 
         self.title = title
         self.frame = frame
+        self.default = []
         self.separator = "   ::   "
         self.dirty_flag = False  # Flag to track if data was modified
         self.odd = False
@@ -113,9 +113,13 @@ class ListboxFrame:
             else:
                 self.list_insert(self.tree, f"{item}", '')
 
+    def set_default(self, lst):
+        self.default = lst
+
     def load_defaults(self):
-        for item in default:
+        for item in self.default:
             self.dict[item] = ""  # Add item to dict
+            self.logger.debug(f'add {item}')
         self.add_handler()
 
     def delete_handler(self):
