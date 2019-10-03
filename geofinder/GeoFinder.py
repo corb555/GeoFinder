@@ -323,6 +323,7 @@ class GeoFinder:
                 # Found a new PLACE entry
                 # See if it is in our place database
                 # self.place.parse_place(place_name=town_entry, geo_files=self.geodata.geo_files)
+                self.place.swap_items = False
                 self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
                 self.geodata.find_location(town_entry, self.place)
 
@@ -372,20 +373,33 @@ class GeoFinder:
         prefix = (self.w.tree.item(self.w.tree.selection())['values'][0])
         return prefix, loc
 
+    def get_user_selection(self):
+        # User selected item from listbox - get listbox selection
+        pref, town_entry = self.get_list_selection()
+        self.logger.debug(f'selected {town_entry}')
+
+        # Update the user edit widget with the List selection item
+        self.w.user_entry.set_text(town_entry)
+
+        # Since we are verifying users choice, Get first match.  don't try partial match
+        self.geodata.find_first_match(town_entry, self.place)
+        self.place.prefix = pref
+
+    def doubleclick_handler(self, _):
+        self.get_user_selection()
+        self.display_result(self.place)
+        self.save_handler()
+
+    def swap_handler(self):
+        # Switch whether Admin1 or City is handled first
+        self.place.swap_items = not self.place.swap_items
+        self.verify_handler()
+
     def verify_handler(self):
         """ The User clicked verify.  Verify if the users new Place entry has a match in geonames data.  """
         # Do we verify item from listbox or from text edit field?
         if self.user_selected_list:
-            # User selected item from listbox - get listbox selection
-            pref, town_entry = self.get_list_selection()
-            self.logger.debug(f'first match {town_entry}')
-
-            # Update the user edit widget with the List selection item
-            # self.w.user_entry.set_text(town_entry)
-
-            # Since we are verifying users choice, Get first match.  don't try partial match
-            self.geodata.find_first_match(town_entry, self.place)
-            self.place.prefix = pref
+            self.get_user_selection()
         else:
             # User typed in text entry window - get edit field value and look it up
             town_entry: str = self.w.user_entry.get()
@@ -668,6 +682,7 @@ class GeoFinder:
         if place.result_type != GeoKeys.Result.DELETE:
             self.ancestry_file_handler.write_updated(place.prefix + place.prefix_commas + nm)
             self.ancestry_file_handler.write_lat_lon(lat=place.lat, lon=place.lon)
+            #self.logger.debug(f'WRITE {place.prefix + place.prefix_commas + nm}')
         else:
             self.logger.debug('zero len, no output')
 
