@@ -143,13 +143,14 @@ class AppLayout:
         self.tree.tag_configure('even', background='white')
 
         self.tree["columns"] = ("pre",)
-        self.tree.column("#0", width=500, minwidth=100, stretch=tk.NO)
+        self.tree.column("#0", width=500, minwidth=100, stretch=tk.YES)
         self.tree.column("pre", width=180, minwidth=5, stretch=tk.NO)
         self.tree.heading("#0", text="   Location", anchor=tk.W)
         self.tree.heading("pre", text="   Prefix", anchor=tk.W)
 
         self.tree.config(yscrollcommand=self.tree_scrollbar.set)
         self.tree_scrollbar.config(command=self.tree.yview)
+        self.tree.bind("<Double-1>", self.main.doubleclick_handler)
 
         self.ged_event_info: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text=" ", width=GFStyle.TXT_WID, style='Light.TLabel')
         self.footnote: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="Data is from GeoNames.org.  Hover for details",
@@ -171,6 +172,8 @@ class AppLayout:
                                                   width=GFStyle.BTN_WID, image=self.images['help'], compound="left")
         self.quit_button: ttk.Button = ttk.Button(self.root, text=" quit", command=self.main.quit_handler,
                                                   width=GFStyle.BTN_WID, image=self.images['exit'], compound="left")
+        self.swap_button: ttk.Button = ttk.Button(self.root, text=" swap", command=self.main.swap_handler,
+                                                  width=GFStyle.BTN_WID, image=self.images['play'], compound="left")
 
         # Set grid layout for padding column widget - just pads out left column
         self.pad.grid(column=PAD_COL, row=0, padx=GFStyle.PAD_PADX, pady=0, sticky="EW")
@@ -187,18 +190,19 @@ class AppLayout:
         self.footnote.grid(column=TXT_COL, row=12, padx=0, pady=5, sticky="EW", columnspan=2)
         self.statistics_text.grid(column=TXT_COL, row=11, padx=0, pady=5, sticky='EW', columnspan=2)
 
-
         # Column 1 - just the scrollbar
         self.tree_scrollbar.grid(column=SCRL_COL, row=5, padx=0, pady=5, sticky='WNS')
 
         # Column 2 Widgets
-        self.map_button.grid(column=BTN_COL, row=1, padx=GFStyle.BTN_PADX, pady=6, sticky="NE")
-        self.search_button.grid(column=BTN_COL, row=2, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
-        self.verify_button.grid(column=BTN_COL, row=4, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
-        self.save_button.grid(column=BTN_COL, row=5, padx=GFStyle.BTN_PADX, pady=6, sticky="NE")
+        self.map_button.grid(column=BTN_COL, row=0, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
+        self.search_button.grid(column=BTN_COL, row=1, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
+        self.verify_button.grid(column=BTN_COL, row=2, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
+        self.save_button.grid(column=BTN_COL, row=4, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
+        self.swap_button.grid(column=BTN_COL, row=5, padx=GFStyle.BTN_PADX, pady=6, sticky="NE")
 
-        self.skip_button.grid(column=BTN_COL, row=6, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
-        self.help_button.grid(column=BTN_COL, row=8, padx=GFStyle.BTN_PADX, pady=5, sticky="E")
+
+        self.skip_button.grid(column=BTN_COL, row=10, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
+        self.help_button.grid(column=BTN_COL, row=11, padx=GFStyle.BTN_PADX, pady=5, sticky="E")
         self.quit_button.grid(column=BTN_COL, row=12, padx=GFStyle.BTN_PADX, pady=6, sticky="SE")
 
         # Set accelerator keys for Verify, listbox, and Save

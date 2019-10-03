@@ -38,6 +38,7 @@ class Loc:
         self.logger = logging.getLogger(__name__)
         self.clear()
         self.event_year: int = 0
+        self.swap_items = False
 
     def clear(self):
         # Place geo info

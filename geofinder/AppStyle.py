@@ -19,7 +19,7 @@
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 from tkinter import ttk
 
-TXT_WID = 65
+TXT_WID = 95
 BTN_WID = 5
 BTN_WID_WD = 6
 THIN_WID = 6

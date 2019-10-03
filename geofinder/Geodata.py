@@ -74,18 +74,27 @@ class Geodata:
                 self.geo_files.geodb.lookup_place(place=place)
         elif place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
             place.place_type = Loc.PlaceType.CITY
-            if len(place.georow_list) == 0 and len(place.city1) > 0:
-                #  Try City as target
+            # Depending on Swap flag we can either:
+            # Search for city, then adm2 or adm2 then city
+            if len(place.city1) > 0 and place.swap_items is False:
+                #  Try City as target first if order is Not Swapped
                 place.target = place.city1
                 place.prefix = save_prefix + f' {place.admin2_name.title()}'
                 self.logger.debug(f' Try city [{place.target}] as city')
                 self.geo_files.geodb.lookup_place(place=place)
 
             if len(place.georow_list) == 0 and len(place.admin2_name) > 0:
-                # Not found.  Try Admin2 as target
+                #  Try Admin2 as target
                 place.target = place.admin2_name
                 place.prefix = save_prefix + f' {place.city1.title()}'
                 self.logger.debug(f'Not found.  Try admin2  [{place.target}] as city')
+                self.geo_files.geodb.lookup_place(place=place)
+
+            if len(place.georow_list) == 0 and len(place.city1) > 0 and place.swap_items is True:
+                #  Try City as target second if order is swapped
+                place.target = place.city1
+                place.prefix = save_prefix + f' {place.admin2_name.title()}'
+                self.logger.debug(f' Try city [{place.target}] as city')
                 self.geo_files.geodb.lookup_place(place=place)
 
         if len(place.georow_list) > 0:
@@ -114,6 +123,9 @@ class Geodata:
     def process_result(self, place: Loc.Loc, targ_name, flags) -> None:
         # Copy geodata to place record and Put together status text
         self.logger.debug(f'**PROCESS RESULT:  Res={place.result_type}  Georow_list={place.georow_list}')
+        if place.result_type == GeoKeys.Result.NOT_SUPPORTED:
+            place.place_type = Loc.PlaceType.COUNTRY
+
         if place.result_type in GeoKeys.successful_match:
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
             place.format_full_name()
@@ -317,7 +329,7 @@ feature_priority = {'ADM1': 22, 'PPL': 21, 'PPLA': 20, 'PPLA2': 19, 'PPLA3': 18,
 
 result_text_list = {
     GeoKeys.Result.EXACT_MATCH: 'matched! Click Save to accept:',
-    GeoKeys.Result.MULTIPLE_MATCHES: 'had multiple matches.  Select one and click Verify.',
+    GeoKeys.Result.MULTIPLE_MATCHES: 'had multiple matches.  Select one and click Verify or Double-Click',
     GeoKeys.Result.NO_MATCH: 'not found.  Edit and click Verify.',
     GeoKeys.Result.NOT_SUPPORTED: ' is not supported. Skip or Add Country in Config',
     GeoKeys.Result.NO_COUNTRY: 'No Country found.',
