@@ -323,7 +323,8 @@ class GeoFinder:
                 # Found a new PLACE entry
                 # See if it is in our place database
                 # self.place.parse_place(place_name=town_entry, geo_files=self.geodata.geo_files)
-                self.place.swap_items = False
+                self.place.use_admin = False
+                self.logger.debug('new PLAC. Use_admin=false')
                 self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
                 self.geodata.find_location(town_entry, self.place)
 
@@ -392,12 +393,20 @@ class GeoFinder:
 
     def swap_handler(self):
         # Switch whether Admin1 or City is handled first
-        self.place.swap_items = not self.place.swap_items
-        self.verify_handler()
+        self.place.use_admin = not self.place.use_admin
+        self.logger.debug(f'Swap Handler: Use Admin={self.place.use_admin}')
+        self.verify_item(False)
 
     def verify_handler(self):
+        self.verify_item(True)
+
+    def verify_item(self, from_user:bool):
         """ The User clicked verify.  Verify if the users new Place entry has a match in geonames data.  """
         # Do we verify item from listbox or from text edit field?
+        if from_user:
+            self.place.use_admin = False
+
+        self.logger.debug('verify handler - Use Admin=False')
         if self.user_selected_list:
             self.get_user_selection()
         else:
@@ -420,6 +429,11 @@ class GeoFinder:
         TKHelper.enable_buttons(self.w.review_buttons)
         nm = place.format_full_name()
         self.logger.debug(f'disp result [{place.prefix}][{place.prefix_commas}][{nm}] res=[{place.result_type}]')
+
+        if place.enable_swap:
+            self.set_swap_allowed(True)
+        else:
+            self.set_swap_allowed(False)
 
         # Enable action buttons based on type of result
         if place.result_type == GeoKeys.Result.MULTIPLE_MATCHES or \
@@ -580,7 +594,7 @@ class GeoFinder:
         self.w.prog.shutdown_requested = True
 
         if messagebox.askyesno('Generate Import File?', f'All updates saved.\n\nDo you want to generate a file for import'
-        f' to Gedcom/Gramps?\n\n {path}.{self.out_suffix}'):
+        f' to Gedcom/Gramps?\n\n '):
             # Write file for importing back
             messagebox.showinfo("Generate Import File", "Reminder -  make sure the ancestry export file you are working on is up to date before "
                                                         "generating a file to import back!")
@@ -705,6 +719,14 @@ class GeoFinder:
         self.logger.info('SYS EXIT')
         # sys.exit()
         os._exit(0)
+
+    def set_swap_allowed(self, allowed: bool):
+        if allowed:
+            # Enable the Save and Map buttons
+            self.w.swap_button.config(state="normal")  # Match - enable  button
+        else:
+            # Disable the Save and Map buttons
+            self.w.swap_button.config(state="disabled")
 
     def set_save_allowed(self, save_allowed: bool):
         if save_allowed:

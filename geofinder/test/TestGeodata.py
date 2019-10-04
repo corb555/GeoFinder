@@ -134,7 +134,7 @@ class TestGeodata(unittest.TestCase):
     def test_res_code10(self):
         title = "Country - blank"
         lat, name = self.run_test(title, '')
-        self.assertEqual(GeoKeys.Result.NO_COUNTRY, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.NO_MATCH, self.place.result_type, title)
 
     # Country
     def test_res_code_country01(self):
@@ -150,7 +150,7 @@ class TestGeodata(unittest.TestCase):
     def test_res_code_country03(self):
         title = "No Country - Berlin"
         lat, name = self.run_test(title, "Berlin,,, ")
-        self.assertEqual(GeoKeys.Result.NO_COUNTRY, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.NO_MATCH, self.place.result_type, title)
 
     def test_res_code_country04(self):
         title = "Country - not supported"

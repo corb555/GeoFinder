@@ -58,9 +58,11 @@ class Geodata:
         save_prefix = place.prefix
         save_type = place.place_type
         save_admin2 = place.admin2_name
+        place.enable_swap = False
+        self.logger.debug('DISABLE SWAP')
 
         if place.place_type == Loc.PlaceType.FILTER:
-            # Lookup location
+            # Lookup location with advanced search params
             self.geo_files.geodb.lookup_place(place=place)
         elif self.country_is_valid(place):
             # Try City as target
@@ -74,28 +76,52 @@ class Geodata:
                 self.geo_files.geodb.lookup_place(place=place)
         elif place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
             place.place_type = Loc.PlaceType.CITY
+            # No country or state/province - try city and admin2
             # Depending on Swap flag we can either:
             # Search for city, then adm2 or adm2 then city
-            if len(place.city1) > 0 and place.swap_items is False:
-                #  Try City as target first if order is Not Swapped
-                place.target = place.city1
-                place.prefix = save_prefix + f' {place.admin2_name.title()}'
-                self.logger.debug(f' Try city [{place.target}] as city')
-                self.geo_files.geodb.lookup_place(place=place)
 
-            if len(place.georow_list) == 0 and len(place.admin2_name) > 0:
-                #  Try Admin2 as target
-                place.target = place.admin2_name
-                place.prefix = save_prefix + f' {place.city1.title()}'
-                self.logger.debug(f'Not found.  Try admin2  [{place.target}] as city')
-                self.geo_files.geodb.lookup_place(place=place)
+            #  See if Admin2 has a match.  We just do this to enable SWAP button
+            self.search_admin2(place)
+            if len(place.georow_list) > 0:
+                self.logger.debug(f'Admin2 {place.admin2_name} is valid')
+                admin2_valid = True
+            else:
+                self.logger.debug(f'Admin2 {place.admin2_name} NOT valid')
+                admin2_valid = False
 
-            if len(place.georow_list) == 0 and len(place.city1) > 0 and place.swap_items is True:
-                #  Try City as target second if order is swapped
-                place.target = place.city1
-                place.prefix = save_prefix + f' {place.admin2_name.title()}'
-                self.logger.debug(f' Try city [{place.target}] as city')
-                self.geo_files.geodb.lookup_place(place=place)
+            #  See if City has a match.  We just do this to enable SWAP button
+            self.search_city(place)
+            if len(place.georow_list) > 0:
+                self.logger.debug(f'City {place.city1} is valid')
+                city_valid = True
+            else:
+                self.logger.debug(f'City {place.city1} NOT valid')
+                city_valid = False
+
+            # Now do searches in order specified
+            if place.use_admin:
+                # Try admin then city
+                self.logger.debug('USE ADMIN')
+                self.search_admin2(place)
+                if len(place.georow_list) == 0:
+                    self.search_city(place)
+                if city_valid:
+                    place.enable_swap = True
+                    self.logger.debug(f'Using Admin {place.admin2_name}. City {place.city1} valid.  ENABLE SWAP')
+                else:
+                    self.logger.debug(f'Using Admin {place.admin2_name}. City {place.city1} NOT valid.')
+            else:
+                #  Try City as target first then admin
+                self.logger.debug('USE CITY')
+                self.search_city(place)
+                if len(place.georow_list) == 0:
+                    #  Try Admin2 as target
+                    self.search_admin2(place)
+                if admin2_valid:
+                    place.enable_swap = True
+                    self.logger.debug(f'Using City {place.city1}.  Admin {place.admin2_name} Valid. ENABLE SWAP')
+                else:
+                    self.logger.debug(f'Using City {place.city1}.  Admin {place.admin2_name} NOT Valid.')
 
         if len(place.georow_list) > 0:
             # Build list - sort and remove duplicates
@@ -119,6 +145,18 @@ class Geodata:
         # Process the results
         self.process_result(place=place, targ_name=place.target, flags=flags)
         self.logger.debug(f'Status={place.status}')
+
+    def search_city(self, place):
+        place.target = place.city1
+        place.prefix = f' {place.admin2_name.title()}'
+        self.logger.debug(f' Try city [{place.target}] as city')
+        self.geo_files.geodb.lookup_place(place=place)
+
+    def search_admin2(self, place):
+        place.target = place.admin2_name
+        place.prefix = f' {place.city1.title()}'
+        self.logger.debug(f'  Try admin2  [{place.target}] as city')
+        self.geo_files.geodb.lookup_place(place=place)
 
     def process_result(self, place: Loc.Loc, targ_name, flags) -> None:
         # Copy geodata to place record and Put together status text
