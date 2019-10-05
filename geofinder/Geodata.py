@@ -51,8 +51,8 @@ class Geodata:
         place.parse_place(place_name=location, geo_files=self.geo_files)
         flags = ResultFlags(limited=False, filtered=False)
 
-        self.logger.debug(f'Find LOCATION Type={place.place_type} City=[{place.city1}] Adm2=[{place.admin2_name}]\
-        Adm1=[{place.admin1_name}] Prefix=[{place.prefix}] cname=[{place.country_name}] iso=[{place.country_iso}]')
+        self.logger.debug(f'Find LOCATION City=[{place.city1}] Adm2=[{place.admin2_name}]\
+        Adm1=[{place.admin1_name}] Pref=[{place.prefix}] Cntry=[{place.country_name}] iso=[{place.country_iso}]  Type={place.place_type} ')
 
         save_city = place.city1
         save_prefix = place.prefix

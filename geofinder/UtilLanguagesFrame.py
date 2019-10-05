@@ -43,7 +43,7 @@ class UtilLanguagesFrame(ListboxFrame.ListboxFrame):
 
         # Add these in addition to the standard widgets we inherit from ListBoxFrame
         self.add_button = ttk.Button(frame, text="add", command=self.add_handler, width=ListboxFrame.BUTTON_WIDTH)
-        self.add_label = Widge.CLabel(frame, text="Enter 2 letter ISO language codes below and click on Add button to add", style='Info.TLabel')
+        self.add_label = Widge.CLabel(frame, text="Enter 2 letter ISO language code below and click on Add button to add", style='Info.TLabel')
         self.add_entry: Widge.CEntry = Widge.CEntry(frame, text="   ", width=15)  # , style='Info.TLabel')
         super().__init__(frame, title, dir_name, cache_filename)
 
@@ -68,5 +68,8 @@ class UtilLanguagesFrame(ListboxFrame.ListboxFrame):
         # Allow user to add an item to list.
         val: str = self.add_entry.get_text()
         if len(val) == 2:
+            self.add_label.configure(style='Info.TLabel')
             self.dict[val.lower()] = ""  # Add item to dict
             super().add_handler()
+        else:
+            self.add_label.configure(style='Error.TLabel')

@@ -370,8 +370,13 @@ class GeoFinder:
 
     def get_list_selection(self):
         # Get the item the user selected in list (tree)
-        loc = (self.w.tree.item(self.w.tree.selection(), "text"))
-        prefix = (self.w.tree.item(self.w.tree.selection())['values'][0])
+        item = self.w.tree.selection()
+        loc = (self.w.tree.item(item, "text"))
+        values = self.w.tree.item(item)['values']
+        if values:
+            prefix = (values[0])
+        else:
+            prefix = ''
         return prefix, loc
 
     def get_user_selection(self):
@@ -387,6 +392,7 @@ class GeoFinder:
         self.place.prefix = pref
 
     def doubleclick_handler(self, _):
+        self.logger.debug('Double click handler')
         self.get_user_selection()
         self.display_result(self.place)
         self.save_handler()
@@ -395,10 +401,11 @@ class GeoFinder:
         # Switch whether Admin1 or City is handled first
         self.place.use_admin = not self.place.use_admin
         self.logger.debug(f'Swap Handler: Use Admin={self.place.use_admin}')
-        self.verify_item(False)
+        self.verify_item(from_user=False)
 
     def verify_handler(self):
-        self.verify_item(True)
+        self.logger.debug('Verify Handler')
+        self.verify_item(from_user=True)
 
     def verify_item(self, from_user:bool):
         """ The User clicked verify.  Verify if the users new Place entry has a match in geonames data.  """
@@ -406,7 +413,7 @@ class GeoFinder:
         if from_user:
             self.place.use_admin = False
 
-        self.logger.debug('verify handler - Use Admin=False')
+        self.logger.debug(f'verify item - Use Admin={self.place.use_admin}')
         if self.user_selected_list:
             self.get_user_selection()
         else:
