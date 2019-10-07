@@ -71,31 +71,10 @@ class SetupReplaceFrame(ListboxFrame.ListboxFrame):
             if len(rep_token) > 2:
                 place.prefix = rep_token[PREFIX_TOKEN]
 
-            nm = place.format_full_name()
+            nm = place.format_full_nm(None)
             if len(place.prefix) > 0:
                 line = f'[{place.prefix}]{place.prefix_commas}{nm}'
             else:
                 line = f'{nm}'
 
             self.list_insert(self.tree, item, line)
-
-            """ 
-                
-            if len(self.dict[item]) > 1:
-                tkn = self.dict[item].split('@')
-                
-
-                place.target = tkn[GEOID_TOKEN]
-                self.geodb.lookup_geoid(place=place)
-                if len(place.georow_list) > 0:
-                    # Copy geo row to Place
-                    self.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
-                    place.set_place_type()
-                    nm = place.format_full_name()
-                    if len(tkn[PREFIX_TOKEN]) > 0:
-                        self.list_insert(self.tree, f"{item}", f"{tkn[PREFIX_TOKEN]}, {nm}")
-                    else:
-                        self.list_insert(self.tree, f"{item}", f"{nm}")
-            else:
-                self.list_insert(self.tree, f"{item}",'')
-            """
