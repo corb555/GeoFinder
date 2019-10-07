@@ -40,6 +40,7 @@ class Geodata:
         self.directory: st = directory_name
         self.progress_bar = progress_bar  # progress_bar
         self.geo_files = GeodataFiles.GeodataFiles(self.directory, progress_bar=self.progress_bar)  # , geo_district=self.geo_district)
+        self.save_place = None
 
     def find_location(self, location: str, place: Loc.Loc):
         """
@@ -54,26 +55,38 @@ class Geodata:
         self.logger.debug(f'Find LOCATION City=[{place.city1}] Adm2=[{place.admin2_name}]\
         Adm1=[{place.admin1_name}] Pref=[{place.prefix}] Cntry=[{place.country_name}] iso=[{place.country_iso}]  Type={place.place_type} ')
 
-        save_city = place.city1
-        save_prefix = place.prefix
-        save_type = place.place_type
-        save_admin2 = place.admin2_name
+        self.save_place = copy.copy(place)
         place.enable_swap = False
         self.logger.debug('DISABLE SWAP')
 
         if place.place_type == Loc.PlaceType.FILTER:
             # Lookup location with advanced search params
+            self.logger.debug('Advanced Filter')
             self.geo_files.geodb.lookup_place(place=place)
         elif self.country_is_valid(place):
             # Try City as target
             self.logger.debug('valid country')
-            self.geo_files.geodb.lookup_place(place=place)
-            if len(place.georow_list) == 0 and len(place.admin2_name) > 0:
-                # Not found.  Try Admin2 as target
-                place.target = place.admin2_name
-                place.prefix = save_prefix + f' {place.city1.title()}'
-                self.logger.debug(f'Not found.  Try admin2  [{place.target}] as city')
+            if place.use_alternate:
+                # Use prefix instead of city as target
+                place.place_type = Loc.PlaceType.CITY
+                place.target = place.prefix
+                place.prefix = place.city1
+                place.city1 = self.save_place.prefix
+                self.logger.debug(f'Use Alternate.  Targ={place.target}')
+                place.enable_swap = True
                 self.geo_files.geodb.lookup_place(place=place)
+            else:
+                self.geo_files.geodb.lookup_place(place=place)
+                if len(place.prefix) > 0:
+                    place.enable_swap = True
+                if len(place.georow_list) == 0 and len(place.admin2_name) > 0:
+                    # city Not found.  Try Admin2 as target
+                    place.prefix = self.save_place.prefix + f' {self.save_place.city1.title()}'
+                    place.city1 = self.save_place.city1
+                    place.target = place.admin2_name
+                    self.logger.debug(f'Not found.  Try admin2  [{place.target}] as city')
+                    self.geo_files.geodb.lookup_place(place=place)
+                    place.enable_swap = False
         elif place.result_type is not GeoKeys.Result.NOT_SUPPORTED:
             place.place_type = Loc.PlaceType.CITY
             # No country or state/province - try city and admin2
@@ -98,8 +111,8 @@ class Geodata:
                 self.logger.debug(f'City {place.city1} NOT valid')
                 city_valid = False
 
-            # Now do searches in order specified
-            if place.use_admin:
+            #  do searches in order specified
+            if place.use_alternate:
                 # Try admin then city
                 self.logger.debug('USE ADMIN')
                 self.search_admin2(place)
@@ -111,7 +124,7 @@ class Geodata:
                 else:
                     self.logger.debug(f'Using Admin {place.admin2_name}. City {place.city1} NOT valid.')
             else:
-                #  Try City as target first then admin
+                #  Try city then admin
                 self.logger.debug('USE CITY')
                 self.search_city(place)
                 if len(place.georow_list) == 0:
@@ -125,17 +138,14 @@ class Geodata:
 
         if len(place.georow_list) > 0:
             # Build list - sort and remove duplicates
+            self.logger.debug(f'Match {place.georow_list}')
             self.process_result(place=place, targ_name=place.target, flags=flags)
             flags = self.build_result_list(place.georow_list, place.event_year)
 
         if len(place.georow_list) == 0:
             # NO MATCH
             self.logger.debug(f'Not found.')
-            place.place_type = save_type
-            place.city1 = save_city
-            place.admin2_name = save_admin2
-            place.prefix = save_prefix
-
+            #place = self.save_place
             if place.result_type != GeoKeys.Result.NO_COUNTRY and place.result_type != GeoKeys.Result.NOT_SUPPORTED:
                 place.result_type = GeoKeys.Result.NO_MATCH
         elif len(place.georow_list) > 1:
@@ -160,13 +170,13 @@ class Geodata:
 
     def process_result(self, place: Loc.Loc, targ_name, flags) -> None:
         # Copy geodata to place record and Put together status text
-        self.logger.debug(f'**PROCESS RESULT:  Res={place.result_type}  Georow_list={place.georow_list}')
+        self.logger.debug(f'**PROCESS RESULT:  Res={place.result_type}  Targ={place.target} Georow_list={place.georow_list}')
         if place.result_type == GeoKeys.Result.NOT_SUPPORTED:
             place.place_type = Loc.PlaceType.COUNTRY
 
-        if place.result_type in GeoKeys.successful_match:
+        if place.result_type in GeoKeys.successful_match and len(place.georow_list) > 0:
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
-            place.format_full_name()
+            place.format_full_nm(self.geo_files.output_replace_dct)
 
         place.prefix = place.prefix.strip(' ')
         self.set_place_type_text(place=place)
@@ -178,9 +188,6 @@ class Geodata:
             place.status = f'{place.result_type_text} "{st.capwords(targ_name)}" {result_text_list.get(place.result_type)} '
             place.status += ' ***VERIFY EVENT DATE***'
             place.result_type = GeoKeys.Result.PARTIAL_MATCH
-
-        #if len(place.georow_list) > 1:
-        #    place.result_type = GeoKeys.Result.MULTIPLE_MATCHES
 
         if len(place.prefix) > 0:
             place.prefix_commas = ', '
@@ -235,7 +242,7 @@ class Geodata:
     @staticmethod
     def get_district1_type(iso) -> str:
         # Return the local country term for Admin1 district
-        if iso in ["al", "ie"]:
+        if iso in ["al"]:
             return "COUNTY"
         elif iso in ["us", "at", "bm", "br", "de"]:
             return "STATE"

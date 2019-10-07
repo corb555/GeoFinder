@@ -37,6 +37,7 @@ file_types = 'GEDCOM / Gramps XML'
 
 GEOID_TOKEN = 1
 PREFIX_TOKEN = 2
+temp_suffix = 'tmp'
 
 
 class GeoFinder:
@@ -65,6 +66,7 @@ class GeoFinder:
     Loc - holds all info for a single location
 
     """
+
 
     def __init__(self):
         print('GeoFinder v{}'.format(__version__.__version__))
@@ -186,15 +188,15 @@ class GeoFinder:
 
         ged_path = self.cfg.get("gedcom_path")  # Get saved config setting for  file
 
-        self.out_suffix = "import"
-
         # Load appropriate handler based on file type
         if ged_path is not None:
             if '.ged' in ged_path:
-                self.ancestry_file_handler = Gedcom.Gedcom(in_path=ged_path, out_suffix=self.out_suffix, cache_d=self.cache_dir,
+                self.out_suffix = "import.ged"
+                self.ancestry_file_handler = Gedcom.Gedcom(in_path=ged_path, out_suffix=temp_suffix, cache_d=self.cache_dir,
                                                            progress=self.w.prog)  # Routines to open and parse GEDCOM file
             elif '.gramps' in ged_path:
-                self.ancestry_file_handler = GrampsXml.GrampsXml(in_path=ged_path, out_suffix=self.out_suffix, cache_d=self.cache_dir,
+                self.out_suffix = "import.gramps"
+                self.ancestry_file_handler = GrampsXml.GrampsXml(in_path=ged_path, out_suffix=temp_suffix, cache_d=self.cache_dir,
                                                                  progress=self.w.prog)  # Routines to open and parse Gramps file
         else:
             self.out_suffix = 'unk.new.ged'
@@ -323,8 +325,8 @@ class GeoFinder:
                 # Found a new PLACE entry
                 # See if it is in our place database
                 # self.place.parse_place(place_name=town_entry, geo_files=self.geodata.geo_files)
-                self.place.use_admin = False
-                self.logger.debug('new PLAC. Use_admin=false')
+                self.place.use_alternate = False
+                self.logger.debug(f'new PLAC. Use Alternate={self.place.use_alternate}')
                 self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
                 self.geodata.find_location(town_entry, self.place)
 
@@ -357,7 +359,7 @@ class GeoFinder:
                         self.w.user_entry.set_text(self.place.name)  # Display place
                         break
                 else:
-                    self.logger.debug(f'User2 review for {town_entry}')
+                    self.logger.debug(f'User2 review for {town_entry}. status ={self.place.status}')
 
                     self.w.status.configure(style="Good.TLabel")
                     self.w.original_entry.set_text(self.place.name)  # Display place
@@ -399,8 +401,8 @@ class GeoFinder:
 
     def swap_handler(self):
         # Switch whether Admin1 or City is handled first
-        self.place.use_admin = not self.place.use_admin
-        self.logger.debug(f'Swap Handler: Use Admin={self.place.use_admin}')
+        self.place.use_alternate = not self.place.use_alternate
+        self.logger.debug(f'Swap Handler: Use Alternate={self.place.use_alternate}')
         self.verify_item(from_user=False)
 
     def verify_handler(self):
@@ -411,9 +413,9 @@ class GeoFinder:
         """ The User clicked verify.  Verify if the users new Place entry has a match in geonames data.  """
         # Do we verify item from listbox or from text edit field?
         if from_user:
-            self.place.use_admin = False
+            self.place.use_alternate = False
 
-        self.logger.debug(f'verify item - Use Admin={self.place.use_admin}')
+        self.logger.debug(f'verify item - Use Alternate={self.place.use_alternate}')
         if self.user_selected_list:
             self.get_user_selection()
         else:
@@ -434,7 +436,7 @@ class GeoFinder:
         """ Display result details for an item  """
         # Enable buttons so user can either click Skip, or edit the item and Click Verify.
         TKHelper.enable_buttons(self.w.review_buttons)
-        nm = place.format_full_name()
+        nm = place.format_full_nm(self.geodata.geo_files.output_replace_dct)
         self.logger.debug(f'disp result [{place.prefix}][{place.prefix_commas}][{nm}] res=[{place.result_type}]')
 
         if place.enable_swap:
@@ -512,7 +514,7 @@ class GeoFinder:
         # Get geodata for each item and add to listbox output
         for geo_row in place.georow_list:
             self.geodata.geo_files.geodb.copy_georow_to_place(geo_row, temp_place)
-            nm = temp_place.format_full_name()
+            nm = temp_place.format_full_nm(self.geodata.geo_files.output_replace_dct)
             valid = self.geodata.validate_year_for_location(event_year=place.event_year, iso=temp_place.country_iso,
                                                             admin1=temp_place.admin1_id, padding=0)
             if valid:
@@ -699,7 +701,8 @@ class GeoFinder:
 
     def write_updated_place(self, place: Loc.Loc):
         # Write out updated location and lat/lon to  file
-        nm = place.format_full_name()
+        nm = place.format_full_nm(self.geodata.geo_files.output_replace_dct)
+
         if place.result_type != GeoKeys.Result.DELETE:
             self.ancestry_file_handler.write_updated(place.prefix + place.prefix_commas + nm)
             self.ancestry_file_handler.write_lat_lon(lat=place.lat, lon=place.lon)
@@ -759,6 +762,7 @@ class GeoFinder:
         self.w.status.set_text("Done.  Shutting Down...")
         self.w.original_entry.set_text(" ")
         path = self.cfg.get("gedcom_path")
+        os.rename(f"{path}.{temp_suffix}", f"{path}.{self.out_suffix}")
         messagebox.showinfo("Info", f"Finished.  Created file for Import to Ancestry software:\n\n {path}.{self.out_suffix}")
         self.logger.info('End of  file')
         self.shutdown()
