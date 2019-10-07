@@ -60,7 +60,7 @@ class DB:
             self.logger.info(f'DB {db_filename} connected')
             return conn
         except Exception as e:
-            messagebox.showwarning('Error', DB_CORRUPT_MSG)
+            messagebox.showwarning('Error', f'{DB_CORRUPT_MSG}\n {e}')
             self.err = True
             self.logger.error(e)
             sys.exit()
@@ -87,7 +87,7 @@ class DB:
             self.conn.commit()
             self.logger.info(f'Create DB table {create_table_sql[27:36]}')  # Lazy attempt to get table name for logging
         except Exception as e:
-            messagebox.showwarning('Error', DB_CORRUPT_MSG)
+            messagebox.showwarning('Error', e)
             self.err = True
             self.logger.error(e)
             sys.exit()
@@ -98,7 +98,7 @@ class DB:
             c.execute(create_table_sql)
             self.conn.commit()
         except Exception as e:
-            messagebox.showwarning('Error', DB_CORRUPT_MSG)
+            messagebox.showwarning('Error', e)
             self.err = True
             self.logger.error(e)
             sys.exit()
@@ -109,7 +109,7 @@ class DB:
         try:
             cur.execute(f'DELETE FROM {tbl}')
         except Exception as e:
-            messagebox.showwarning('Error', DB_CORRUPT_MSG)
+            messagebox.showwarning('Error', f'{DB_CORRUPT_MSG}\n {e}')
             self.err = True
             self.logger.error(e)
             sys.exit()
@@ -129,7 +129,7 @@ class DB:
         try:
             self.cur.execute(sql, args)
         except Exception as e:
-            messagebox.showwarning('Error', DB_CORRUPT_MSG)
+            messagebox.showwarning('Error', f'{DB_CORRUPT_MSG}\n {e}')
             self.err = True
             self.logger.error(e)
             sys.exit()
@@ -147,7 +147,7 @@ class DB:
             cur.execute(sql, args)
             res = cur.fetchall()
         except Exception as e:
-            messagebox.showwarning('Error', DB_CORRUPT_MSG)
+            messagebox.showwarning('Error', f'{DB_CORRUPT_MSG}\n {e}')
             self.err = True
             self.logger.error(e)
             sys.exit()
