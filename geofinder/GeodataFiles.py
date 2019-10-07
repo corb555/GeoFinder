@@ -82,6 +82,16 @@ class GeodataFiles:
         for item in self.languages_list_dct:
             self.lang_list.append(item)
 
+        # Read in dictionary listing output text replacements
+        self.output_replace_cd = CachedDictionary.CachedDictionary(sub_dir, "output_list.pkl")
+        self.output_replace_cd.read()
+        self.output_replace_dct: Dict[str, str] = self.output_replace_cd.dict
+        self.output_replace_list = []
+
+        for item in self.output_replace_dct:
+            self.output_replace_list.append(item)
+            self.logger.debug(f'Output replace [{item}]')
+
         self.entry_place = Loc.Loc()
 
         # Support for Geonames AlternateNames file.  Adds alternate names for entries

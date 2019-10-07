@@ -24,7 +24,8 @@ from tkinter import ttk
 from tkinter.ttk import *
 from typing import List
 
-from geofinder import UtilCountriesFrame, UtilErrorFrame, UtilFeatureFrame, UtilReplaceFrame, ListboxFrame, AppStyle, UtilLanguagesFrame
+from geofinder import UtilCountriesFrame, UtilErrorFrame, UtilFeatureFrame, UtilReplaceFrame, ListboxFrame, AppStyle, UtilLanguagesFrame, \
+    UtilOutputFilterFrame
 
 
 class UtilLayout:
@@ -51,49 +52,64 @@ class UtilLayout:
         self.error = ""
 
         # Add Multiple tabs
-        tab_list = ["Errors", "Countries", "Skip List", "Global Replace", "Features", "Languages"]
+        tab_list = ["Errors", "Countries", "Skip List", "Global Replace", "Features", "Languages", "Output"]
         self.create_tabs(tab_list)
 
         # Create a frame for each tab:
+        frame = 0
 
         # Error Status Tab
-        self.logger.debug('=====error frame')
-        self.status_list = UtilErrorFrame.SetupErrorFrame(self.frames[0], "Configuration Status",
+        self.logger.debug(f'====={tab_list[frame]} frame')
+        self.status_list = UtilErrorFrame.SetupErrorFrame(self.frames[frame], "Configuration Status",
                                                           self.directory, "errors.pkl", self.error)
         self.listbox_list.append(self.status_list)
+        frame += 1
 
         # Country Tab -  (has text entry box to add items)
-        self.logger.debug('=====country frame')
-        self.country_list = UtilCountriesFrame.SetupCountriesFrame(self.frames[1],
+        self.logger.debug(f'====={tab_list[frame]} frame')
+        self.country_list = UtilCountriesFrame.SetupCountriesFrame(self.frames[frame],
                                                                     "Supported Countries - Load geo data for these countries:",
                                                                    self.directory, self.cache_dir, "country_list.pkl")
         self.listbox_list.append(self.country_list)
+        frame += 1
 
         # Skiplist Tab - ListboxFrame (simple list)
-        self.logger.debug('=====skiplist frame')
-        self.skip_list = ListboxFrame.ListboxFrame(self.frames[2], "Skiplist - Ignore errors for these places",
+        self.logger.debug(f'====={tab_list[frame]} frame')
+        self.skip_list = ListboxFrame.ListboxFrame(self.frames[frame], "Skiplist - Ignore errors for these places",
                                                    self.cache_dir, "skiplist.pkl")
         self.listbox_list.append(self.skip_list)
+        frame += 1
 
         # GlobalReplace Tab- ListboxFrame (simple list)
-        self.logger.debug('=====gbl replace frame')
-        self.replace_list = UtilReplaceFrame.SetupReplaceFrame(self.frames[3], "Global Replace  - Replace these errors",
+        self.logger.debug(f'====={tab_list[frame]} frame')
+        self.replace_list = UtilReplaceFrame.SetupReplaceFrame(self.frames[frame], "Global Replace  - Replace these errors",
                                                                self.cache_dir, "global_replace.pkl")
         self.listbox_list.append(self.replace_list)
+        frame += 1
 
         # Feature tab
-        self.logger.debug('=====Feature frame')
-        self.feature_list = UtilFeatureFrame.SetupFeatureFrame(self.frames[4],
+        self.logger.debug(f'====={tab_list[frame]} frame')
+        self.feature_list = UtilFeatureFrame.SetupFeatureFrame(self.frames[frame],
                                                                 "We will load data for these geoname feature types:",
                                                                self.cache_dir, "feature_list.pkl")
         self.listbox_list.append(self.feature_list)
+        frame += 1
 
         # Languages tab
-        self.logger.debug('=====Languages frame')
-        self.languages_list = UtilLanguagesFrame.UtilLanguagesFrame(self.frames[5],
+        self.logger.debug(f'====={tab_list[frame]} frame')
+        self.languages_list = UtilLanguagesFrame.UtilLanguagesFrame(self.frames[frame],
                                                                 "Load alternate names for these languages:",
                                                                self.cache_dir, "languages_list.pkl")
         self.listbox_list.append(self.languages_list)
+        frame += 1
+
+        # Output tab
+        self.logger.debug(f'====={tab_list[frame]} frame')
+        self.output_list = UtilOutputFilterFrame.UtilOutputFilterFrame(self.frames[frame],
+                                                                "Make the following replacements for text written to the import file",
+                                                               self.cache_dir, "output_list.pkl")
+        self.listbox_list.append(self.output_list)
+        frame += 1
 
         # Create Help button below frames
         self.help_button = ttk.Button(self.root, text="help", command=self.help_handler, width=10)

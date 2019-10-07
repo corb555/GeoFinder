@@ -38,7 +38,7 @@ class Loc:
         self.logger = logging.getLogger(__name__)
         self.clear()
         self.event_year: int = 0
-        self.use_admin = False
+        self.use_alternate = False
         self.enable_swap = False
 
     def clear(self):
@@ -70,6 +70,7 @@ class Loc:
         self.georow_list.clear()
 
     def filter(self, place_name, geo_files):
+        # Advanced search parameters
         # Separate out arguments
         tokens = place_name.split(",")
         args = []
@@ -222,9 +223,10 @@ class Loc:
             self.place_type = PlaceType.CITY
 
     def get_status(self) -> str:
+        self.logger.debug(f'status=[{self.status}]')
         return self.status
 
-    def format_full_name(self):
+    def format_full_nm(self, replace_dct):
         """ Take the parts of a Place and build fullname.  e.g. pref, city,adm2,adm1,country name """
         self.set_place_type()
         self.prefix = self.prefix.strip(',')
@@ -252,7 +254,12 @@ class Loc:
             self.prefix_commas = ', '
         else:
             self.prefix_commas = ''
-        # self.logger.debug(f' [{self.prefix}][{self.prefix_commas}][{nm}]')
+
+        # Perform any text replacements user has entered into Output Tab
+        if replace_dct:
+            for key in replace_dct:
+                nm = re.sub(key, replace_dct[key], nm)
+
         self.prefix = self.prefix.title()
         return nm
 

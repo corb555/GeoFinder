@@ -41,6 +41,7 @@ class ListboxFrame:
 
     def __init__(self, frame, title, dir_name, cache_filename):
         self.logger = logging.getLogger(__name__)
+        # Col, Row, padx, pady
         self.grd = {"title_label": [0, 0, 5, 5, "EW"],
                     "listbox": [0, 1, 5, 5, "EW"], "scrollbar": [1, 1, 0, 5, "WNS"],
                     "status": [0, 2, 5, 5, "EW"], "load_button": [2, 2, 5, 5, "W"], "remove_button": [2, 2, 5, 5, "W"],
@@ -48,7 +49,10 @@ class ListboxFrame:
                     "add_label": [0, 4, 5, 5, "EW"], "add_button": [2, 4, 5, 5, "W"],
                     "add_entry": [0, 5, 5, 5, "EW"], "listbox_all_countries": [0, 5, 5, 5, "EW"], "scrollbar2": [1, 5, 0, 5, "WNS"],
                     "country_label": [0, 5, 5, 5, "EW"],
-                    "country_entry": [0, 6, 5, 5, "W"], "country_button": [2, 6, 5, 5, "W"],
+                    "country_entry": [0, 7, 5, 5, "W"], "country_button": [2, 6, 5, 5, "W"],
+                    "country_label2": [0, 6, 5, 5, "EW"],
+                    "country_entry2": [0, 9, 5, 5, "W"],
+                    "country_label3": [0, 8, 5, 5, "EW"],
                     }
 
         self.title = title
