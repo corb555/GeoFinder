@@ -570,22 +570,22 @@ class GeoDB:
 
     def create_geoid_index(self):
         # Create indices
-        self.db.create_index(create_table_sql='CREATE INDEX geoid_idx ON geodata(geoid)')
-        self.db.create_index(create_table_sql='CREATE INDEX admgeoid_idx ON admin(geoid)')
+        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS geoid_idx ON geodata(geoid)')
+        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS admgeoid_idx ON admin(geoid)')
 
     def create_indices(self):
         # Create indices
-        self.db.create_index(create_table_sql='CREATE INDEX name_idx ON geodata(name)')
-        self.db.create_index(create_table_sql='CREATE INDEX country_idx ON geodata(country)')
-        self.db.create_index(create_table_sql='CREATE INDEX admin1_idx ON geodata(admin1_id)')
-        self.db.create_index(create_table_sql='CREATE INDEX sdx_idx ON geodata(sdx)')
+        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS name_idx ON geodata(name)')
+        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS country_idx ON geodata(country)')
+        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS admin1_idx ON geodata(admin1_id)')
+        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS sdx_idx ON geodata(sdx)')
 
         # self.db.create_index(create_table_sql='CREATE INDEX geoid_idx ON geodata(geoid)')
 
-        self.db.create_index(create_table_sql='CREATE INDEX adm_name_idx ON admin(name)')
-        self.db.create_index(create_table_sql='CREATE INDEX adm_country_idx ON admin(country)')
-        self.db.create_index(create_table_sql='CREATE INDEX adm_admin1_idx ON admin(admin1_id)')
-        self.db.create_index(create_table_sql='CREATE INDEX adm_sdx_idx ON admin(sdx)')
+        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS adm_name_idx ON admin(name)')
+        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS adm_country_idx ON admin(country)')
+        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS adm_admin1_idx ON admin(admin1_id)')
+        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS adm_sdx_idx ON admin(sdx)')
 
     @staticmethod
     def make_georow(name: str, iso: str, adm1: str, adm2: str, lat: float, lon: float, feat: str, geoid: str, sdx: str) -> ():
