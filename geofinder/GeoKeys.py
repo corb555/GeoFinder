@@ -34,22 +34,26 @@ class Entry:
     FEAT = 6
     ID = 7
     SDX = 8
+    PREFIX = 8  # Note - item 8 is overloaded with Soundex in DB and Prefix for result
+    SCORE = 9
     MAX = 9
 
 
 class Result:
     # Result codes for lookup
-    EXACT_MATCH = 0
-    MULTIPLE_MATCHES = 2
-    NO_MATCH = 3
-    NOT_SUPPORTED = 4
-    NO_COUNTRY = 5
+    STRONG_MATCH = 8
+    MULTIPLE_MATCHES = 7
     PARTIAL_MATCH = 6
-    DELETE = 7
+    WILDCARD_MATCH = 5
+    SOUNDEX_MATCH = 4
+    DELETE = 3
+    NO_COUNTRY = 2
+    NO_MATCH = 1
+    NOT_SUPPORTED = 0
 
 
 # Result types that are successful matches
-successful_match = [Result.EXACT_MATCH, Result.PARTIAL_MATCH]
+successful_match = [Result.STRONG_MATCH, Result.PARTIAL_MATCH, Result.WILDCARD_MATCH, Result.SOUNDEX_MATCH]
 
 Query = collections.namedtuple('Query', 'where args result')
 
@@ -66,12 +70,18 @@ def get_cache_directory(dirname):
     """ Return the directory for cache files """
     return os.path.join(dirname, "cache")
 
+def search_normalize(res):
+    res = normalize(res)
+    res = re.sub(r'prussia', 'germany', res)
+    return res
+
 def _phrase_normalize(res) -> str:
     """ Strip spaces and normalize spelling for items such as Saint and County """
     # Replacement patterns to clean up entries
     res = re.sub('r.k. |r k ', 'rooms katholieke ',res)
     res = re.sub('saints |sainte |sint |saint |sankt |st. ', 'st ', res)  # Normalize Saint
     res = re.sub(r' co\.', ' county', res)  # Normalize County
+    res = re.sub(r'united states', 'usa', res)  # Normalize County
 
     if 'amt' not in res:
         res = re.sub(r'^mt ', 'mount ', res)
@@ -93,6 +103,21 @@ def normalize(res) -> str:
 
     # remove all punctuation
     res = re.sub(r"[^a-zA-Z0-9 $.*']+", " ", res)
+
+    res = _phrase_normalize(res)
+    return res.strip(' ')
+
+
+def semi_normalize(res) -> str:
+    """ Strip commas. Also strip spaces and normalize spelling for items such as Saint and County and chars   ø ß """
+
+    # Convert UT8 to ascii
+    res = unidecode.unidecode(res)
+
+    res = str(res).lower()
+
+    # remove all punctuation
+    res = re.sub(r"[^a-zA-Z0-9 $.*,']+", " ", res)
 
     res = _phrase_normalize(res)
     return res.strip(' ')

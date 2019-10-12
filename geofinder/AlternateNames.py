@@ -83,6 +83,7 @@ class AlternateNames(FileReader):
             if len(self.loc.georow_list) > 0:
                 # convert to list  and modify name and add to DB and its soundex
                 lst = list(self.loc.georow_list[0])
+                del lst[-1]
                 lst[GeoDB.Entry.NAME] = GeoKeys.normalize(alt_tokens[ALT_NAME])
                 lst.append(GeoKeys.get_soundex(alt_tokens[ALT_NAME]))
                 new_row = tuple(lst)   # Convert back to tuple

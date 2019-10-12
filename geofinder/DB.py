@@ -23,7 +23,7 @@ from tkinter import messagebox
 
 from geofinder.GeoKeys import Query, Result
 
-DB_CORRUPT_MSG = 'Database is corrupt'
+DB_CORRUPT_MSG = 'Database error'
 
 
 class DB:
@@ -126,13 +126,16 @@ class DB:
         self.cur.execute('BEGIN')
 
     def execute(self, sql, args):
-        try:
+        #try:
+        if True:
             self.cur.execute(sql, args)
+        """
         except Exception as e:
             messagebox.showwarning('Error', f'{DB_CORRUPT_MSG}\n {e}')
             self.err = True
             self.logger.error(e)
             sys.exit()
+        """
         return self.cur.lastrowid
 
     def commit(self):
@@ -176,9 +179,10 @@ class DB:
         res = Result.NO_MATCH
         for query in query_list:
             row_list = self.select(query.where, from_tbl, query.args)
-            # self.logger.debug(f'select x from {from_tbl}  where {query.where} val={query.args}')
+            #self.logger.debug(f'select x from {from_tbl}  where {query.where} val={query.args}')
             if len(row_list) > 0:
                 res = query.result  # Set specified success code
+                #self.logger.debug(row_list)
                 # Found match.  Break out of loop
                 break
 

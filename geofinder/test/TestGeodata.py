@@ -25,7 +25,8 @@ from pathlib import Path
 
 from geofinder import Geodata, GeoKeys, Loc
 
-halifax_lat = 44.71314
+halifax_lat = 44.64533
+bruce_cty_lat = 44.50009
 
 
 class TestGeodata(unittest.TestCase):
@@ -70,26 +71,32 @@ class TestGeodata(unittest.TestCase):
     def run_test(self, title: str, entry: str):
         print("*****TEST: {}".format(title))
         TestGeodata.geodata.find_location(entry, self.place)
-        flags = TestGeodata.geodata.build_result_list(self.place.georow_list, self.place.event_year)
+        flags = TestGeodata.geodata.build_result_list(self.place)
         # If multiple matches, truncate to first match
         lat = self.place.lat
-        if len(self.place.georow_list) > 1:
+        if len(self.place.georow_list) > 0:
             lat = self.place.georow_list[0][GeoKeys.Entry.LAT]
             self.place.georow_list = self.place.georow_list[:1]
             TestGeodata.geodata.process_result(place=self.place, targ_name=self.place.target, flags=flags)
 
-        return float(lat), self.place.prefix + self.place.prefix_commas + self.place.format_full_name()
+            nm = f'{self.place.format_full_nm(TestGeodata.geodata.geo_files.output_replace_dct)}'
+            print(f'Find [{self.place.prefix}{self.place.prefix_commas}] {nm}')
+            return float(lat), self.place.prefix+self.place.prefix_commas+nm
+        else:
+            return float(lat), 'NO MATCH'
+
 
     # ===== TEST RESULT CODES
+
     def test_res_code01(self):
         title = "City.  Good.  upper lowercase"
         lat, name = self.run_test(title, "AlbAnel,, Quebec, CanAda")
-        self.assertEqual(GeoKeys.Result.EXACT_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code02(self):
         title = "City - multiple matches"
         lat, name = self.run_test(title, "Alberton,, Ontario, Canada")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, title)
 
     def test_res_code03(self):
         title = "County - Good.  wrong Province"
@@ -99,7 +106,7 @@ class TestGeodata(unittest.TestCase):
     def test_res_code11(self):
         title = "City and county  Good."
         lat, name = self.run_test(title, "baldwin mills,estrie,,canada")
-        self.assertEqual(GeoKeys.Result.EXACT_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code04(self):
         title = "city - Good. wrong Province"
@@ -109,7 +116,7 @@ class TestGeodata(unittest.TestCase):
     def test_res_code05(self):
         title = "multiple county - not unique"
         lat, name = self.run_test(title, "St Andrews,,,Canada")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, title)
 
     def test_res_code06(self):
         title = "City - good. wrong province"
@@ -140,12 +147,12 @@ class TestGeodata(unittest.TestCase):
     def test_res_code_country01(self):
         title = "Country - bad"
         lat, name = self.run_test(title, "squid")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, title)
 
     def test_res_code_country02(self):
         title = "No Country - Natuashish"
         lat, name = self.run_test(title, "Natuashish,, ")
-        self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code_country03(self):
         title = "No Country - Berlin"
@@ -176,7 +183,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_code04(self):
         title = "County  prioritize city.  verify place type "
         lat, name = self.run_test(title, "Halifax, Nova Scotia, Canada")
-        self.assertEqual(Loc.PlaceType.ADMIN2, self.place.place_type, title)
+        self.assertEqual(Loc.PlaceType.CITY, self.place.place_type, title)
 
     def test_place_code24(self):
         title = "County  prioritize city.  verify place type "
@@ -186,7 +193,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_code05(self):
         title = "County prioritize city verify place type with prefix "
         lat, name = self.run_test(title, "abc,,Halifax, Nova Scotia, Canada")
-        self.assertEqual(Loc.PlaceType.ADMIN2, self.place.place_type, title)
+        self.assertEqual(Loc.PlaceType.CITY, self.place.place_type, title)
 
     def test_place_code25(self):
         title = "County prioritize city verify place type with prefix "
@@ -202,6 +209,7 @@ class TestGeodata(unittest.TestCase):
         title = "City  verify place type with prefix"
         lat, name = self.run_test(title, "abc,,Halifax, , Nova Scotia, Canada")
         self.assertEqual(Loc.PlaceType.CITY, self.place.place_type, title)
+
 
     # ===== TEST PERMUTATIONS for Exact lookups (non wildcard)
 
@@ -244,24 +252,24 @@ class TestGeodata(unittest.TestCase):
 
     # County ---------------Verify lookup returns correct place (latitude)
     def test_county01(self):
-        title = "County - good"
-        lat, name = self.run_test(title, "Albert County, New Brunswick, Canada")
-        self.assertEqual(45.83346, lat, title)
+        title = "County - good Bruce County"
+        lat, name = self.run_test(title, "Bruce County, Ontario, Canada")
+        self.assertEqual(bruce_cty_lat, lat, title)
 
     def test_county02(self):
-        title = "County - good with prefix"
-        lat, name = self.run_test(title, "abcd, ,Albert County, New Brunswick, Canada")
-        self.assertEqual(45.83346, lat, title)
+        title = "County - good with prefix Bruce County"
+        lat, name = self.run_test(title, "abcd, ,Bruce County, Ontario, Canada")
+        self.assertEqual(bruce_cty_lat, lat, title)
 
     def test_county03(self):
-        title = "County - Abbreviated good"
-        lat, name = self.run_test(title, "Albert Co., New Brunswick, Canada")
-        self.assertEqual(45.83346, lat, title)
+        title = "County - Abbreviated good Bruce Co."
+        lat, name = self.run_test(title, "Bruce Co., Ontario, Canada")
+        self.assertEqual(bruce_cty_lat, lat, title)
 
     def test_county04(self):
         title = "County - good.  prioritize Halifax city vs County"
         lat, name = self.run_test(title, "Halifax, Nova Scotia, Canada")
-        self.assertEqual(44.86685, lat, title)
+        self.assertEqual(halifax_lat, lat, title)
 
     def test_county24(self):
         title = "County - good.  prioritize Halifax city vs County"
@@ -355,9 +363,9 @@ class TestGeodata(unittest.TestCase):
         self.assertEqual(48.88324, lat, title)
 
     def test_city19(self):
-        title = "City - good - Wrong Province"
-        lat, name = self.run_test(title, "Halifax, Alberta, Canada")
-        self.assertAlmostEqual(-63.71541, float(self.place.lon))
+        title = "City - good - Halifax ALBERTA Province"
+        lat, name = self.run_test(title, "Halifax Coulee, Alberta, Canada")
+        self.assertEqual(-113.78523, float(self.place.lon))
 
     def test_city20(self):
         title = "City - Good "
@@ -412,17 +420,17 @@ class TestGeodata(unittest.TestCase):
     def test_city30(self):
         title = "City - Old Bond Street, London, Middlesex, England"
         lat, name = self.run_test(title, "Old Bond Street, London, Middlesex, England")
-        self.assertEqual(51.50853, lat, title)
+        self.assertEqual(51.53174, lat, title)
 
     def test_city31(self):
         title = "City - St. Margaret, Westminster, London, England"
         lat, name = self.run_test(title, "St. Margaret, Westminster, London, England")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, title)
 
     def test_city32(self):
         title = "City - Amsterdam, Zuiderkerk"
         lat, name = self.run_test(title, "Amsterdam, Zuiderkerk")
-        self.assertEqual(52.37403, lat, title)
+        self.assertEqual(52.37027, lat, title)
 
     def test_city33(self):
         title = "City - Amsterdam, Spiegelplein 9"
@@ -460,10 +468,10 @@ class TestGeodata(unittest.TestCase):
         lat, name = self.run_test(title, "Alb*el,, Queb*, Canada")
         self.assertEqual(48.88324, lat, title)
 
-    def test_wildcard07(self):
-        title = "City - Wildcard - 300+ matches"
-        lat, name = self.run_test(title, "b*,,, CanAda")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+    #def test_wildcard07(self):
+    #    title = "City - Wildcard - 300+ matches"
+    #    lat, name = self.run_test(title, "b*,,, CanAda")
+    #    self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, title)
 
     # ===== TEST ADMIN ID Verify lookup returns correct place (ID)
 
@@ -528,6 +536,7 @@ class TestGeodata(unittest.TestCase):
         self.assertEqual("pref abcde", self.place.prefix + self.place.prefix_commas, title)
 
     # =====  TEST Verify Name formatting
+
     def test_place_name01(self):
         title = "Country  verify place name"
         lat, name = self.run_test(title, "Germany")
@@ -541,12 +550,12 @@ class TestGeodata(unittest.TestCase):
     def test_place_name04(self):
         title = "County  verify place name "
         lat, name = self.run_test(title, "Halifax, Nova Scotia, Canada")
-        self.assertEqual("Halifax County, Nova Scotia, Canada", name, title)
+        self.assertEqual("Halifax, , Nova Scotia, Canada", name, title)
 
     def test_place_name05(self):
         title = "County  verify place name with prefix. prioritize city "
         lat, name = self.run_test(title, "abc,,Halifax, Nova Scotia, Canada")
-        self.assertEqual("Abc, Halifax County, Nova Scotia, Canada", name, title)
+        self.assertEqual("Abc, Halifax, , Nova Scotia, Canada", name, title)
 
     def test_place_name25(self):
         title = "County  verify place name with prefix "
@@ -591,28 +600,67 @@ class TestGeodata(unittest.TestCase):
     def test_place_name13(self):
         title = "City - Old Bond Street, London, Middlesex, England"
         lat, name = self.run_test(title, "Old Bond Street, London, Middlesex, England")
-        self.assertEqual("Old Bond Street, London, Greater London, England, United Kingdom", name, title)
+        self.assertEqual("Old Bond Street, Middlesex, Greater London, England, United Kingdom", name, title)
 
     def test_place_name14(self):
         title = "City - St. Margaret, Westminster, London, England"
         lat, name = self.run_test(title, "St. Margaret, Westminster, London, England")
-        self.assertEqual("St. Margaret, City Of Westminster, Greater London, England, United Kingdom", name, title)
+        self.assertEqual("St Margaret, Westminster Abbey, Greater London, England, United Kingdom", name, title)
 
     def test_place_name15(self):
         title = "City - Amsterdam, Zuiderkerk"
         lat, name = self.run_test(title, "Amsterdam, Zuiderkerk")
-        self.assertEqual("Zuiderkerk, Amsterdam, Gemeente Amsterdam, Provincie Noord Holland, Netherlands", name, title)
+        self.assertEqual("Zuiderkerk,  Amsterdam,  Noord Holland, Netherlands", name, title)
 
     def test_place_name16(self):
         title = "City - Amsterdam, Spiegelplein 9"
         lat, name = self.run_test(title, "Amsterdam, Spiegelplein 9")
-        self.assertEqual("Spiegelplein 9, Amsterdam, Gemeente Amsterdam, Provincie Noord Holland, Netherlands", name, title)
+        self.assertEqual("Spiegelplein 9, Amsterdam,  Amsterdam,  Noord Holland, Netherlands", name, title)
 
     def test_place_name17(self):
         title = "City - Rooms-Katholieke begraafplaats ‘Buitenveldert’, Amsterdam"
         lat, name = self.run_test(title, "Rooms-Katholieke begraafplaats ‘Buitenveldert’, Amsterdam")
-        self.assertEqual("Rooms Katholieke Begraafplaats 'Buitenveldert', Amsterdam, Gemeente Amsterdam, Provincie Noord Holland, Netherlands",
+        self.assertEqual("Rooms Katholieke Begraafplaats 'Buitenveldert', Amsterdam,  Amsterdam,  Noord Holland, Netherlands",
                          name, title)
+
+    def test_place_name18(self):
+        title = "City - Troyes, Aube, Champagne, France"
+        lat, name = self.run_test(title, "Troyes, Aube, Champagne, France")
+        self.assertEqual("Troyes, Departement De L'aube, Grand Est, France",
+                         name, title)
+
+    def test_place_name19(self):
+        title = "City - Hoxa ,Ronaldsay, orkney, scotland"
+        lat, name = self.run_test(title, "Hoxa ,Ronaldsay, orkney, scotland")
+        self.assertEqual("Hoxa, North Ronaldsay, Orkney Islands, Scotland, United Kingdom",
+                         name, title)
+
+    def test_place_name20(self):
+        title = "City - Paris, France"
+        lat, name = self.run_test(title, "Paris, France")
+        self.assertEqual("Paris, Paris, Ile De France, France",
+                         name, title)
+
+    def test_place_name21(self):
+        title = "City - Oak Street, Westchester County, New York, USA"
+        lat, name = self.run_test(title, "Oak Street, Westchester County, New York, USA")
+        self.assertEqual("Oak Street, Westchester County, New York, Usa",
+                         name, title)
+
+    def test_place_name22(self):
+        title = "City - Evreux, Eure, Normandy, France"
+        lat, name = self.run_test(title, "Evreux, Eure, Normandy, France")
+        self.assertEqual("Evreux, Departement De L'eure, Normandie, France",
+                         name, title)
+
+    def test_place_name23(self):
+        title = "City - St. Janskathedraal, 's Hertogenbosch"
+        lat, name = self.run_test(title, "St. Janskathedraal, 's Hertogenbosch")
+        self.assertEqual("St Janskathedraal, 's Hertogenbosch,  's Hertogenbosch,  Noord Brabant, Netherlands",
+                         name, title)
+
+    # St. Janskathedraal, 's Hertogenbosch
+    # Blois, Loir-et-Cher, Orleanais/Centre, France
 
     # ======= TEST Event Year handling
     def test_eventyear01(self):

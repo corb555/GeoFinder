@@ -267,7 +267,7 @@ class GeoFinder:
                 # There is a global change that we can apply to this line.
                 self.clean_count += 1
 
-                if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
+                if self.place.result_type == GeoKeys.Result.STRONG_MATCH:
                     # Output updated place to ancestry file
                     self.write_updated_place(self.place)
 
@@ -283,13 +283,12 @@ class GeoFinder:
                     self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
                     self.geodata.find_location(town_entry, self.place)
                     break
-
                 continue
             elif self.get_replacement(self.user_accepted, town_entry, self.place) is not None:
                 # There is an accepted  change that we can use for this line.  Get the replacement text
                 self.clean_count += 1
 
-                if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
+                if self.place.result_type == GeoKeys.Result.STRONG_MATCH:
                     # Output place to  file
                     self.write_updated_place(self.place)
 
@@ -305,7 +304,6 @@ class GeoFinder:
                     self.w.original_entry.set_text(self.place.name)  # Display place
                     self.w.user_entry.set_text(self.place.name)  # Display place
                     break
-
                 continue
             elif self.w.prog.shutdown_requested:
                 # User requested shutdown.  Finish up going thru file, then shut down
@@ -333,8 +331,8 @@ class GeoFinder:
                 if self.place.result_type in GeoKeys.successful_match:
                     # Found a match
                     self.clean_count += 1
-                    if self.place.result_type == GeoKeys.Result.EXACT_MATCH:
-                        # Exact match
+                    if self.place.result_type == GeoKeys.Result.STRONG_MATCH:
+                        # Strong match
                         # Write out line without user verification
                         if self.w.prog.shutdown_requested:
                             self.periodic_update("Shutting down...")
@@ -345,7 +343,7 @@ class GeoFinder:
                         res = '@' + self.place.geoid + '@' + self.place.prefix
 
                         self.global_replace.set(town_entry, res)
-                        self.logger.debug(f'Found Exact Match for {town_entry} res= [{res}] Setting DICT')
+                        self.logger.debug(f'Found Strong Match for {town_entry} res= [{res}] Setting DICT')
                         # Periodically flush dictionary to disk.  (We flush on exit as well)
                         if self.err_count % 4 == 1:
                             self.global_replace.write()
@@ -384,7 +382,7 @@ class GeoFinder:
     def get_user_selection(self):
         # User selected item from listbox - get listbox selection
         pref, town_entry = self.get_list_selection()
-        self.logger.debug(f'selected {town_entry}')
+        self.logger.debug(f'selected pref=[{pref}] [{town_entry}]')
 
         # Update the user edit widget with the List selection item
         self.w.user_entry.set_text(town_entry)
@@ -510,15 +508,18 @@ class GeoFinder:
         self.clear_display_list()
 
         temp_place = copy.copy(place)
+        min_score = 100000
 
         # Get geodata for each item and add to listbox output
         for geo_row in place.georow_list:
             self.geodata.geo_files.geodb.copy_georow_to_place(geo_row, temp_place)
+
             nm = temp_place.format_full_nm(self.geodata.geo_files.output_replace_dct)
             valid = self.geodata.validate_year_for_location(event_year=place.event_year, iso=temp_place.country_iso,
                                                             admin1=temp_place.admin1_id, padding=0)
             if valid:
-                self.list_insert(nm, temp_place.prefix)
+                # Get prefix
+                self.list_insert(nm, geo_row[GeoKeys.Entry.PREFIX])
             else:
                 self.list_insert(nm, "INVALID DATE")
 

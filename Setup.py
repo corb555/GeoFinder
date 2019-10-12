@@ -59,8 +59,8 @@ if not VERSION:
         exec(f.read(), about)
     tkn = about['__version__'].split('.')
     next_build = int(tkn[-1]) + 1
-    #next_ver = f'{tkn[0]}.{tkn[1]}.{next_build}'
-    #print(next_ver)
+    # next_ver = f'{tkn[0]}.{tkn[1]}.{next_build}'
+    # print(next_ver)
 else:
     about['__version__'] = VERSION
 

@@ -20,7 +20,7 @@ import logging
 import os
 import webbrowser
 from tkinter import *
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from tkinter.ttk import *
 from typing import List
 
@@ -144,13 +144,14 @@ class UtilLayout:
 
         if self.country_list.is_dirty() or self.feature_list.is_dirty() or self.languages_list.is_dirty():
             # Delete geoname.db so GeoFinder will rebuild it with new country list or feature list
-            for fname in ['geodata.db']:
-                path = os.path.join(self.cache_dir, fname)
-                self.logger.debug(f'Quit - DELETING FILE {path}')
-                if os.path.exists(path):
-                    os.remove(path)
-                else:
-                    self.logger.warning(f'Delete file not found {path}')
+            if messagebox.askyesno('Configuration Changed',  'Do you want to rebuild the database on next startup?'):
+                for fname in ['geodata.db']:
+                    path = os.path.join(self.cache_dir, fname)
+                    self.logger.debug(f'Quit - DELETING FILE {path}')
+                    if os.path.exists(path):
+                        os.remove(path)
+                    else:
+                        self.logger.warning(f'Delete file not found {path}')
 
         self.root.quit()
         sys.exit()
