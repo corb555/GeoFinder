@@ -96,7 +96,7 @@ class TestGeodata(unittest.TestCase):
     def test_res_code02(self):
         title = "City - multiple matches"
         lat, name = self.run_test(title, "Alberton,, Ontario, Canada")
-        self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code03(self):
         title = "County - Good.  wrong Province"
@@ -147,7 +147,7 @@ class TestGeodata(unittest.TestCase):
     def test_res_code_country01(self):
         title = "Country - bad"
         lat, name = self.run_test(title, "squid")
-        self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code_country02(self):
         title = "No Country - Natuashish"
@@ -420,7 +420,7 @@ class TestGeodata(unittest.TestCase):
     def test_city30(self):
         title = "City - Old Bond Street, London, Middlesex, England"
         lat, name = self.run_test(title, "Old Bond Street, London, Middlesex, England")
-        self.assertEqual(51.53174, lat, title)
+        self.assertEqual(51.50853, lat, title)
 
     def test_city31(self):
         title = "City - St. Margaret, Westminster, London, England"
@@ -600,7 +600,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_name13(self):
         title = "City - Old Bond Street, London, Middlesex, England"
         lat, name = self.run_test(title, "Old Bond Street, London, Middlesex, England")
-        self.assertEqual("Old Bond Street, Middlesex, Greater London, England, United Kingdom", name, title)
+        self.assertEqual("Old Bond Street, London, Greater London, England, United Kingdom", name, title)
 
     def test_place_name14(self):
         title = "City - St. Margaret, Westminster, London, England"
@@ -642,9 +642,9 @@ class TestGeodata(unittest.TestCase):
                          name, title)
 
     def test_place_name21(self):
-        title = "City - Oak Street, Westchester County, New York, USA"
-        lat, name = self.run_test(title, "Oak Street, Westchester County, New York, USA")
-        self.assertEqual("Oak Street, Westchester County, New York, Usa",
+        title = "City - Oak Street, Toronto, Ontario, Canada"
+        lat, name = self.run_test(title, "Oak Street, Toronto, Ontario, Canada")
+        self.assertEqual("Oak Street, Toronto, , Ontario, Canada",
                          name, title)
 
     def test_place_name22(self):
@@ -659,7 +659,13 @@ class TestGeodata(unittest.TestCase):
         self.assertEqual("St Janskathedraal, 's Hertogenbosch,  's Hertogenbosch,  Noord Brabant, Netherlands",
                          name, title)
 
-    # St. Janskathedraal, 's Hertogenbosch
+    def test_place_name24(self):
+        title = "City - Cambridge, cambridgeshire , England"
+        lat, name = self.run_test(title, "Cambridge, cambridgeshire , England")
+        self.assertEqual("Cambridge, Cambridgeshire, England, United Kingdom",
+                         name, title)
+
+    # Cambridge, cambridgeshire , England
     # Blois, Loir-et-Cher, Orleanais/Centre, France
 
     # ======= TEST Event Year handling

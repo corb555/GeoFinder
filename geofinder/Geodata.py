@@ -42,6 +42,7 @@ class Geodata:
         self.progress_bar = progress_bar  # progress_bar
         self.geo_files = GeodataFiles.GeodataFiles(self.directory, progress_bar=self.progress_bar)  # , geo_district=self.geo_district)
         self.save_place = None
+        self.last_iso = ''
 
     def update_prefix(self, place):
         temp_place = Loc.Loc()
@@ -89,7 +90,7 @@ class Geodata:
 
         self.geo_files.geodb.lookup_place(place=place)
         result_list.extend(place.georow_list)
-        self.logger.debug(f'By Typ={typ} Targ=[{place.target}] ')
+        #self.logger.debug(f'By Typ={typ} Targ=[{place.target}] ')
 
         if 'shire' in place.target:
             place.admin2_name = place.target
@@ -119,6 +120,8 @@ class Geodata:
         Update place with -- lat, lon, district, city, country_iso, result code
         """
         place.parse_place(place_name=location, geo_files=self.geo_files)
+        if place.country_iso == '':
+            place.country_iso = self.last_iso
         flags = ResultFlags(limited=False, filtered=False)
         result_list = []
 
@@ -147,10 +150,13 @@ class Geodata:
         self.geo_files.geodb.lookup_place(place=place)
         self.update_prefix(place=place)
         result_list.extend(place.georow_list)
+        self.logger.debug(result_list)
+
         if '*' in place.name:
             # Wildcard - Process the results and return
             self.process_result(place=place, targ_name=place.target, flags=flags)
             self.logger.debug(f'Status={place.status}')
+            place.prefix = ''
             return
 
         place.place_type = Loc.PlaceType.CITY
@@ -158,6 +164,9 @@ class Geodata:
         # Try each token as city (use PlaceType to walk thru)
         for ty in [Loc.PlaceType.CITY, Loc.PlaceType.ADMIN1, Loc.PlaceType.ADMIN2]:
             self.lookup_by_type(place, result_list, ty, self.save_place)
+
+        self.logger.debug(result_list)
+
 
         #  Try Admin1 as Admin1
         place.prefix = self.save_place.prefix + f' {self.save_place.city1.title()}'
@@ -179,12 +188,15 @@ class Geodata:
         result_list.extend(place.georow_list)
         #place.city1 = self.save_place.city1
 
+        self.logger.debug(result_list)
+
+
         # Try prefix  as target
         place.target = place.prefix
         place.prefix = place.city1
         place.city1 = self.save_place.prefix
-        if '*' in place.target:
-            result_list.clear()
+        #if '*' in place.target:
+        #    result_list.clear()
 
         self.logger.debug(f'Try Prefix.  [{place.target}]')
         place.enable_swap = True
@@ -252,12 +264,12 @@ class Geodata:
 
         place.prefix = place.prefix.strip(' ')
         self.set_place_type_text(place=place)
-        place.status = f'{place.result_type_text} "{st.capwords(targ_name)}" {result_text_list.get(place.result_type)} '
+        place.status = f'{place.result_type_text}  {result_text_list.get(place.result_type)} '
         if flags.limited:
             place.status += ' First 300 matches shown...'
 
         if flags.filtered:
-            place.status = f'{place.result_type_text} "{st.capwords(targ_name)}" {result_text_list.get(place.result_type)} '
+            place.status = f'{place.result_type_text}  {result_text_list.get(place.result_type)} '
             place.status += ' ***VERIFY EVENT DATE***'
             place.result_type = GeoKeys.Result.PARTIAL_MATCH
 
@@ -310,6 +322,9 @@ class Geodata:
             place.result_type_text = self.get_district1_type(place.country_iso)
         else:
             place.result_type_text = Loc.place_type_name_dict[place.place_type]
+
+    def set_last_iso(self, iso):
+        self.last_iso = iso
 
     @staticmethod
     def get_district1_type(iso) -> str:
@@ -443,7 +458,7 @@ class Geodata:
             if score < min_score:
                 min_score = score
             self.logger.debug(f'Score={score:.2f} Min={min_score:.2f} {geo_row[GeoKeys.Entry.NAME]}')
-            if score > min_score + 6:
+            if score > min_score + 1.5:
                 break
             place.georow_list.append(geo_row)
 

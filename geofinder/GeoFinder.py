@@ -327,6 +327,9 @@ class GeoFinder:
                 self.logger.debug(f'new PLAC. Use Alternate={self.place.use_alternate}')
                 self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
                 self.geodata.find_location(town_entry, self.place)
+                if self.place.result_type not in GeoKeys.successful_match:
+                    self.geodata.set_last_iso('')
+                    self.geodata.find_location(town_entry, self.place)
 
                 if self.place.result_type in GeoKeys.successful_match:
                     # Found a match
@@ -542,6 +545,7 @@ class GeoFinder:
     def save_handler(self):
         """ Save the Place.  Add Place to global replace list and replace if we see it again. """
         self.clean_count += 1
+        self.geodata.set_last_iso(self.place.country_iso)
 
         ky = self.w.original_entry.get_text()
         if self.place.result_type == GeoKeys.Result.DELETE:

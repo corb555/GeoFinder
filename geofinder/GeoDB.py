@@ -67,7 +67,7 @@ class GeoDB:
             self.create_tables()
 
         self.db.set_speed_pragmas()
-        self.db.set_params(select_str='name, country, admin1_id, admin2_id, lat, lon, f_code, geoid, sdx', order_str='', limit_str='LIMIT 60')
+        self.db.set_params(select_str='name, country, admin1_id, admin2_id, lat, lon, f_code, geoid, sdx', order_str='', limit_str='LIMIT 160')
         self.geoid_main_dict = {}  # Key is GEOID, Value is DB ID for entry
         self.geoid_admin_dict = {}  # Key is GEOID, Value is DB ID for entry
         self.place_type = ''
@@ -110,7 +110,9 @@ class GeoDB:
             update.append(1)  # Extend list row and assign score
             result_place.prefix = ''
             res_nm = result_place.format_full_nm(None)
-            score = float(self.difference(inp=nm, result=res_nm)) - float(Geodata.Geodata.get_priority(rw[GeoKeys.Entry.FEAT])) / 10.0
+            # todo - move feature priority into scoring routine
+            score = float(self.difference(inp=nm, res=res_nm)) \
+                    - float(Geodata.Geodata.get_priority(rw[GeoKeys.Entry.FEAT])) * 0.1
 
             # Remove items in prefix that are in result
             tk_list = res_nm.split(",")
@@ -123,24 +125,24 @@ class GeoDB:
         if place.result_type == Result.STRONG_MATCH and len(place.prefix) > 0:
             place.result_type = Result.PARTIAL_MATCH
 
-    def difference(self, inp, result):
+    def difference(self, inp, res):
         # Return a score 0-100 reflecting the difference between the user input and the result:
         # The percent of characters in inp that were NOT matched by a word in result
         # Lower score is better match.  0 is perfect match, 100 is no match
 
         inp_nm = GeoKeys.semi_normalize(inp)
-        #inp_length = len(inp_nm)
+        # inp_length = len(inp_nm)
         original_inp_tokens = inp_nm.split(',')
 
-        result = GeoKeys.semi_normalize(result)
+        result = GeoKeys.semi_normalize(res)
         result = re.sub(r"'", ' ', result)  # Normalize
         result = re.sub(r"normandy american ", 'normandie american ', result)  # Odd case for Normandy American cemetery having only english spelling
 
         result_tokens = result.split(" ")
-        for idx,result_tok in enumerate(result_tokens):
+        for idx, result_tok in enumerate(sorted(result_tokens, key=len, reverse=True)):
             if len(result_tok) > 2:
                 inp_nm = re.sub(result_tok.strip(','), '', inp_nm)
-                inp_nm = re.sub(result_tok.strip('shire,'), '', inp_nm)
+                # inp_nm = re.sub(result_tok.strip('shire,'), '', inp_nm)
 
         # Percent of each token that was left.  Averaged over number of tokens
         score = 0
@@ -148,12 +150,12 @@ class GeoDB:
 
         for idx, tk in enumerate(inp_tokens):
             # Tokens to the right end have slightly higher weighting
-            weight = (1.0 + idx * .01)
+            weight = (1.0 + idx * .005)
             if len(original_inp_tokens[idx].strip(' ')) > 0:
                 score += (int(100.0 * len(inp_tokens[idx].strip(' ')) / len(original_inp_tokens[idx].strip(' ')))) * weight
         score = score / len(inp_tokens)
 
-        self.logger.debug(f'Score={score:.2f} Remainder [{inp_nm}]  DB match [{result}]')
+        #self.logger.debug(f'Score={score:.2f} Remainder [{inp_nm}]  DB [{result}]  Targ [{inp_nm}]')
         return score
 
         """
@@ -219,7 +221,7 @@ class GeoDB:
                                     args=(sdx,),
                                     result=Result.SOUNDEX_MATCH))
             place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
-            self.logger.debug(place.georow_list)
+            # self.logger.debug(place.georow_list)
             return
 
         # Build query list - try each query in order until a match is found
@@ -306,14 +308,14 @@ class GeoDB:
                   args=(self.create_wildcard(lookup_target), place.country_iso, 'ADM2'),
                   result=Result.PARTIAL_MATCH),
             Query(where="name = ?  AND f_code=?",
-                  args=(lookup_target,  'ADM2'),
+                  args=(lookup_target, 'ADM2'),
                   result=Result.PARTIAL_MATCH),
             Query(where="name LIKE ? AND country = ? AND f_code=?",
                   args=(self.create_county_wildcard(lookup_target), place.country_iso, 'ADM2'),
                   result=Result.WILDCARD_MATCH)
         ]
 
-        self.logger.debug(f'Admin2 lookup=[{lookup_target}] country=[{place.country_iso}]')
+        # self.logger.debug(f'Admin2 lookup=[{lookup_target}] country=[{place.country_iso}]')
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
         if place.result_type == GeoKeys.Result.WILDCARD_MATCH:
             # Found as Admin2 without shire
@@ -324,7 +326,7 @@ class GeoDB:
             save_admin2 = place.admin2_name
             place.city1 = place.admin2_name
             place.admin2_name = ''
-            self.logger.debug(f'Try admin2 as city: [{place.target}]')
+            # self.logger.debug(f'Try admin2 as city: [{place.target}]')
 
             self.select_city(place)
 
@@ -336,7 +338,7 @@ class GeoDB:
                 # Found match as a City
                 place.place_type = Loc.PlaceType.CITY
                 match_adm1 = self.get_admin1_name_direct(lookup_target=place.georow_list[0][Entry.ADM1], iso=place.country_iso)
-                self.logger.debug(f'pl_iso [{place.country_iso}] pl_adm1 {place.admin1_name} match_adm1=[{match_adm1}] ')
+                # self.logger.debug(f'pl_iso [{place.country_iso}] pl_adm1 {place.admin1_name} match_adm1=[{match_adm1}] ')
                 if place.admin1_name != match_adm1:
                     place.prefix = place.admin1_name.title()
                     place.admin1_name = ''

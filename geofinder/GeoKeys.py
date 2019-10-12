@@ -73,6 +73,7 @@ def get_cache_directory(dirname):
 def search_normalize(res):
     res = normalize(res)
     res = re.sub(r'prussia', 'germany', res)
+    res = re.sub(r'middlesex', 'greater london', res)
     return res
 
 def _phrase_normalize(res) -> str:
