@@ -736,6 +736,7 @@ class GeoFinder:
         os._exit(0)
 
     def set_swap_allowed(self, allowed: bool):
+        allowed = False
         if allowed:
             # Enable the Save and Map buttons
             self.w.swap_button.config(state="normal")  # Match - enable  button
