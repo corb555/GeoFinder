@@ -17,14 +17,16 @@
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 import os
 import tkinter as tk
+from typing import Dict
 
-from geofinder import ListboxFrame, GeoDB, Loc
+from geofinder import UtilListboxFrame, GeoDB, Loc
+from geofinder.CachedDictionary import CachedDictionary
 
 GEOID_TOKEN = 1
 PREFIX_TOKEN = 2
 
 
-class SetupReplaceFrame(ListboxFrame.ListboxFrame):
+class SetupReplaceFrame(UtilListboxFrame.ListboxFrame):
     """
     SetupReplaceFrame is derived from ListboxFrame
     Display items in Global Replace List
@@ -36,6 +38,11 @@ class SetupReplaceFrame(ListboxFrame.ListboxFrame):
     def __init__(self, frame, title: str, dir_name: str, cache_filename: str):
         # Initialize GEO database
         self.geodb = GeoDB.GeoDB(os.path.join(dir_name, 'geodata.db'))
+
+        # Read in dictionary listing output text replacements
+        self.output_replace_cd = CachedDictionary(dir_name, "output_list.pkl")
+        self.output_replace_cd.read()
+        self.output_replace_dct: Dict[str, str] = self.output_replace_cd.dict
 
         super().__init__(frame, title, dir_name, cache_filename)
         self.tree.heading("#0", text="Original", anchor=tk.W)
@@ -55,9 +62,12 @@ class SetupReplaceFrame(ListboxFrame.ListboxFrame):
                 continue
             place.target = rep_token[GEOID_TOKEN]
             self.geodb.lookup_geoid(place=place)
+
             if len(place.georow_list) > 0:
                 # Copy geo row to Place
                 self.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
+                if 'oston' in item:
+                    self.logger.debug(f'{item} id={rep_token[GEOID_TOKEN]} state={place.admin1_id}')
             else:
                 if len(place.target) == 0:
                     place.clear()
@@ -71,7 +81,7 @@ class SetupReplaceFrame(ListboxFrame.ListboxFrame):
             if len(rep_token) > 2:
                 place.prefix = rep_token[PREFIX_TOKEN]
 
-            nm = place.format_full_nm(None)
+            nm = place.format_full_nm(self.output_replace_dct)
             if len(place.prefix) > 0:
                 line = f'[{place.prefix}]{place.prefix_commas}{nm}'
             else:

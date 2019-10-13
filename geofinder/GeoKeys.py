@@ -70,10 +70,14 @@ def get_cache_directory(dirname):
     """ Return the directory for cache files """
     return os.path.join(dirname, "cache")
 
-def search_normalize(res):
+def search_normalize(res, iso):
     res = normalize(res)
     res = re.sub(r'prussia', 'germany', res)
-    res = re.sub(r'middlesex', 'greater london', res)
+    if iso == 'gb':
+        res = re.sub(r'middlesex', 'greater london', res)
+    if iso == 'fr':
+        res = re.sub(r'normandy', 'normandie', res)
+        res = re.sub(r'brittany', 'bretagne', res)
     return res
 
 def _phrase_normalize(res) -> str:

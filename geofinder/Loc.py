@@ -101,7 +101,7 @@ class Loc:
         parser.add_argument("-i", "--iso", help=argparse.SUPPRESS)
         try:
             options = parser.parse_args(args)
-            self.city1 = GeoKeys.search_normalize(tokens[0])
+            self.city1 = GeoKeys.search_normalize(tokens[0],self.country_iso)
             self.target = self.city1
             if options.iso:
                 self.country_iso = options.iso.lower()
@@ -141,7 +141,8 @@ class Loc:
             #  COUNTRY - right-most token should be country
             #  Format: Country
             self.place_type = PlaceType.COUNTRY
-            self.country_name = GeoKeys.search_normalize(tokens[-1])
+            self.country_name = GeoKeys.search_normalize(tokens[-1],"")
+            self.country_name = re.sub(r'\.', '', self.country_name)  # remove .
 
             # Validate country
             self.country_iso = geo_files.geodb.get_country_iso(self)  # Get Country country_iso
@@ -152,7 +153,7 @@ class Loc:
                 # NO COUNTRY
                 # See if rightmost token is  Admin1 (state/province) which we can use to derive Country
                 save_admin1 = self.admin1_name
-                self.admin1_name = GeoKeys.search_normalize(tokens[-1])
+                self.admin1_name = GeoKeys.search_normalize(tokens[-1],self.country_iso)
                 self.country_name = ''
 
                 # Try last token as admin1.  This will fill in country ISO if admin1 is found
@@ -187,7 +188,7 @@ class Loc:
         if token_count > 1:
             #  Format: Admin1, Country.
             #  Admin1 is 2nd to last token
-            self.admin1_name = GeoKeys.search_normalize(tokens[-2])
+            self.admin1_name = GeoKeys.search_normalize(tokens[-2],self.country_iso)
             if len(self.admin1_name) > 0:
                 self.place_type = PlaceType.ADMIN1
                 self.target = self.admin1_name
@@ -208,7 +209,7 @@ class Loc:
         if token_count > 2:
             #  Format: Admin2, Admin1, Country
             #  Admin2 is 3rd to last.  Note -  if Admin2 isnt found, it will look it up as city
-            self.admin2_name = GeoKeys.search_normalize(tokens[-3])
+            self.admin2_name = GeoKeys.search_normalize(tokens[-3],self.country_iso)
             if len(self.admin2_name) > 0:
                 self.place_type = PlaceType.ADMIN2
                 self.target = self.admin2_name
@@ -217,7 +218,7 @@ class Loc:
             # Format: Prefix, City, Admin2, Admin1, Country
             # City is 4th to last token
             # Other tokens go into Prefix
-            self.city1 = GeoKeys.search_normalize(tokens[-4])
+            self.city1 = GeoKeys.search_normalize(tokens[-4],self.country_iso)
             if len(self.city1) > 0:
                 self.place_type = PlaceType.CITY
                 self.target = self.city1

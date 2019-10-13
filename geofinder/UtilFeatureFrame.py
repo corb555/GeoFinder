@@ -20,7 +20,7 @@
 import logging
 from tkinter import ttk
 
-from geofinder import ListboxFrame
+from geofinder import UtilListboxFrame
 from geofinder import TKHelper as Widge
 
 default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ", "HSP",
@@ -28,7 +28,7 @@ default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ",
            "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "PRSH", "RUIN", "RLG", "STG", "SQR", "SYG", "VAL"]
 
 
-class SetupFeatureFrame(ListboxFrame.ListboxFrame):
+class SetupFeatureFrame(UtilListboxFrame.ListboxFrame):
     """
     SetupFeatureList allows users to add or delete items in the Feature List
     The Feature list is the Feature types that we will load from a Geonames.org file.  For example, we will load
@@ -44,7 +44,7 @@ class SetupFeatureFrame(ListboxFrame.ListboxFrame):
         self.logger = logging.getLogger(__name__)
 
         # Add these in addition to the standard widgets we inherit from ListBoxFrame
-        self.add_button = ttk.Button(frame, text="add", command=self.add_handler, width=ListboxFrame.BUTTON_WIDTH)
+        self.add_button = ttk.Button(frame, text="add", command=self.add_handler, width=UtilListboxFrame.BUTTON_WIDTH)
         self.add_label = Widge.CLabel(frame, text="Enter Geoname Feature below and click on Add button to add", style='Info.TLabel')
         self.add_entry: Widge.CEntry = Widge.CEntry(frame, text="   ", width=15)  # , style='Info.TLabel')
         super().__init__(frame, title, dir_name, cache_filename)

@@ -24,7 +24,7 @@ from tkinter import ttk, messagebox
 from tkinter.ttk import *
 from typing import List
 
-from geofinder import UtilCountriesFrame, UtilErrorFrame, UtilFeatureFrame, UtilReplaceFrame, ListboxFrame, AppStyle, UtilLanguagesFrame, \
+from geofinder import UtilCountriesFrame, UtilErrorFrame, UtilFeatureFrame, UtilReplaceFrame, UtilListboxFrame, AppStyle, UtilLanguagesFrame, \
     UtilOutputFilterFrame
 
 
@@ -48,7 +48,7 @@ class UtilLayout:
     def create_util_widgets(self):
         self.root.title("GeoFinder Configuration Utility")
         self.frames: List[Frame] = []
-        self.listbox_list: List[ListboxFrame] = []
+        self.listbox_list: List[UtilListboxFrame] = []
         self.error = ""
 
         # Add Multiple tabs
@@ -75,8 +75,8 @@ class UtilLayout:
 
         # Skiplist Tab - ListboxFrame (simple list)
         self.logger.debug(f'====={tab_list[frame]} frame')
-        self.skip_list = ListboxFrame.ListboxFrame(self.frames[frame], "Skiplist - Ignore errors for these places",
-                                                   self.cache_dir, "skiplist.pkl")
+        self.skip_list = UtilListboxFrame.ListboxFrame(self.frames[frame], "Skiplist - Ignore errors for these places",
+                                                       self.cache_dir, "skiplist.pkl")
         self.listbox_list.append(self.skip_list)
         frame += 1
 
@@ -99,7 +99,7 @@ class UtilLayout:
         self.logger.debug(f'====={tab_list[frame]} frame')
         self.languages_list = UtilLanguagesFrame.UtilLanguagesFrame(self.frames[frame],
                                                                 "Load alternate names for these languages:",
-                                                               self.cache_dir, "languages_list.pkl")
+                                                                    self.cache_dir, "languages_list.pkl")
         self.listbox_list.append(self.languages_list)
         frame += 1
 
@@ -107,7 +107,7 @@ class UtilLayout:
         self.logger.debug(f'====={tab_list[frame]} frame')
         self.output_list = UtilOutputFilterFrame.UtilOutputFilterFrame(self.frames[frame],
                                                                 "Make the following replacements for text written to the import file",
-                                                               self.cache_dir, "output_list.pkl")
+                                                                       self.cache_dir, "output_list.pkl")
         self.listbox_list.append(self.output_list)
         frame += 1
 

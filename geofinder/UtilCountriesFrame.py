@@ -23,11 +23,11 @@ from tkinter import *
 from tkinter import ttk
 from tkinter.ttk import *
 
-from geofinder import Country, GeodataFiles, ListboxFrame, AppStyle
+from geofinder import Country, GeodataFiles, UtilListboxFrame, AppStyle
 from geofinder.TKHelper import TKHelper
 
 
-class SetupCountriesFrame(ListboxFrame.ListboxFrame):
+class SetupCountriesFrame(UtilListboxFrame.ListboxFrame):
     """
     ListboxAdd is derived from ListboxFrame
     Supports country lists
@@ -45,7 +45,7 @@ class SetupCountriesFrame(ListboxFrame.ListboxFrame):
         self.pad = ttk.Label(frame, text="", style='Info.TLabel')  # blank padding row
 
         self.add_label = ttk.Label(frame, text="All Countries - Select countries below to add to supported list and click Add", style='Info.TLabel')
-        self.add_button = ttk.Button(frame, text="add", command=self.add_handler, width=ListboxFrame.BUTTON_WIDTH)
+        self.add_button = ttk.Button(frame, text="add", command=self.add_handler, width=UtilListboxFrame.BUTTON_WIDTH)
         self.scrollbar2 = Scrollbar(frame)
 
         self.listbox_all_countries = ttk.Treeview(frame, style="Plain.Treeview")  # , selectmode="browse")

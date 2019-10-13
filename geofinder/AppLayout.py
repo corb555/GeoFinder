@@ -142,11 +142,13 @@ class AppLayout:
         self.tree.tag_configure('odd', background=GFStyle.ODD_ROW_COLOR)
         self.tree.tag_configure('even', background='white')
 
-        self.tree["columns"] = ("pre",)
+        self.tree["columns"] = ("pre","id")
         self.tree.column("#0", width=500, minwidth=100, stretch=tk.YES)
-        self.tree.column("pre", width=180, minwidth=5, stretch=tk.NO)
         self.tree.heading("#0", text="   Location", anchor=tk.W)
+        self.tree.column("pre", width=180, minwidth=5, stretch=tk.NO)
         self.tree.heading("pre", text="   Prefix", anchor=tk.W)
+        self.tree.column("id", width=0, minwidth=0, stretch=tk.NO)
+        self.tree.heading("id", text="   ID", anchor=tk.W)
 
         self.tree.config(yscrollcommand=self.tree_scrollbar.set)
         self.tree_scrollbar.config(command=self.tree.yview)

@@ -55,13 +55,13 @@ class Geodata:
             # Put unused fields into prefix
             self.geo_files.geodb.copy_georow_to_place(rw, temp_place)
             temp_place.prefix = ''
-            nm = GeoKeys.search_normalize(temp_place.format_full_nm(self.geo_files.output_replace_dct))
-            #self.logger.debug(f'NAME ={nm}')
+            nm = GeoKeys.search_normalize(temp_place.format_full_nm(self.geo_files.output_replace_dct),place.country_iso)
+            # self.logger.debug(f'NAME ={nm}')
             place.prefix = ''
 
             for fld in tokens[:2]:
-                item = GeoKeys.search_normalize(fld)
-                #self.logger.debug(f'item={item} ')
+                item = GeoKeys.search_normalize(fld,place.country_iso)
+                # self.logger.debug(f'item={item} ')
                 if item not in nm:
                     if len(place.prefix) > 0:
                         place.prefix += ' '
@@ -70,7 +70,7 @@ class Geodata:
             if len(place.prefix) > 0:
                 place.prefix_commas = ', '
             update[GeoKeys.Entry.PREFIX] = place.prefix
-            #self.logger.debug(f'PREFIX={place.prefix} ')
+            # self.logger.debug(f'PREFIX={place.prefix} ')
 
             place.georow_list[idx] = tuple(update)
 
@@ -90,7 +90,7 @@ class Geodata:
 
         self.geo_files.geodb.lookup_place(place=place)
         result_list.extend(place.georow_list)
-        #self.logger.debug(f'By Typ={typ} Targ=[{place.target}] ')
+        # self.logger.debug(f'By Typ={typ} Targ=[{place.target}] ')
 
         if 'shire' in place.target:
             place.admin2_name = place.target
@@ -99,7 +99,7 @@ class Geodata:
             self.geo_files.geodb.lookup_place(place=place)
             if place.result_type == GeoKeys.Result.WILDCARD_MATCH:
                 # Found as Admin2 without shire
-                place.name = re.sub('shire','', place.name)
+                place.name = re.sub('shire', '', place.name)
                 if typ == Loc.PlaceType.CITY:
                     save_place.city1 = ''
                 elif typ == Loc.PlaceType.ADMIN1:
@@ -167,7 +167,6 @@ class Geodata:
 
         self.logger.debug(result_list)
 
-
         #  Try Admin1 as Admin1
         place.prefix = self.save_place.prefix + f' {self.save_place.city1.title()}'
         place.place_type = Loc.PlaceType.ADMIN1
@@ -176,7 +175,7 @@ class Geodata:
         self.geo_files.geodb.lookup_place(place=place)
         self.update_prefix(place=place)
         result_list.extend(place.georow_list)
-        #place.city1 = self.save_place.city1
+        # place.city1 = self.save_place.city1
 
         #  Try Admin2 as Admin2
         place.prefix = self.save_place.prefix + f' {self.save_place.city1.title()}'
@@ -186,16 +185,15 @@ class Geodata:
         self.geo_files.geodb.lookup_place(place=place)
         self.update_prefix(place=place)
         result_list.extend(place.georow_list)
-        #place.city1 = self.save_place.city1
+        # place.city1 = self.save_place.city1
 
         self.logger.debug(result_list)
-
 
         # Try prefix  as target
         place.target = place.prefix
         place.prefix = place.city1
         place.city1 = self.save_place.prefix
-        #if '*' in place.target:
+        # if '*' in place.target:
         #    result_list.clear()
 
         self.logger.debug(f'Try Prefix.  [{place.target}]')
@@ -390,7 +388,7 @@ class Geodata:
             start_year = -1
 
         if event_year < start_year and event_year != 0 + padding:
-            #self.logger.debug(f'Val year:  loc year={start_year}  event yr={event_year} loc={admin1},{iso}')
+            # self.logger.debug(f'Val year:  loc year={start_year}  event yr={event_year} loc={admin1},{iso}')
             return False
         else:
             return True
@@ -458,7 +456,7 @@ class Geodata:
             if score < min_score:
                 min_score = score
             self.logger.debug(f'Score={score:.2f} Min={min_score:.2f} {geo_row[GeoKeys.Entry.NAME]}')
-            if score > min_score + 1.5:
+            if score > min_score + 1.5 or score > 50:
                 break
             place.georow_list.append(geo_row)
 
