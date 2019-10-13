@@ -566,6 +566,9 @@ class GeoDB:
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
         if len(place.georow_list) == 0:
             place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
+        else:
+            place.georow_list = place.georow_list[:1]
+            place.result_type = GeoKeys.Result.STRONG_MATCH
 
     def lookup_main_dbid(self, place: Loc) -> None:
         """Search for DB ID"""

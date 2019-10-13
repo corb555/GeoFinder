@@ -385,20 +385,23 @@ class GeoFinder:
         return prefix, loc, dbid
 
     def get_user_selection(self):
+        flags = ResultFlags(limited=False, filtered=False)
+
         # User selected item from listbox - get listbox selection
         pref, town_entry, dbid = self.get_list_selection()
-        self.place.geoid = str(dbid)
+        self.place.target = str(dbid)
         self.logger.debug(f'selected pref=[{pref}] [{town_entry}] id={dbid} id={self.place.geoid}')
-
 
         # Update the user edit widget with the List selection item
         self.w.user_entry.set_text(town_entry)
 
-        # Since we are verifying users choice, Get first match.  don't try partial match
+        # Since we are verifying users choice, Get exact match by geoid
         self.geodata.geo_files.geodb.lookup_geoid( self.place)
-        self.logger.debug(f'id={self.place.geoid}')
+        self.logger.debug(f'id={self.place.geoid} res={self.place.result_type} {self.place.georow_list}')
 
         self.place.prefix = pref
+        self.geodata.update_prefix(place=self.place)
+        self.geodata.process_result(self.place,'', flags=flags)
 
     def doubleclick_handler(self, _):
         self.logger.debug('Double click handler')
@@ -422,7 +425,7 @@ class GeoFinder:
         if from_user:
             self.place.use_alternate = False
 
-        self.logger.debug(f'verify item - Use Alternate={self.place.use_alternate}')
+        self.logger.debug(f'verify item ')
         if self.user_selected_list:
             self.get_user_selection()
         else:

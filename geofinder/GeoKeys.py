@@ -53,7 +53,7 @@ class Result:
 
 
 # Result types that are successful matches
-successful_match = [Result.STRONG_MATCH, Result.PARTIAL_MATCH, Result.WILDCARD_MATCH, Result.SOUNDEX_MATCH]
+successful_match = [Result.STRONG_MATCH, Result.PARTIAL_MATCH, Result.WILDCARD_MATCH, Result.SOUNDEX_MATCH, Result.MULTIPLE_MATCHES]
 
 Query = collections.namedtuple('Query', 'where args result')
 
@@ -61,7 +61,6 @@ Query = collections.namedtuple('Query', 'where args result')
 def get_soundex(txt):
     res = phonetics.dmetaphone(txt)
     return res[0]
-
 
 def get_directory_name() -> str:
     return "geoname_data"
