@@ -35,7 +35,7 @@ class AncestryFile:
         self.build = False
         self.logger = logging.getLogger(__name__)
         self.progress_bar = progress
-        self.output_latlon = True
+        self.output_latlon = False
         self.filesize = 0
         self.infile = None
         self.error = False

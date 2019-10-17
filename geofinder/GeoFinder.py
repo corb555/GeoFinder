@@ -396,12 +396,9 @@ class GeoFinder:
         self.w.user_entry.set_text(town_entry)
 
         # Since we are verifying users choice, Get exact match by geoid
-        self.geodata.geo_files.geodb.lookup_geoid( self.place)
-        self.logger.debug(f'id={self.place.geoid} res={self.place.result_type} {self.place.georow_list}')
-
+        self.geodata.lookup_geoid(self.place)
         self.place.prefix = pref
-        self.geodata.update_prefix(place=self.place)
-        self.geodata.process_result(self.place,'', flags=flags)
+        self.logger.debug(f'id={self.place.geoid} res={self.place.result_type} {self.place.georow_list}')
 
     def doubleclick_handler(self, _):
         self.logger.debug('Double click handler')
@@ -491,7 +488,7 @@ class GeoFinder:
         else:
             # No matches
             self.w.user_entry.focus()  # Set focus to text edit widget
-            self.display_one_georow(place.status_detail, place.geoid)
+            self.display_one_georow(place.status_detail, place.geoid, score=9999, feat='')
 
         # Display GEDCOM person and event that this location refers to
         self.w.ged_event_info.set_text(
@@ -499,14 +496,14 @@ class GeoFinder:
             f'{self.ancestry_file_handler.event_name} {self.ancestry_file_handler.date}')
         self.w.root.update_idletasks()
 
-    def list_insert(self, text, prefix, id):
+    def list_insert(self, text, prefix, id,score, feature):
         # Tags to alternate colors in lists
         self.odd = not self.odd
         if self.odd:
             tag = ('odd',)
         else:
             tag = ('even',)
-        self.w.tree.insert(parent='', index="end", iid=None, text=text, values=(prefix,id), tags=tag)
+        self.w.tree.insert(parent='', index="end", iid=None, text=text, values=(prefix,id,score,feature), tags=tag)
 
     def clear_display_list(self):
         self.odd = False
@@ -531,9 +528,11 @@ class GeoFinder:
                                                             admin1=temp_place.admin1_id, padding=0)
             if valid:
                 # Get prefix
-                self.list_insert(nm, geo_row[GeoKeys.Entry.PREFIX],geo_row[GeoKeys.Entry.ID] )
+                self.list_insert(nm, geo_row[GeoKeys.Entry.PREFIX],geo_row[GeoKeys.Entry.ID], f'{int(geo_row[GeoKeys.Entry.SCORE]):d}',
+                geo_row[GeoKeys.Entry.FEAT])
             else:
-                self.list_insert(nm, "INVALID DATE","")
+                self.list_insert(nm, "VERIFY DATE",geo_row[GeoKeys.Entry.ID], f'{geo_row[GeoKeys.Entry.SCORE]:d}',
+                geo_row[GeoKeys.Entry.FEAT])
 
         self.w.root.update_idletasks()
 
@@ -689,11 +688,11 @@ class GeoFinder:
         self.clear_display_list()
         place.georow_list.clear()
 
-    def display_one_georow(self, txt, geoid):
+    def display_one_georow(self, txt, geoid, score, feat):
         self.logger.debug(f'DISP ONE ROW {txt}')
         self.clear_display_list()
         # self.w.scrollbar.grid_remove()  # Just one item, so hide scrollbar
-        self.list_insert(txt, '', geoid)
+        self.list_insert(txt, '', geoid, score=score, feature=feat)
 
     def display_country_note(self) -> int:
         """ display warning if only a small number of countries are enabled """

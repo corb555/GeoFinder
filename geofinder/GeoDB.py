@@ -16,6 +16,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+import copy
 import logging
 import os
 import re
@@ -111,8 +112,8 @@ class GeoDB:
             result_place.prefix = ''
             res_nm = result_place.format_full_nm(None)
             # todo - move feature priority into scoring routine
-            score = float(self.difference(inp=nm, res=res_nm)) \
-                    - float(Geodata.Geodata.get_priority(rw[GeoKeys.Entry.FEAT])) * 0.1
+            score = self.match_score(inp=nm, res=res_nm,
+                                     feat=Geodata.Geodata.get_priority(rw[GeoKeys.Entry.FEAT]))
 
             # Remove items in prefix that are in result
             tk_list = res_nm.split(",")
@@ -125,37 +126,91 @@ class GeoDB:
         if place.result_type == Result.STRONG_MATCH and len(place.prefix) > 0:
             place.result_type = Result.PARTIAL_MATCH
 
-    def difference(self, inp, res):
+    def match_score(self, inp, res, feat)->int:
+        inp = GeoKeys.semi_normalize(inp)
+        res = GeoKeys.semi_normalize(res)
+        res = re.sub(r"'", ' ', res)  # Normalize
+        res = re.sub(r"normandy american ", 'normandie american ', res)  # Odd case for Normandy American cemetery having only english spelling
+
+        score1 : int = self.match_score_calc(inp, res)
+
+        # Calculate score with noise word removal
+        #inp = re.sub('shire', '', inp)
+
+        res = re.sub(r' county', ' ', res)
+        res = re.sub(r' stadt', ' ', res)
+        res = re.sub(r' departement', ' ', res)
+        res = re.sub(r'regierungsbezirk ', ' ', res)
+        res = re.sub(r' departement', ' ', res)
+        res = re.sub(r'gemeente ', ' ', res)
+        res = re.sub(r'provincia ', ' ', res)
+        res = re.sub(r'provincie ', ' ', res)
+        res = re.sub(r'nouveau brunswick ', ' ', res)
+
+
+
+        res = re.sub(r' de ', ' ', res)
+        res = re.sub(r' du ', ' ', res)
+        res = re.sub(r' of ', ' ', res)
+
+        res = re.sub(r"politischer bezirk ", ' ', res)  # Normalize
+        score2 : int = self.match_score_calc(inp, res)
+
+        return  min(score1, score2)
+        #return int ( (sc - float(Geodata.Geodata.get_priority(feat)) * 0.1) * 100)
+
+    def match_score_calc(self, inp, res)->int:
         # Return a score 0-100 reflecting the difference between the user input and the result:
         # The percent of characters in inp that were NOT matched by a word in result
         # Lower score is better match.  0 is perfect match, 100 is no match
 
-        inp_nm = GeoKeys.semi_normalize(inp)
-        # inp_length = len(inp_nm)
-        original_inp_tokens = inp_nm.split(',')
+        original_inp_tokens = inp.split(',')
+        result_tokens = res.split(" ")
+        out = result_tokens[0]
+        l2 = len(result_tokens[0])
 
-        result = GeoKeys.semi_normalize(res)
-        result = re.sub(r"'", ' ', result)  # Normalize
-        result = re.sub(r"normandy american ", 'normandie american ', result)  # Odd case for Normandy American cemetery having only english spelling
-
-        result_tokens = result.split(" ")
-        for idx, result_tok in enumerate(sorted(result_tokens, key=len, reverse=True)):
+        # Percent of each input token that was not matched.  Averaged over number of tokens
+        lst = sorted(result_tokens, key=len, reverse=True)
+        for idx, result_tok in enumerate(lst):
             if len(result_tok) > 2:
-                inp_nm = re.sub(result_tok.strip(','), '', inp_nm)
-                # inp_nm = re.sub(result_tok.strip('shire,'), '', inp_nm)
+                inp = re.sub(result_tok.strip(','), '', inp)
 
-        # Percent of each token that was left.  Averaged over number of tokens
-        score = 0
-        inp_tokens = inp_nm.split(',')
+        in_score = 0
+        inp_tokens = inp.split(',')
 
         for idx, tk in enumerate(inp_tokens):
             # Tokens to the right end have slightly higher weighting
             weight = (1.0 + idx * .005)
             if len(original_inp_tokens[idx].strip(' ')) > 0:
-                score += (int(100.0 * len(inp_tokens[idx].strip(' ')) / len(original_inp_tokens[idx].strip(' ')))) * weight
-        score = score / len(inp_tokens)
+                in_score += int(100.0 * len(inp_tokens[idx].strip(' ')) / len(original_inp_tokens[idx].strip(' ')) * weight)
 
-        #self.logger.debug(f'Score={score:.2f} Remainder [{inp_nm}]  DB [{result}]  Targ [{inp_nm}]')
+        # Average over number of tokens
+        in_score = in_score / len(inp_tokens)
+
+        # Output score (percent of first token in output that was not matched)
+        result_tokens = res.split(",")
+        out = result_tokens[0]
+
+        for tok in original_inp_tokens:
+            inp_words = tok.split(" ")
+            for in_tok in inp_words:
+                ll = len(in_tok)
+                if ll > 2:
+                    targ = in_tok.strip(',')
+                    targ = targ.strip(' ')
+
+                    out = re.sub(targ, '', out)
+                    #self.logger.debug(f'in tok [{targ}] out=[{out}]')
+
+        lll = len(out.strip(' '))
+        if l2 > 0:
+            out_score = (int((0.06 * 100.0) * lll / l2))
+        else:
+            out_score = 0
+
+        score = in_score + out_score
+        self.logger.debug(f'Sc={score}  [{original_inp_tokens[0]}] DB [{res}]  InS={in_score:.1f} InRem [{inp}] '
+                          f'OutS={out_score:.1f} OutRem [{out}]  ')
         return score
 
         """
@@ -214,9 +269,9 @@ class GeoDB:
             query_list.append(Query(where="name LIKE ?",
                                     args=(pattern,),
                                     result=Result.WILDCARD_MATCH))
-            query_list.append(Query(where="name LIKE ?",
-                                    args=(pattern + ' historical',),
-                                    result=Result.WILDCARD_MATCH))
+            #query_list.append(Query(where="name LIKE ?",
+            #                        args=(pattern + ' historical',),
+            #                        result=Result.WILDCARD_MATCH))
             query_list.append(Query(where="sdx = ?",
                                     args=(sdx,),
                                     result=Result.SOUNDEX_MATCH))
@@ -558,6 +613,8 @@ class GeoDB:
 
     def lookup_geoid(self, place: Loc) -> None:
         """Search for GEOID"""
+        result_place: Loc = Loc.Loc()
+
         query_list = [
             Query(where="geoid = ? ",
                   args=(place.target,),
@@ -569,6 +626,24 @@ class GeoDB:
         else:
             place.georow_list = place.georow_list[:1]
             place.result_type = GeoKeys.Result.STRONG_MATCH
+
+        # Add search quality score to each entry
+        for idx, rw in enumerate(place.georow_list):
+            self.copy_georow_to_place(row=rw, place=result_place)
+            update = list(rw)
+            update.append(1)  # Extend list row and assign score
+            result_place.prefix = ''
+            res_nm = result_place.format_full_nm(None)
+            # todo - move feature priority into scoring routine
+            score = 0.0
+
+            # Remove items in prefix that are in result
+            tk_list = res_nm.split(",")
+            for item in tk_list:
+                place.prefix = re.sub(item.strip(' ').lower(), '', place.prefix)
+
+            update[GeoKeys.Entry.SCORE] = int(score*100)
+            place.georow_list[idx] = tuple(update)
 
     def lookup_main_dbid(self, place: Loc) -> None:
         """Search for DB ID"""

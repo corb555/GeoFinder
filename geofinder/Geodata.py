@@ -227,6 +227,12 @@ class Geodata:
         self.process_result(place=place, targ_name=place.target, flags=flags)
         self.logger.debug(f'Status={place.status}')
 
+    def lookup_geoid(self, place):
+        flags = ResultFlags(limited=False, filtered=False)
+        self.geo_files.geodb.lookup_geoid(place)
+        self.update_prefix(place=place)
+        self.process_result(place,'', flags=flags)
+
     def search_city(self, place):
         place.target = place.city1
         place.prefix = f' {place.admin2_name.title()}'
@@ -313,7 +319,7 @@ class Geodata:
         if place.result_type == GeoKeys.Result.NO_COUNTRY:
             place.result_type_text = 'Country'
         if place.place_type == Loc.PlaceType.CITY:
-            place.result_type_text = GeoKeys.type_names.get(place.feature)
+            place.result_type_text = '' #GeoKeys.type_names.get(place.feature)
             if place.result_type_text is None:
                 place.result_type_text = ' '
         elif place.place_type == Loc.PlaceType.ADMIN1:
@@ -456,11 +462,11 @@ class Geodata:
             if score < min_score:
                 min_score = score
             self.logger.debug(f'Score={score:.2f} Min={min_score:.2f} {geo_row[GeoKeys.Entry.NAME]}')
-            if score > min_score + 1.5 or score > 50:
+            if score > min_score + 40 or score > 60:
                 break
             place.georow_list.append(geo_row)
 
-        if min_score < 2.0 and len(place.georow_list) == 1:
+        if min_score < 4 and len(place.georow_list) == 1:
             place.result_type = GeoKeys.Result.STRONG_MATCH
 
         return ResultFlags(limited=limited_flag, filtered=date_filtered)

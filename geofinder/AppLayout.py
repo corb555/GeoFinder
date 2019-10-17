@@ -50,7 +50,7 @@ class AppLayout:
         self.root["pady"] = 20
 
         # Set column/row weight for responsive resizing
-        self.root.columnconfigure(0, weight=1)
+        self.root.columnconfigure(1, weight=1)
         for rw in range(0, 12):
             self.root.rowconfigure(rw, weight=1)
 
@@ -142,13 +142,23 @@ class AppLayout:
         self.tree.tag_configure('odd', background=GFStyle.ODD_ROW_COLOR)
         self.tree.tag_configure('even', background='white')
 
-        self.tree["columns"] = ("pre","id")
-        self.tree.column("#0", width=500, minwidth=100, stretch=tk.YES)
+        self.tree["columns"] = ("pre","id","score", "feat")
+        self.tree["displaycolumns"] = ("pre","score", "feat")
+
+        self.tree.column("#0", width=300, minwidth=80, stretch=tk.YES, anchor=tk.E)
         self.tree.heading("#0", text="   Location", anchor=tk.W)
-        self.tree.column("pre", width=180, minwidth=5, stretch=tk.NO)
-        self.tree.heading("pre", text="   Prefix", anchor=tk.W)
-        self.tree.column("id", width=0, minwidth=0, stretch=tk.NO)
-        self.tree.heading("id", text="   ID", anchor=tk.W)
+
+        self.tree.column("pre", width=90, minwidth=5, stretch=tk.YES, anchor=tk.E)
+        self.tree.heading("pre", text="   Prefix", anchor=tk.E)
+
+        self.tree.column("id", width=0, minwidth=0, stretch=tk.NO, anchor=tk.E)
+        self.tree.heading("id", text="   ID", anchor=tk.E)
+
+        self.tree.column("score", width=60, minwidth=0, stretch=tk.NO, anchor=tk.E)
+        self.tree.heading("score", text="   Score", anchor=tk.E)
+
+        self.tree.column("feat", width=50, minwidth=0, stretch=tk.NO, anchor=tk.E)
+        self.tree.heading("feat", text="   Type", anchor=tk.E)
 
         self.tree.config(yscrollcommand=self.tree_scrollbar.set)
         self.tree_scrollbar.config(command=self.tree.yview)
