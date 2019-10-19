@@ -264,6 +264,7 @@ class Geodata:
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
             place.format_full_nm(self.geo_files.output_replace_dct)
         elif len(place.georow_list) > 0:
+            self.logger.debug(f'***RESULT={place.result_type} Setting to Partial')
             place.result_type = GeoKeys.Result.PARTIAL_MATCH
 
         place.prefix = place.prefix.strip(' ')
@@ -462,7 +463,7 @@ class Geodata:
             if score < min_score:
                 min_score = score
             self.logger.debug(f'Score={score:.2f} Min={min_score:.2f} {geo_row[GeoKeys.Entry.NAME]}')
-            if score > min_score + 40 or score > 60:
+            if score > min_score + 10 or score > 62:
                 break
             place.georow_list.append(geo_row)
 
@@ -473,11 +474,11 @@ class Geodata:
 
     @staticmethod
     def get_priority(feature):
-        prior = feature_priority.get(feature)
-        if prior is None:
-            return 1
-        else:
-            return prior
+        f_prior = feature_priority.get(feature)
+        if f_prior is None:
+            f_prior = 1
+
+        return (20.0 - float(f_prior) )/ 10.0
 
 
 default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ", "HSP",
@@ -485,7 +486,7 @@ default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ",
            "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "PRSH", "RUIN", "RLG", "STG", "SQR", "SYG", "VAL"]
 
 # If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
-feature_priority = {'ADM1': 20, 'PPL': 19, 'PPLA': 19, 'PPLA2': 18, 'PPLA3': 18, 'PPLA4': 17, 'PPLC': 16, 'PPLG': 15, 'ADM2': 14, 'MILB': 13,
+feature_priority = {'ADM1': 20, 'PPL': 20, 'PPLA': 19, 'PPLA2': 18, 'PPLA3': 18, 'PPLA4': 17, 'PPLC': 16, 'PPLG': 15, 'ADM2': 14, 'MILB': 13,
                     'NVB': 12, 'PPLF': 11, 'DEFAULT': 3, 'ADM0': 10, 'PPLL': 10, 'PPLQ': 9, 'PPLR': 8, 'PPLS': 7, 'PPLW': 6, 'PPLX': 5, 'BTL': 4,
                     'STLMT': 1, 'CMTY': 4, 'VAL': 1, 'CH': 4, 'MSQE': 4}
 

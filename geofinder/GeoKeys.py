@@ -69,6 +69,29 @@ def get_cache_directory(dirname):
     """ Return the directory for cache files """
     return os.path.join(dirname, "cache")
 
+def remove_noise_words(res):
+    # Calculate score with noise word removal
+    # inp = re.sub('shire', '', inp)
+    res = re.sub(r"normandy american ", 'normandie american ', res)  # Odd case for Normandy American cemetery having only english spelling
+
+    res = re.sub(r' county', ' ', res)
+    res = re.sub(r' stadt', ' ', res)
+    res = re.sub(r' departement', ' ', res)
+    res = re.sub(r'regierungsbezirk ', ' ', res)
+    res = re.sub(r' departement', ' ', res)
+    res = re.sub(r'gemeente ', ' ', res)
+    res = re.sub(r'provincia ', ' ', res)
+    res = re.sub(r'provincie ', ' ', res)
+    res = re.sub(r'nouveau brunswick', ' ', res)
+
+    res = re.sub(r' de ', ' ', res)
+    res = re.sub(r' du ', ' ', res)
+    res = re.sub(r' of ', ' ', res)
+    res = re.sub(r' city ', ' ', res)
+
+    res = re.sub(r"politischer bezirk ", ' ', res)  # Normalize
+    return res
+
 def search_normalize(res, iso):
     res = normalize(res)
     res = re.sub(r'prussia', 'germany', res)

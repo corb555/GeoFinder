@@ -113,7 +113,7 @@ class GeoDB:
             res_nm = result_place.format_full_nm(None)
             # todo - move feature priority into scoring routine
             score = self.match_score(inp=nm, res=res_nm,
-                                     feat=Geodata.Geodata.get_priority(rw[GeoKeys.Entry.FEAT]))
+                                     feature_score=Geodata.Geodata.get_priority(rw[GeoKeys.Entry.FEAT]))
 
             # Remove items in prefix that are in result
             tk_list = res_nm.split(",")
@@ -126,38 +126,14 @@ class GeoDB:
         if place.result_type == Result.STRONG_MATCH and len(place.prefix) > 0:
             place.result_type = Result.PARTIAL_MATCH
 
-    def match_score(self, inp, res, feat)->int:
+    def match_score(self, inp, res, feature_score)->int:
         inp = GeoKeys.semi_normalize(inp)
         res = GeoKeys.semi_normalize(res)
         res = re.sub(r"'", ' ', res)  # Normalize
-        res = re.sub(r"normandy american ", 'normandie american ', res)  # Odd case for Normandy American cemetery having only english spelling
+        res = GeoKeys.remove_noise_words(res)
 
-        score1 : int = self.match_score_calc(inp, res)
-
-        # Calculate score with noise word removal
-        #inp = re.sub('shire', '', inp)
-
-        res = re.sub(r' county', ' ', res)
-        res = re.sub(r' stadt', ' ', res)
-        res = re.sub(r' departement', ' ', res)
-        res = re.sub(r'regierungsbezirk ', ' ', res)
-        res = re.sub(r' departement', ' ', res)
-        res = re.sub(r'gemeente ', ' ', res)
-        res = re.sub(r'provincia ', ' ', res)
-        res = re.sub(r'provincie ', ' ', res)
-        res = re.sub(r'nouveau brunswick ', ' ', res)
-
-
-
-        res = re.sub(r' de ', ' ', res)
-        res = re.sub(r' du ', ' ', res)
-        res = re.sub(r' of ', ' ', res)
-
-        res = re.sub(r"politischer bezirk ", ' ', res)  # Normalize
-        score2 : int = self.match_score_calc(inp, res)
-
-        return  min(score1, score2)
-        #return int ( (sc - float(Geodata.Geodata.get_priority(feat)) * 0.1) * 100)
+        score : int = self.match_score_calc(inp, res)
+        return  score + feature_score
 
     def match_score_calc(self, inp, res)->int:
         # Return a score 0-100 reflecting the difference between the user input and the result:
@@ -165,17 +141,30 @@ class GeoDB:
         # Lower score is better match.  0 is perfect match, 100 is no match
 
         original_inp_tokens = inp.split(',')
-        result_tokens = res.split(" ")
+        inp2 = copy.copy(inp)
+        inp2 = re.sub(',', ' ', inp2)
+        inp_words = inp2.split(' ')
+
+        result_tokens = res.split(",")
         out = result_tokens[0]
-        l2 = len(result_tokens[0])
+        #if len(result_tokens) > 1:
+        #    out += ' ' + result_tokens[-1]
+        if len(result_tokens) > 2:
+            out += ' ' + result_tokens[-2]
+
+        orig_res_len = len(out)
 
         # Percent of each input token that was not matched.  Averaged over number of tokens
-        lst = sorted(result_tokens, key=len, reverse=True)
-        for idx, result_tok in enumerate(lst):
-            if len(result_tok) > 2:
-                inp = re.sub(result_tok.strip(','), '', inp)
+        # If any word in input is in result, delete it from input and from first token in res
+        lst = sorted(inp_words, key=len, reverse=True)
+        for idx, word in enumerate(lst):
+            if len(word) > 2 and word in res:
+                inp = re.sub(word, '', inp)
+                out = re.sub(word, '', out)
 
         in_score = 0
+
+        # For each input token calculate new size divided by original size
         inp_tokens = inp.split(',')
 
         for idx, tk in enumerate(inp_tokens):
@@ -184,34 +173,22 @@ class GeoDB:
             if len(original_inp_tokens[idx].strip(' ')) > 0:
                 in_score += int(100.0 * len(inp_tokens[idx].strip(' ')) / len(original_inp_tokens[idx].strip(' ')) * weight)
 
-        # Average over number of tokens
-        in_score = in_score / len(inp_tokens)
+        # Average over number of tokens, e.g. average percent of tokens unmatched
+        in_score = in_score / len(original_inp_tokens)
 
         # Output score (percent of first token in output that was not matched)
-        result_tokens = res.split(",")
-        out = result_tokens[0]
-
-        for tok in original_inp_tokens:
-            inp_words = tok.split(" ")
-            for in_tok in inp_words:
-                ll = len(in_tok)
-                if ll > 2:
-                    targ = in_tok.strip(',')
-                    targ = targ.strip(' ')
-
-                    out = re.sub(targ, '', out)
-                    #self.logger.debug(f'in tok [{targ}] out=[{out}]')
-
-        lll = len(out.strip(' '))
-        if l2 > 0:
-            out_score = (int((0.06 * 100.0) * lll / l2))
+        new_len = len(out.strip(' '))
+        if orig_res_len > 0:
+            out_score = (int((0.06 * 100.0) * new_len / orig_res_len))
+            if new_len > 0:
+                out_score += 1
         else:
             out_score = 0
 
         score = in_score + out_score
-        self.logger.debug(f'Sc={score}  [{original_inp_tokens[0]}] DB [{res}]  InS={in_score:.1f} InRem [{inp}] '
-                          f'OutS={out_score:.1f} OutRem [{out}]  ')
-        return score
+        #self.logger.debug(f'Sc={score}  [{original_inp_tokens[0]}] DB [{res}]  InS={in_score:.1f} InRem [{inp}] '
+        #                  f'OutS={out_score:.1f} OutRem [{out}]  ')
+        return int(score)
 
         """
         res:float = float(Levenshtein.distance(str(GeoKeys.normalize(inp)), str(GeoKeys.normalize(result))))
