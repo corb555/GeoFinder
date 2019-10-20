@@ -259,11 +259,11 @@ class GeoFinder:
             if eof:
                 self.end_of_file_shutdown()
 
-            # When we find an error, see if we already have a fix (Global Replace) or Skip (ignore).
+            # See if we already have a fix (Global Replace) or Skip (ignore).
             # Otherwise have user handle it
-            geoid = self.get_replacement(self.global_replace, town_entry, self.place)
+            replacement_geoid = self.get_replacement(self.global_replace, town_entry, self.place)
 
-            if geoid is not None:
+            if replacement_geoid is not None:
                 # There is a global change that we can apply to this line.
                 self.clean_count += 1
 
@@ -279,12 +279,13 @@ class GeoFinder:
                 elif self.place.result_type == GeoKeys.Result.DELETE:
                     continue
                 else:
-                    self.logger.debug(f'Error looking up GEOID=[{geoid}] for [{town_entry}] ')
+                    self.logger.debug(f'Error looking up GEOID=[{replacement_geoid}] for [{town_entry}] ')
                     self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
                     self.geodata.find_location(town_entry, self.place)
                     break
                 continue
-            elif self.get_replacement(self.user_accepted, town_entry, self.place) is not None:
+                """
+                elif self.get_replacement(self.user_accepted, town_entry, self.place) is not None:
                 # There is an accepted  change that we can use for this line.  Get the replacement text
                 self.clean_count += 1
 
@@ -305,6 +306,7 @@ class GeoFinder:
                     self.w.user_entry.set_text(self.place.name)  # Display place
                     break
                 continue
+                """
             elif self.w.prog.shutdown_requested:
                 # User requested shutdown.  Finish up going thru file, then shut down
                 self.periodic_update("Shutting Down...")
@@ -320,11 +322,8 @@ class GeoFinder:
                 self.ancestry_file_handler.write_asis()
                 continue
             else:
-                # Found a new PLACE entry
+                # Found a  PLACE entry that we don't have a global replace or skip for
                 # See if it is in our place database
-                # self.place.parse_place(place_name=town_entry, geo_files=self.geodata.geo_files)
-                self.place.use_alternate = False
-                self.logger.debug(f'new PLAC. Use Alternate={self.place.use_alternate}')
                 self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
                 self.geodata.find_location(town_entry, self.place)
                 if self.place.result_type not in GeoKeys.successful_match:
@@ -406,12 +405,6 @@ class GeoFinder:
         self.display_result(self.place)
         self.save_handler()
 
-    def swap_handler(self):
-        # Switch whether Admin1 or City is handled first
-        self.place.use_alternate = not self.place.use_alternate
-        self.logger.debug(f'Swap Handler: Use Alternate={self.place.use_alternate}')
-        self.verify_item(from_user=False)
-
     def verify_handler(self):
         self.logger.debug('Verify Handler')
         self.verify_item(from_user=True)
@@ -419,9 +412,6 @@ class GeoFinder:
     def verify_item(self, from_user:bool):
         """ The User clicked verify.  Verify if the users new Place entry has a match in geonames data.  """
         # Do we verify item from listbox or from text edit field?
-        if from_user:
-            self.place.use_alternate = False
-
         self.logger.debug(f'verify item ')
         if self.user_selected_list:
             self.get_user_selection()
@@ -445,11 +435,6 @@ class GeoFinder:
         TKHelper.enable_buttons(self.w.review_buttons)
         nm = place.format_full_nm(self.geodata.geo_files.output_replace_dct)
         self.logger.debug(f'disp result [{place.prefix}][{place.prefix_commas}][{nm}] res=[{place.result_type}]')
-
-        if place.enable_swap:
-            self.set_swap_allowed(True)
-        else:
-            self.set_swap_allowed(False)
 
         # Enable action buttons based on type of result
         if place.result_type == GeoKeys.Result.MULTIPLE_MATCHES or \
@@ -531,7 +516,7 @@ class GeoFinder:
                 self.list_insert(nm, geo_row[GeoKeys.Entry.PREFIX],geo_row[GeoKeys.Entry.ID], f'{int(geo_row[GeoKeys.Entry.SCORE]):d}',
                 geo_row[GeoKeys.Entry.FEAT])
             else:
-                self.list_insert(nm, "VERIFY DATE",geo_row[GeoKeys.Entry.ID], f'{geo_row[GeoKeys.Entry.SCORE]:d}',
+                self.list_insert(nm, "VERIFY DATE",geo_row[GeoKeys.Entry.ID], f'{int(geo_row[GeoKeys.Entry.SCORE]):d}',
                 geo_row[GeoKeys.Entry.FEAT])
 
         self.w.root.update_idletasks()
@@ -564,22 +549,21 @@ class GeoFinder:
         res = '@' + self.place.geoid + '@' + self.place.prefix
         self.logger.debug(f'Save [{ky}] :: [{res}]')
 
-        # Add item to global replace list if user made a change.  This will be cached to disk.
-        if self.w.original_entry.get_text() != self.w.user_entry.get_text():
+        # Add item to global replace list .  This will be cached to disk.
+        #if self.w.original_entry.get_text() != self.w.user_entry.get_text():
             # User made a change - save it
-            self.global_replace.set(ky, res)
-            if 'oston' in ky:
-                self.logger.debug(f'{ky} {res}')
-            # Periodically flush dict to disk
-            if self.err_count % 3 == 1:
-                self.global_replace.write()
-            self.logger.debug(f'SAVE SetGblRep for [{ky}] res=[{res}] Updating DICT')
-        else:
-            # User accepted the item as is.  Add to accept list
-            self.logger.debug(f'SAVE Accept for [{ky}] res=[{res}] Updating DICT')
+        self.global_replace.set(ky, res)
 
-            self.user_accepted.set(ky, res)
-            self.user_accepted.write()
+        # Periodically flush dict to disk
+        if self.err_count % 3 == 1:
+            self.global_replace.write()
+        self.logger.debug(f'SAVE SetGblRep for [{ky}] res=[{res}] Updating DICT')
+        #else:
+            # User accepted the item as is.  Add to accept list
+         #   self.logger.debug(f'SAVE Accept for [{ky}] res=[{res}] Updating DICT')
+
+          #  self.user_accepted.set(ky, res)
+          #  self.user_accepted.write()
 
         # Write out corrected item to  output file
         if self.place.result_type != GeoKeys.Result.DELETE:
@@ -744,15 +728,6 @@ class GeoFinder:
         self.logger.info('SYS EXIT')
         # sys.exit()
         os._exit(0)
-
-    def set_swap_allowed(self, allowed: bool):
-        allowed = False
-        if allowed:
-            # Enable the Save and Map buttons
-            self.w.swap_button.config(state="normal")  # Match - enable  button
-        else:
-            # Disable the Save and Map buttons
-            self.w.swap_button.config(state="disabled")
 
     def set_save_allowed(self, save_allowed: bool):
         if save_allowed:

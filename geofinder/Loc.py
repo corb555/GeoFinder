@@ -34,7 +34,8 @@ class PlaceType:
     ADMIN1 = 1
     ADMIN2 = 2
     CITY = 3
-    FILTER = 4
+    ADVANCED_SEARCH = 4
+    PREFIX = 5
 
 
 place_type_name_dict = {
@@ -42,7 +43,7 @@ place_type_name_dict = {
     PlaceType.ADMIN1: 'STATE/PROVINCE',
     PlaceType.ADMIN2: 'COUNTY',
     PlaceType.CITY: ' ',
-    PlaceType.FILTER: ' '
+    PlaceType.ADVANCED_SEARCH: ' '
 }
 
 class Loc:
@@ -107,7 +108,7 @@ class Loc:
                 self.country_iso = options.iso.lower()
             if options.feature:
                 self.feature = options.feature.upper()
-            self.place_type = PlaceType.FILTER
+            self.place_type = PlaceType.ADVANCED_SEARCH
         except Exception as e:
             self.logger.debug(e)
 
@@ -143,14 +144,17 @@ class Loc:
             self.place_type = PlaceType.COUNTRY
             self.country_name = GeoKeys.search_normalize(tokens[-1],"")
             self.country_name = re.sub(r'\.', '', self.country_name)  # remove .
+            self.target = self.country_name
 
             # Validate country
             self.country_iso = geo_files.geodb.get_country_iso(self)  # Get Country country_iso
             if self.country_iso != '':
                 self.logger.debug(f'Found country. iso = [{self.country_iso}]')
+            else:
+                # Last token is not COUNTRY.
+                self.logger.debug(f'last tkn [{self.admin1_name}] is not a country ')
 
-            if self.country_iso is '':
-                # NO COUNTRY
+                """
                 # See if rightmost token is  Admin1 (state/province) which we can use to derive Country
                 save_admin1 = self.admin1_name
                 self.admin1_name = GeoKeys.search_normalize(tokens[-1],self.country_iso)
@@ -165,16 +169,15 @@ class Loc:
                     tokens.append(geo_files.geodb.get_country_name(self.country_iso))
                     self.country_name = tokens[-1].strip(' ').lower()
                     token_count = len(tokens)
-                else:
-                    # No country or admin1 found for this
-                    # Append blank to token list so we now have xx,admin1, blank_country
-                    self.logger.debug(f'last tkn [{self.admin1_name}] is not an admin1 or country ')
-                    self.admin1_name = save_admin1  # Restore Admin1 field
-                    tokens.append('')
-                    token_count = len(tokens)
-                    self.result_type = GeoKeys.Result.NO_COUNTRY
-                    self.country_iso = ''
-                    self.country_name = ''
+                else: """
+
+                # Append blank to token list so we now have xx,admin1, blank_country
+                #self.admin1_name = save_admin1  # Restore Admin1 field
+                tokens.append('')
+                token_count = len(tokens)
+                self.result_type = GeoKeys.Result.NO_COUNTRY
+                self.country_iso = ''
+                self.country_name = ''
 
                     # Validate country
                     #self.country_iso = geo_files.geodb.get_country_iso(self)  # Get Country country_iso
@@ -183,7 +186,6 @@ class Loc:
               #  if self.admin1_id != '':
                #     self.logger.debug(f'Found admin1 {self.admin1_name}')
 
-            self.target = self.country_name
 
         if token_count > 1:
             #  Format: Admin1, Country.
@@ -196,15 +198,12 @@ class Loc:
                 geo_files.geodb.get_admin1_id(self)
                 if self.admin1_id != '':
                     self.logger.debug(f'Found admin1 {self.admin1_name}')
-
-                """
-                if self.admin1_id == '' and token_count > 2:
-                    # Last token is not Admin1 or country
+                else:
+                    # Last token is not Admin1 - append blank
                     self.admin1_name = ''
                     # Append blank token for admin1 position
                     tokens.append('')
                     token_count = len(tokens)
-                """
 
         if token_count > 2:
             #  Format: Admin2, Admin1, Country

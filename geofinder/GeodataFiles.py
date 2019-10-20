@@ -271,10 +271,12 @@ class GeodataFiles:
         if geoname_row.feat_code == 'PPLQ':
             geo_row[GeoDB.Entry.NAME] = re.sub(r' historical', '', geo_row[GeoDB.Entry.NAME])
 
-        #if 'mount ' in geo_row[GeoDB.Entry.NAME]:
-            #self.logger.debug(f'INS {geo_row[GeoDB.Entry.NAME]}')
-
         self.geodb.insert(geo_row=geo_row, feat_code=geoname_row.feat_code)
+
+        # Also add abbreviations for USA states
+        if geo_row[GeoDB.Entry.ISO] == 'us' and geoname_row.feat_code == 'ADM1':
+            geo_row[GeoDB.Entry.NAME] = geo_row[GeoDB.Entry.ADM1].lower()
+            self.geodb.insert(geo_row=geo_row, feat_code=geoname_row.feat_code)
 
     def get_supported_countries(self) -> [str, int]:
         """ Convert list of supported countries into sorted string """

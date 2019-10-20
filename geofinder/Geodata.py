@@ -87,27 +87,16 @@ class Geodata:
             place.target = place.admin1_name
             place.city1 = place.admin1_name
             place.admin1_name = ''
+            place.place_type = Loc.PlaceType.ADMIN1
+        elif typ == Loc.PlaceType.COUNTRY:
+            place.target = place.country_name
+            place.place_type = Loc.PlaceType.COUNTRY
 
         self.geo_files.geodb.lookup_place(place=place)
         result_list.extend(place.georow_list)
-        # self.logger.debug(f'By Typ={typ} Targ=[{place.target}] ')
+        self.update_prefix(place=place)
 
-        if 'shire' in place.target:
-            place.admin2_name = place.target
-            place.place_type = Loc.PlaceType.ADMIN2
-            self.logger.debug('SHIRE')
-            self.geo_files.geodb.lookup_place(place=place)
-            if place.result_type == GeoKeys.Result.WILDCARD_MATCH:
-                # Found as Admin2 without shire
-                place.name = re.sub('shire', '', place.name)
-                if typ == Loc.PlaceType.CITY:
-                    save_place.city1 = ''
-                elif typ == Loc.PlaceType.ADMIN1:
-                    save_place.admin1_name = ''
-
-            result_list.extend(place.georow_list)
-
-        # Restore
+        # Restore items
         place.city1 = save_place.city1
         place.admin2_name = save_place.admin2_name
         place.admin1_name = save_place.admin1_name
@@ -120,6 +109,8 @@ class Geodata:
         Update place with -- lat, lon, district, city, country_iso, result code
         """
         place.parse_place(place_name=location, geo_files=self.geo_files)
+
+        # If no country was found, set the country to country of previous entry
         if place.country_iso == '':
             place.country_iso = self.last_iso
         flags = ResultFlags(limited=False, filtered=False)
@@ -129,81 +120,34 @@ class Geodata:
         Adm1=[{place.admin1_name}] Pref=[{place.prefix}] Cntry=[{place.country_name}] iso=[{place.country_iso}]  Type={place.place_type} ')
         self.save_place = copy.copy(place)
 
-        if place.place_type == Loc.PlaceType.FILTER:
+        """
+        if place.place_type == Loc.PlaceType.ADVANCED_SEARCH:
             # Lookup location with advanced search params
             self.logger.debug('Advanced Filter')
             self.geo_files.geodb.lookup_place(place=place)
             self.update_prefix(place=place)
+            return
+        """
 
         self.country_is_valid(place)
+
+        # The country in this entry is not supported (not loaded into DB)
         if place.result_type == GeoKeys.Result.NOT_SUPPORTED:
             self.process_result(place=place, targ_name=place.target, flags=flags)
             return
 
-        if place.place_type == Loc.PlaceType.COUNTRY:
-            place.target = place.country_name
-            self.geo_files.geodb.lookup_place(place=place)
-            self.update_prefix(place=place)
-            result_list.extend(place.georow_list)
-
-        # Do standard lookup based on parsing
+        # Try standard lookup based on simple parse:  city, county, state/province, country
         self.geo_files.geodb.lookup_place(place=place)
-        self.update_prefix(place=place)
         result_list.extend(place.georow_list)
-        self.logger.debug(result_list)
+        self.update_prefix(place=place)
 
-        if '*' in place.name:
-            # Wildcard - Process the results and return
-            self.process_result(place=place, targ_name=place.target, flags=flags)
-            self.logger.debug(f'Status={place.status}')
-            place.prefix = ''
-            return
-
-        place.place_type = Loc.PlaceType.CITY
-
-        # Try each token as city (use PlaceType to walk thru)
-        for ty in [Loc.PlaceType.CITY, Loc.PlaceType.ADMIN1, Loc.PlaceType.ADMIN2]:
+        # Simple parse can be wrong, so also try prefix token  as city and admin2 token as city
+        for ty in [Loc.PlaceType.PREFIX, Loc.PlaceType.ADMIN2]:
             self.lookup_by_type(place, result_list, ty, self.save_place)
 
         self.logger.debug(result_list)
 
-        #  Try Admin1 as Admin1
-        place.prefix = self.save_place.prefix + f' {self.save_place.city1.title()}'
-        place.place_type = Loc.PlaceType.ADMIN1
-        place.target = place.admin1_name
-        self.logger.debug(f' Try admin1 as admin1  [{place.target}] ')
-        self.geo_files.geodb.lookup_place(place=place)
-        self.update_prefix(place=place)
-        result_list.extend(place.georow_list)
-        # place.city1 = self.save_place.city1
-
-        #  Try Admin2 as Admin2
-        place.prefix = self.save_place.prefix + f' {self.save_place.city1.title()}'
-        place.place_type = Loc.PlaceType.ADMIN2
-        place.target = place.admin2_name
-        self.logger.debug(f' Try admin2 as admin2  [{place.target}] ')
-        self.geo_files.geodb.lookup_place(place=place)
-        self.update_prefix(place=place)
-        result_list.extend(place.georow_list)
-        # place.city1 = self.save_place.city1
-
-        self.logger.debug(result_list)
-
-        # Try prefix  as target
-        place.target = place.prefix
-        place.prefix = place.city1
-        place.city1 = self.save_place.prefix
-        # if '*' in place.target:
-        #    result_list.clear()
-
-        self.logger.debug(f'Try Prefix.  [{place.target}]')
-        place.enable_swap = True
-        self.geo_files.geodb.lookup_place(place=place)
-        self.update_prefix(place=place)
-        result_list.extend(place.georow_list)
-        place.city1 = self.save_place.city1
-
-        # Combine lists
+        #  Move result list into place georow list
         place.georow_list.clear()
         place.georow_list.extend(result_list)
 
@@ -462,8 +406,8 @@ class Geodata:
             score = geo_row[GeoKeys.Entry.SCORE]
             if score < min_score:
                 min_score = score
-            self.logger.debug(f'Score={score:.2f} Min={min_score:.2f} {geo_row[GeoKeys.Entry.NAME]}')
-            if score > min_score + 10 or score > 62:
+            self.logger.debug(f'Score {score:.2f}  {geo_row[GeoKeys.Entry.NAME]}, {geo_row[GeoKeys.Entry.ADM2]}, {geo_row[GeoKeys.Entry.ADM1]}')
+            if score > min_score + 10 or score > 88:
                 break
             place.georow_list.append(geo_row)
 
@@ -486,8 +430,8 @@ default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ",
            "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "PRSH", "RUIN", "RLG", "STG", "SQR", "SYG", "VAL"]
 
 # If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
-feature_priority = {'ADM1': 20, 'PPL': 20, 'PPLA': 19, 'PPLA2': 18, 'PPLA3': 18, 'PPLA4': 17, 'PPLC': 16, 'PPLG': 15, 'ADM2': 14, 'MILB': 13,
-                    'NVB': 12, 'PPLF': 11, 'DEFAULT': 3, 'ADM0': 10, 'PPLL': 10, 'PPLQ': 9, 'PPLR': 8, 'PPLS': 7, 'PPLW': 6, 'PPLX': 5, 'BTL': 4,
+feature_priority = {'ADM1': 20, 'PPLA': 20, 'PPL': 18, 'PPLA2': 19, 'PPLA3': 17, 'PPLA4': 16, 'PPLC': 16, 'PPLG': 15, 'ADM2': 14, 'MILB': 13,
+                    'NVB': 12, 'PPLF': 11, 'DEFAULT': 3, 'ADM0': 10, 'PPLL': 6, 'PPLQ': 5, 'PPLR': 4, 'PPLS': 3, 'PPLW': 3, 'PPLX': 3, 'BTL': 3,
                     'STLMT': 1, 'CMTY': 4, 'VAL': 1, 'CH': 4, 'MSQE': 4}
 
 result_text_list = {

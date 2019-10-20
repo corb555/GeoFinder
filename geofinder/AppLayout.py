@@ -184,8 +184,7 @@ class AppLayout:
                                                   width=GFStyle.BTN_WID, image=self.images['help'], compound="left")
         self.quit_button: ttk.Button = ttk.Button(self.root, text=" quit", command=self.main.quit_handler,
                                                   width=GFStyle.BTN_WID, image=self.images['exit'], compound="left")
-        self.swap_button: ttk.Button = ttk.Button(self.root, text=" swap", command=self.main.swap_handler,
-                                                  width=GFStyle.BTN_WID, image=self.images['play'], compound="left")
+
 
         # Set grid layout for padding column widget - just pads out left column
         self.pad.grid(column=PAD_COL, row=0, padx=GFStyle.PAD_PADX, pady=0, sticky="EW")
@@ -210,7 +209,6 @@ class AppLayout:
         self.search_button.grid(column=BTN_COL, row=1, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
         self.verify_button.grid(column=BTN_COL, row=2, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
         self.save_button.grid(column=BTN_COL, row=4, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
-        self.swap_button.grid(column=BTN_COL, row=5, padx=GFStyle.BTN_PADX, pady=6, sticky="NE")
 
 
         self.skip_button.grid(column=BTN_COL, row=10, padx=GFStyle.BTN_PADX, pady=6, sticky="E")

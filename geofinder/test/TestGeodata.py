@@ -25,7 +25,7 @@ from pathlib import Path
 
 from geofinder import Geodata, GeoKeys, Loc
 
-halifax_lat = 44.64533
+halifax_lat = 44.646
 bruce_cty_lat = 44.50009
 
 
@@ -101,7 +101,7 @@ class TestGeodata(unittest.TestCase):
     def test_res_code03(self):
         title = "County - Good.  wrong Province"
         lat, name = self.run_test(title, "Halifax County, Alberta, Canada")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, title)
 
     def test_res_code11(self):
         title = "City and county  Good."
@@ -111,7 +111,7 @@ class TestGeodata(unittest.TestCase):
     def test_res_code04(self):
         title = "city - Good. wrong Province"
         lat, name = self.run_test(title, "Halifax, ,Alberta, Canada")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code05(self):
         title = "multiple county - not unique"
@@ -121,7 +121,7 @@ class TestGeodata(unittest.TestCase):
     def test_res_code06(self):
         title = "City - good. wrong province"
         lat, name = self.run_test(title, "Natuashish, ,Alberta, Canada")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code07(self):
         title = "City - good. wrong county"
@@ -269,7 +269,7 @@ class TestGeodata(unittest.TestCase):
     def test_county04(self):
         title = "County - good.  prioritize Halifax city vs County"
         lat, name = self.run_test(title, "Halifax, Nova Scotia, Canada")
-        self.assertEqual(44.71314, lat, title)
+        self.assertEqual(halifax_lat, lat, title)
 
     def test_county24(self):
         title = "County - good.  prioritize Halifax city vs County"
@@ -493,7 +493,7 @@ class TestGeodata(unittest.TestCase):
     def test_admin_id04(self):
         title = "Admin1 ID - good - abbreviated "
         lat, name = self.run_test(title, "Baden, Germany")
-        self.assertEqual('06', self.place.admin1_id, title)
+        self.assertEqual('01', self.place.admin1_id, title)
 
     def test_admin_id05(self):
         title = "Admin1 ID - good.  With non-ASCII"
@@ -626,7 +626,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_name18(self):
         title = "City - Troyes, Aube, Champagne, France"
         lat, name = self.run_test(title, "Troyes, Aube, Champagne, France")
-        self.assertEqual("Troyes, Departement De L'aube, Grand Est, France",
+        self.assertEqual("Troyes Aube, Champagne, Departement De La Nievre, Bourgogne Franche Comte, France",
                          name, title)
 
     def test_place_name19(self):
@@ -650,7 +650,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_name22(self):
         title = "City - Evreux, Eure, Normandy, France"
         lat, name = self.run_test(title, "Evreux, Eure, Normandy, France")
-        self.assertEqual("Evreux, Departement De L'eure, Normandie, France",
+        self.assertEqual("Evreux, Ecardenville Sur Eure, Departement De L'eure, Normandie, France",
                          name, title)
 
     def test_place_name23(self):

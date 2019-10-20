@@ -79,10 +79,6 @@ class GeoDB:
         The dictionary geo_result entry contains: Lat, Long, districtID (County or State or Province ID)
         There can be multiple entries if a city name isnt unique in a country
         """
-        if any(str.isdigit(c) for c in place.target):
-            # Don't lookup items with digits
-            return
-
         result_place: Loc = Loc.Loc()
         self.start = time.time()
         place.result_type = Result.STRONG_MATCH
@@ -93,12 +89,17 @@ class GeoDB:
         elif place.place_type == Loc.PlaceType.ADMIN2:
             self.get_admin1_id(place=place)
             self.select_admin2(place)
+            if len(place.georow_list) ==0:
+                if 'shire' in place.target:
+                    # Some English counties have had Shire removed from name, try doing that
+                    place.target = re.sub('shire', '', place.target)
+                    self.select_admin2(place)
+
         elif place.place_type == Loc.PlaceType.COUNTRY:
             self.select_country(place)
-        elif place.place_type == Loc.PlaceType.FILTER:
+        elif place.place_type == Loc.PlaceType.ADVANCED_SEARCH:
             self.advanced_search(place)
         else:
-            self.get_admin1_id(place=place)
             self.get_admin2_id(place=place)
             self.select_city(place)
 
@@ -146,23 +147,44 @@ class GeoDB:
         inp_words = inp2.split(' ')
 
         result_tokens = res.split(",")
-        out = result_tokens[0]
-        #if len(result_tokens) > 1:
-        #    out += ' ' + result_tokens[-1]
-        if len(result_tokens) > 2:
-            out += ' ' + result_tokens[-2]
 
+        # Counties are frequently wrong.  Minimize impact
+        if len(result_tokens) > 2:
+            # See if result county is in user request.  If it is not, delete it
+            if result_tokens[-3].strip(' ') not in inp:
+                result_tokens[-3] = ''
+
+        # Countries are frequently left out.  Minimize impact
+        if len(result_tokens) > 0:
+            # See if result country is in user request.  If it is not, delete it
+            if result_tokens[-1].strip(' ') not in inp:
+                result_tokens[-1] = ''
+
+        # Join tokens back into comma separated list
+        out = ','.join(map(str, result_tokens))
         orig_res_len = len(out)
 
-        # Percent of each input token that was not matched.  Averaged over number of tokens
-        # If any word in input is in result, delete it from input and from first token in res
-        lst = sorted(inp_words, key=len, reverse=True)
+        # If any WORD in input is in result, delete it from input and from result
+        lst = sorted(inp_words, key=len, reverse=True)      # Use longest words first
         for idx, word in enumerate(lst):
             if len(word) > 2 and word in res:
+                # If input word is in result, delete it from input string and result string
                 inp = re.sub(word, '', inp)
                 out = re.sub(word, '', out)
 
         in_score = 0
+
+        # Strip out any remaining CHARACTERS in inp that are in out
+        length = min(len(out), len(inp))
+
+        mismatch_list = [i for i in range(length) if inp[i] == out[i]]
+
+        char_list = list(inp)
+        for idx in mismatch_list:
+            char_list[idx] = ' '
+        inp = ''.join(char_list)
+
+        self.logger.debug(f' In [{inp}] Res [{out}]')
 
         # For each input token calculate new size divided by original size
         inp_tokens = inp.split(',')
@@ -179,7 +201,7 @@ class GeoDB:
         # Output score (percent of first token in output that was not matched)
         new_len = len(out.strip(' '))
         if orig_res_len > 0:
-            out_score = (int((0.06 * 100.0) * new_len / orig_res_len))
+            out_score = (int((0.09 * 100.0) * new_len / orig_res_len))
             if new_len > 0:
                 out_score += 1
         else:

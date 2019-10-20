@@ -74,6 +74,7 @@ def remove_noise_words(res):
     # inp = re.sub('shire', '', inp)
     res = re.sub(r"normandy american ", 'normandie american ', res)  # Odd case for Normandy American cemetery having only english spelling
 
+    """
     res = re.sub(r' county', ' ', res)
     res = re.sub(r' stadt', ' ', res)
     res = re.sub(r' departement', ' ', res)
@@ -82,6 +83,8 @@ def remove_noise_words(res):
     res = re.sub(r'gemeente ', ' ', res)
     res = re.sub(r'provincia ', ' ', res)
     res = re.sub(r'provincie ', ' ', res)
+    """
+
     res = re.sub(r'nouveau brunswick', ' ', res)
 
     res = re.sub(r' de ', ' ', res)
