@@ -34,8 +34,8 @@ class PlaceType:
     ADMIN1 = 1
     ADMIN2 = 2
     CITY = 3
-    ADVANCED_SEARCH = 4
-    PREFIX = 5
+    PREFIX = 4
+    ADVANCED_SEARCH = 5
 
 
 place_type_name_dict = {
@@ -56,8 +56,6 @@ class Loc:
         self.logger = logging.getLogger(__name__)
         self.clear()
         self.event_year: int = 0
-        self.use_alternate = False
-        self.enable_swap = False
 
     def clear(self):
         # Place geo info
@@ -77,6 +75,8 @@ class Loc:
         self.target: str = ''  # Target for lookup
         self.geoid: str = ''
         self.prefix_commas: str = ''
+        self.id = ''
+        self.enclosure_id = ''
 
         # Lookup result info
         self.status: str = ""
@@ -100,12 +100,15 @@ class Loc:
         parser = ArgumentParserNoExit(description="Parses command.")
         parser.add_argument("-f", "--feature", help=argparse.SUPPRESS)
         parser.add_argument("-i", "--iso", help=argparse.SUPPRESS)
+        parser.add_argument("-c", "--country", help=argparse.SUPPRESS)
         try:
             options = parser.parse_args(args)
             self.city1 = GeoKeys.search_normalize(tokens[0],self.country_iso)
             self.target = self.city1
             if options.iso:
                 self.country_iso = options.iso.lower()
+            if options.country:
+                self.country_iso = options.country.lower()
             if options.feature:
                 self.feature = options.feature.upper()
             self.place_type = PlaceType.ADVANCED_SEARCH
@@ -144,32 +147,18 @@ class Loc:
             self.place_type = PlaceType.COUNTRY
             self.country_name = GeoKeys.search_normalize(tokens[-1],"")
             self.country_name = re.sub(r'\.', '', self.country_name)  # remove .
+            if self.country_name == 'USA':
+                self.country_name = 'United States'
             self.target = self.country_name
 
             # Validate country
             self.country_iso = geo_files.geodb.get_country_iso(self)  # Get Country country_iso
             if self.country_iso != '':
-                self.logger.debug(f'Found country. iso = [{self.country_iso}]')
+                #self.logger.debug(f'Found country. iso = [{self.country_iso}]')
+                pass
             else:
                 # Last token is not COUNTRY.
                 self.logger.debug(f'last tkn [{self.admin1_name}] is not a country ')
-
-                """
-                # See if rightmost token is  Admin1 (state/province) which we can use to derive Country
-                save_admin1 = self.admin1_name
-                self.admin1_name = GeoKeys.search_normalize(tokens[-1],self.country_iso)
-                self.country_name = ''
-
-                # Try last token as admin1.  This will fill in country ISO if admin1 is found
-                geo_files.geodb.get_admin1_id(self)
-
-                if self.country_iso != '':
-                    # We found Admin1 and the country.  Append country to token list so we now have xx,admin1, country
-                    self.logger.debug(f'Last tkn is state/province {self.admin1_name} iso={self.country_iso}')
-                    tokens.append(geo_files.geodb.get_country_name(self.country_iso))
-                    self.country_name = tokens[-1].strip(' ').lower()
-                    token_count = len(tokens)
-                else: """
 
                 # Append blank to token list so we now have xx,admin1, blank_country
                 #self.admin1_name = save_admin1  # Restore Admin1 field
@@ -178,14 +167,6 @@ class Loc:
                 self.result_type = GeoKeys.Result.NO_COUNTRY
                 self.country_iso = ''
                 self.country_name = ''
-
-                    # Validate country
-                    #self.country_iso = geo_files.geodb.get_country_iso(self)  # Get Country country_iso
-            #else:
-             #   geo_files.geodb.get_admin1_id(self)
-              #  if self.admin1_id != '':
-               #     self.logger.debug(f'Found admin1 {self.admin1_name}')
-
 
         if token_count > 1:
             #  Format: Admin1, Country.
@@ -197,7 +178,8 @@ class Loc:
                 # Lookup Admin1
                 geo_files.geodb.get_admin1_id(self)
                 if self.admin1_id != '':
-                    self.logger.debug(f'Found admin1 {self.admin1_name}')
+                    #self.logger.debug(f'Found admin1 {self.admin1_name}')
+                    pass
                 else:
                     # Last token is not Admin1 - append blank
                     self.admin1_name = ''
@@ -226,32 +208,27 @@ class Loc:
             for item in tokens[0:-4]:
                 if len(self.prefix) > 0:
                     self.prefix += ' '
-                self.prefix += item.strip(' ')
+                self.prefix += str(item.strip(' '))
 
         # Special case for New York, New York which normally refers to the City, not county
         if self.admin2_name == 'new york' and self.place_type == PlaceType.ADMIN2:
             self.admin2_name = 'new york city'
             self.target = self.admin2_name
 
-        self.logger.debug(f"***** PARSE Done:  {token_count} tokens. City [{self.city1}] Adm2 [{self.admin2_name}]"
+        self.logger.debug(f"***** PARSE: City [{self.city1}] Adm2 [{self.admin2_name}]"
                           f" Adm1 [{self.admin1_name}] adm1_id [{self.admin1_id}] Cntry [{self.country_name}] Pref=[{self.prefix}]"
-                          f" Commas=[{self.prefix_commas}] type_id={self.place_type}")
+                          f" type_id={self.place_type}")
         return
-
-    def set_place_type(self):
-        self.place_type = PlaceType.CITY
-        if len(str(self.country_name)) > 0:
-            self.place_type = PlaceType.COUNTRY
-        if len(self.admin1_name) > 0:
-            self.place_type = PlaceType.ADMIN1
-        if len(self.admin2_name) > 0:
-            self.place_type = PlaceType.ADMIN2
-        if len(self.city1) > 0:
-            self.place_type = PlaceType.CITY
 
     def get_status(self) -> str:
         self.logger.debug(f'status=[{self.status}]')
         return self.status
+
+    def clean(self):
+        self.city1 = str(self.city1)
+        self.admin1_name = str(self.admin1_name)
+        self.admin2_name = str(self.admin2_name)
+        self.prefix = str(self.prefix)
 
     def format_full_nm(self, replace_dct):
         """ Take the parts of a Place and build fullname.  e.g. pref, city,adm2,adm1,country name """
@@ -292,4 +269,28 @@ class Loc:
         self.prefix = self.prefix.title()
         return nm
 
+    def feature_to_type(self):
+        # Set place type based on DB response feature code
+        if self.feature == 'ADM0':
+            self.place_type = PlaceType.COUNTRY
+        elif self.feature == 'ADM1':
+            self.place_type = PlaceType.ADMIN1
+        elif self.feature == 'ADM2':
+            self.place_type = PlaceType.ADMIN2
+        else:
+            self.place_type = PlaceType.CITY
+        if len(self.prefix) > 0:
+            self.place_type = PlaceType.PREFIX
+        return self.place_type
 
+    def set_place_type(self):
+        # Set place type based on parsing results
+        self.place_type = PlaceType.CITY
+        if len(str(self.country_name)) > 0:
+            self.place_type = PlaceType.COUNTRY
+        if len(self.admin1_name) > 0:
+            self.place_type = PlaceType.ADMIN1
+        if len(self.admin2_name) > 0:
+            self.place_type = PlaceType.ADMIN2
+        if len(self.city1) > 0:
+            self.place_type = PlaceType.CITY

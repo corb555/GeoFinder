@@ -174,17 +174,15 @@ class GeoDB:
 
         in_score = 0
 
-        # Strip out any remaining CHARACTERS in inp that are in out
+        # Strip out any remaining CHARACTERS in inp that match out
         length = min(len(out), len(inp))
-
-        mismatch_list = [i for i in range(length) if inp[i] == out[i]]
-
-        char_list = list(inp)
-        for idx in mismatch_list:
+        match_list = [i for i in range(length) if inp[i] == out[i]]
+        char_list = list(inp)    # Convert string to list so we can modify
+        for idx in match_list:
             char_list[idx] = ' '
-        inp = ''.join(char_list)
+        inp = ''.join(char_list)   # Convert back from list to string
 
-        self.logger.debug(f' In [{inp}] Res [{out}]')
+        #self.logger.debug(f' In [{inp}] Res [{out}]')
 
         # For each input token calculate new size divided by original size
         inp_tokens = inp.split(',')
@@ -231,9 +229,9 @@ class GeoDB:
         if len(lookup_target) == 0:
             return
         pattern = self.create_wildcard(lookup_target)
-        iso_pattern = self.create_wildcard(place.country_iso)
+        iso_pattern = place.country_iso
         feature_pattern = self.create_wildcard(place.feature)
-        self.logger.debug(f'CITY FILTER lookup. Targ=[{pattern}] feature=[{feature_pattern}]'
+        self.logger.debug(f'Advanced Search. Targ=[{pattern}] feature=[{feature_pattern}]'
                           f'  iso=[{iso_pattern}] ')
 
         query_list = []
@@ -241,9 +239,14 @@ class GeoDB:
                                 args=(pattern, iso_pattern, feature_pattern),
                                 result=Result.PARTIAL_MATCH))
 
+        # Search main DB
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
+        self.logger.debug(place.georow_list)
+
+        # Search admin DB
         admin_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
         place.georow_list.extend(admin_list)
+        self.logger.debug(place.georow_list)
 
     def select_city(self, place: Loc):
         """
@@ -677,6 +680,8 @@ class GeoDB:
 
         if len(row_list) > 0:
             res = row_list[0][Entry.NAME]
+            if res == 'USA':
+                res = 'United States'
         return res
 
     def get_country_iso(self, place: Loc) -> str:
@@ -716,12 +721,12 @@ class GeoDB:
         place.admin2_id = ''
         place.city1 = ''
 
-        place.country_iso = row[Entry.ISO]
-        place.country_name = self.get_country_name(row[Entry.ISO])
+        place.country_iso = str(row[Entry.ISO])
+        place.country_name = str(self.get_country_name(row[Entry.ISO]))
         place.lat = row[Entry.LAT]
         place.lon = row[Entry.LON]
-        place.feature = row[Entry.FEAT]
-        place.geoid = row[Entry.ID]
+        place.feature = str(row[Entry.FEAT])
+        place.geoid = str(row[Entry.ID])
 
         if place.feature == 'ADM0':
             self.place_type = Loc.PlaceType.COUNTRY
@@ -739,13 +744,14 @@ class GeoDB:
             place.city1 = row[Entry.NAME]
             self.place_type = Loc.PlaceType.CITY
 
-        place.admin1_name = self.get_admin1_name(place)
-        place.admin2_name = self.get_admin2_name(place)
-
+        place.admin1_name = str(self.get_admin1_name(place))
+        place.admin2_name = str(self.get_admin2_name(place))
         if place.admin2_name is None:
             place.admin2_name = ''
         if place.admin1_name is None:
             place.admin1_name = ''
+
+        place.city1 = str(place.city1)
         if place.city1 is None:
             place.city1 = ''
 

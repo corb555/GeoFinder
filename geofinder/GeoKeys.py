@@ -37,6 +37,7 @@ class Entry:
     PREFIX = 8  # Note - item 8 is overloaded with Soundex in DB and Prefix for result
     SCORE = 9
     MAX = 9
+    POP = 14
 
 
 class Result:
@@ -98,6 +99,8 @@ def remove_noise_words(res):
 def search_normalize(res, iso):
     res = normalize(res)
     res = re.sub(r'prussia', 'germany', res)
+    res = re.sub(r' near ', ' ', res)
+
     if iso == 'gb':
         res = re.sub(r'middlesex', 'greater london', res)
     if iso == 'fr':

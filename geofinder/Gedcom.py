@@ -35,8 +35,8 @@ class Gedcom(AncestryFile):
     Write out all other entries as-is if out_path is not None
     """
 
-    def __init__(self, in_path: str, out_suffix: str, cache_d, progress: Union[None, Progress.Progress]):
-        super().__init__(in_path, out_suffix, cache_d, progress)
+    def __init__(self, in_path: str, out_suffix: str, cache_d, progress: Union[None, Progress.Progress],geodata):
+        super().__init__(in_path, out_suffix, cache_d, progress, geodata)
 
         # Sections of a GEDCOM line - Level, label, tag, value
         self.level: int = 0
@@ -86,7 +86,9 @@ class Gedcom(AncestryFile):
         if self.line_num % 1000 == 1:
             self.progress(f"Scanning ", self.percent_complete)
 
-    def write_updated(self, txt: str):
+        return self.id
+
+    def write_updated(self, txt: str, place):
         """ Write out a place line with updated value.  Put together the pieces:  level, Label, tag, value """
         if self.outfile is not None:
             if self.label is not None:

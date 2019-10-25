@@ -157,7 +157,7 @@ class TestGeodata(unittest.TestCase):
     def test_res_code_country03(self):
         title = "No Country - Berlin"
         lat, name = self.run_test(title, "Berlin,,, ")
-        self.assertEqual(GeoKeys.Result.NO_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
 
     def test_res_code_country04(self):
         title = "Country - not supported"
@@ -557,11 +557,6 @@ class TestGeodata(unittest.TestCase):
         lat, name = self.run_test(title, "abc,,Halifax, Nova Scotia, Canada")
         self.assertEqual("Abc, Halifax, , Nova Scotia, Canada", name, title)
 
-    def test_place_name25(self):
-        title = "County  verify place name with prefix "
-        lat, name = self.run_test(title, "abc,,Halifax County, Nova Scotia, Canada")
-        self.assertEqual("Abc, Halifax County, Nova Scotia, Canada", name, title)
-
     def test_place_name06(self):
         title = "City  verify place name"
         lat, name = self.run_test(title, "Halifax, , Nova Scotia, Canada")
@@ -665,7 +660,29 @@ class TestGeodata(unittest.TestCase):
         self.assertEqual("Cambridge, Cambridgeshire, England, United Kingdom",
                          name, title)
 
-    # Cambridge, cambridgeshire , England
+    def test_place_name25(self):
+        title = "City soundex - Parus, France"
+        lat, name = self.run_test(title, "Parus, France")
+        self.assertEqual("Parus, Paris, Paris, Ile De France, France",
+                         name, title)
+
+    def test_place_name26(self):
+        title = "City soundex - Taronto, Canada"
+        lat, name = self.run_test(title, "Taronto, Ontario, Canada")
+        self.assertEqual("Taronto, Toronto, , Ontario, Canada",
+                         name, title)
+
+    def test_place_name27(self):
+        title = "County  verify place name with prefix "
+        lat, name = self.run_test(title, "abc,,Halifax County, Nova Scotia, Canada")
+        self.assertEqual("Abc, Halifax County, Nova Scotia, Canada", name, title)
+
+    def test_place_name28(self):
+        title = "Advanced search - al*,--country=ca,--feature=CH "
+        lat, name = self.run_test(title, "al*,--country=ca, --feature=CH")
+        self.assertEqual("Alert Bay Church, Canada", name, title)
+
+    # al*,--country=ca, --f_code=CH
     # Blois, Loir-et-Cher, Orleanais/Centre, France
 
     # ======= TEST Event Year handling

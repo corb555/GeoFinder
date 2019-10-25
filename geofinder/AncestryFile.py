@@ -31,7 +31,7 @@ class AncestryFile:
     Write out all other entries as-is if out_path is not None
     """
 
-    def __init__(self, in_path: str, out_suffix: str, cache_d, progress: Union[None, Progress.Progress]):
+    def __init__(self, in_path: str, out_suffix: str, cache_d, progress: Union[None, Progress.Progress], geodata):
         self.build = False
         self.logger = logging.getLogger(__name__)
         self.progress_bar = progress
@@ -40,6 +40,9 @@ class AncestryFile:
         self.infile = None
         self.error = False
         self.out_path = in_path + '.' + out_suffix
+        self.csv_path = in_path + '.' + 'csv'
+        self.geodata = geodata
+
         self.more_available = False
 
         self.place_total = 0
@@ -56,7 +59,7 @@ class AncestryFile:
         self.date = ''
         self.abt_flag = False
 
-        if out_suffix is not None:
+        if out_suffix is not '':
             # Create an output file with same name with "out.ged" appended
             self.outfile = open(self.out_path, "w",
                                 encoding='utf-8')
@@ -87,16 +90,16 @@ class AncestryFile:
         # Scan  file for Place entry or EOF
         # Output all other lines as-is to outfile
         while True:
-            line, err = self.read_and_parse_line()
+            line, err, id = self.read_and_parse_line()
             if err:
-                return '', True  # End of file reached
+                return '', True,''  # End of file reached
 
             if self.tag == 'PLAC':
                 # Found the target line.  Break out of loop
                 entry = self.value
                 if entry is None:
                     continue
-                return entry, False
+                return entry, False, id
             if self.tag == 'IGNORE':
                 pass
             else:
@@ -104,24 +107,25 @@ class AncestryFile:
                 if self.outfile is not None:
                     self.outfile.write(line)
 
-    def read_and_parse_line(self) -> Tuple[str, bool]:
+    def read_and_parse_line(self) -> Tuple[str, bool, str]:
         # Read a line from file.  Handle line.
+        id =''
         if not self.more_available:
             line = self.infile.readline()
             self.line_num += 1
             if line == "":
                 # End of File
-                return "", True
+                return "", True, id
         else:
             line = ''
 
         # Separate the line into  parts
-        self.parse_line(line)
+        id = self.parse_line(line)
 
         #  Keep track of  lines for this event so we have full view of event
         self.collect_event_details()
 
-        return line, False
+        return line, False, id
 
     def collect_event_details(self):
         """ Collect details for event - last name, event date, and tag in GEDCOM file."""
@@ -156,9 +160,9 @@ class AncestryFile:
     def parse_line(self, line: str):
         # Called by read_and_parse_line for each line in file
         # return each entry in self.value with self.tag set to PLAC
-        pass
+        return self.id
 
-    def write_updated(self, txt):
+    def write_updated(self, txt, place):
         """ Write updated place out """
         pass
 

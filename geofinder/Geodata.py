@@ -59,10 +59,22 @@ class Geodata:
             # self.logger.debug(f'NAME ={nm}')
             place.prefix = ''
 
-            for fld in tokens[:2]:
+            for num,fld in enumerate(tokens[:2]):
                 item = GeoKeys.search_normalize(fld,place.country_iso)
+                add_item = False
                 # self.logger.debug(f'item={item} ')
-                if item not in nm:
+                if num == 0 and item not in nm:
+                    add_item = True
+
+                if num == 1 and item not in nm and len(tokens) == 2:
+                    # We only add the second token if there are only 2 tokens
+                    add_item = True
+
+                if '*' in item:
+                    # Don't add as prefix if item is a wildcard search
+                    add_item = False
+
+                if add_item:
                     if len(place.prefix) > 0:
                         place.prefix += ' '
                     place.prefix += item.title()
@@ -75,19 +87,25 @@ class Geodata:
             place.georow_list[idx] = tuple(update)
 
     def lookup_by_type(self, place, result_list, typ, save_place):
-        place.place_type = Loc.PlaceType.CITY
         if typ == Loc.PlaceType.CITY:
             place.target = place.city1
             place.city1 = place.city1
+            place.place_type = Loc.PlaceType.CITY
         elif typ == Loc.PlaceType.ADMIN2:
             place.target = place.admin2_name
             place.city1 = place.admin2_name
             place.admin2_name = ''
+            place.place_type = Loc.PlaceType.CITY
         elif typ == Loc.PlaceType.ADMIN1:
             place.target = place.admin1_name
             place.city1 = place.admin1_name
             place.admin1_name = ''
             place.place_type = Loc.PlaceType.ADMIN1
+        elif typ == Loc.PlaceType.PREFIX:
+            place.target = place.prefix
+            place.city1 = place.prefix
+            place.prefix = ''
+            place.place_type = Loc.PlaceType.CITY
         elif typ == Loc.PlaceType.COUNTRY:
             place.target = place.country_name
             place.place_type = Loc.PlaceType.COUNTRY
@@ -100,6 +118,7 @@ class Geodata:
         place.city1 = save_place.city1
         place.admin2_name = save_place.admin2_name
         place.admin1_name = save_place.admin1_name
+        place.prefix = save_place.prefix
 
     def find_location(self, location: str, place: Loc.Loc):
         """
@@ -120,14 +139,11 @@ class Geodata:
         Adm1=[{place.admin1_name}] Pref=[{place.prefix}] Cntry=[{place.country_name}] iso=[{place.country_iso}]  Type={place.place_type} ')
         self.save_place = copy.copy(place)
 
-        """
         if place.place_type == Loc.PlaceType.ADVANCED_SEARCH:
             # Lookup location with advanced search params
-            self.logger.debug('Advanced Filter')
-            self.geo_files.geodb.lookup_place(place=place)
-            self.update_prefix(place=place)
+            self.logger.debug('Advanced Search')
+            self.lookup_by_type(place, result_list, place.place_type, self.save_place)
             return
-        """
 
         self.country_is_valid(place)
 
@@ -263,6 +279,17 @@ class Geodata:
     def set_place_type_text(self, place: Loc.Loc):
         if place.result_type == GeoKeys.Result.NO_COUNTRY:
             place.result_type_text = 'Country'
+        elif place.place_type == Loc.PlaceType.COUNTRY:
+            place.result_type_text = 'Country'
+        elif place.place_type == Loc.PlaceType.ADMIN1:
+            place.result_type_text = self.get_district1_type(place.country_iso)
+        elif place.place_type == Loc.PlaceType.ADMIN2:
+            place.result_type_text = 'County'
+        elif place.place_type == Loc.PlaceType.CITY:
+            place.result_type_text = self.get_type_name(place.feature)
+        elif place.place_type == Loc.PlaceType.PREFIX:
+            place.result_type_text = 'Prefix'
+        """
         if place.place_type == Loc.PlaceType.CITY:
             place.result_type_text = '' #GeoKeys.type_names.get(place.feature)
             if place.result_type_text is None:
@@ -271,27 +298,10 @@ class Geodata:
             place.result_type_text = self.get_district1_type(place.country_iso)
         else:
             place.result_type_text = Loc.place_type_name_dict[place.place_type]
+        """
 
     def set_last_iso(self, iso):
         self.last_iso = iso
-
-    @staticmethod
-    def get_district1_type(iso) -> str:
-        # Return the local country term for Admin1 district
-        if iso in ["al"]:
-            return "COUNTY"
-        elif iso in ["us", "at", "bm", "br", "de"]:
-            return "STATE"
-        elif iso in ["ac", "an", 'ao', 'bb', 'bd']:
-            return "PARISH"
-        elif iso in ["ae"]:
-            return "EMIRATE"
-        elif iso in ["bc", "bf", "bh", "bl", "bn"]:
-            return "DISTRICT"
-        elif iso in ["gb"]:
-            return "Country"
-        else:
-            return "PROVINCE"
 
     def read(self) -> bool:
         """ Read in geo name files which contain place names and their lat/lon.
@@ -379,6 +389,9 @@ class Geodata:
 
             new_row = list(geo_row)
             geo_row = tuple(new_row)
+            #self.logger.debug(f'{geo_row[GeoKeys.Entry.NAME]},{geo_row[GeoKeys.Entry.FEAT]} '
+            #                  f'{self.get_priority(geo_row[GeoKeys.Entry.FEAT])} {geo_row[GeoKeys.Entry.ADM2]}, '
+            #                  f'{geo_row[GeoKeys.Entry.ADM1]}')
 
             if geo_row[GeoKeys.Entry.NAME] != prev_geo_row[GeoKeys.Entry.NAME]:
                 # Name is different.  Add previous item
@@ -389,7 +402,7 @@ class Geodata:
                 # Lat/lon is different from previous item. Add this one
                 place.georow_list.append(geo_row)
                 idx += 1
-            elif self.get_priority(geo_row[GeoKeys.Entry.FEAT]) > self.get_priority(prev_geo_row[GeoKeys.Entry.FEAT]):
+            elif self.get_priority(geo_row[GeoKeys.Entry.FEAT]) < self.get_priority(prev_geo_row[GeoKeys.Entry.FEAT]):
                 # Same Lat/lon but this has higher feature priority so replace previous entry
                 place.georow_list[idx - 1] = geo_row
 
@@ -407,11 +420,11 @@ class Geodata:
             if score < min_score:
                 min_score = score
             self.logger.debug(f'Score {score:.2f}  {geo_row[GeoKeys.Entry.NAME]}, {geo_row[GeoKeys.Entry.ADM2]}, {geo_row[GeoKeys.Entry.ADM1]}')
-            if score > min_score + 10 or score > 88:
+            if score > min_score + 15 or score > 88:
                 break
             place.georow_list.append(geo_row)
 
-        if min_score < 4 and len(place.georow_list) == 1:
+        if min_score < 20 and len(place.georow_list) == 1:
             place.result_type = GeoKeys.Result.STRONG_MATCH
 
         return ResultFlags(limited=limited_flag, filtered=date_filtered)
@@ -422,7 +435,32 @@ class Geodata:
         if f_prior is None:
             f_prior = 1
 
-        return (20.0 - float(f_prior) )/ 10.0
+        return (22.0 - float(f_prior) )/ 6.0
+
+    @staticmethod
+    def get_type_name(feature):
+        nm = type_name.get(feature)
+        if nm is None:
+            nm = ''
+        return nm
+
+    @staticmethod
+    def get_district1_type(iso) -> str:
+        # Return the local country term for Admin1 district
+        if iso in ["al"]:
+            return "County"
+        elif iso in ["us", "at", "bm", "br", "de"]:
+            return "State"
+        elif iso in ["ac", "an", 'ao', 'bb', 'bd']:
+            return "Parish"
+        elif iso in ["ae"]:
+            return "Emirate"
+        elif iso in ["bc", "bf", "bh", "bl", "bn"]:
+            return "District"
+        elif iso in ["gb"]:
+            return "Country"
+        else:
+            return "Province"
 
 
 default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ", "HSP",
@@ -430,8 +468,8 @@ default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ",
            "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "PRSH", "RUIN", "RLG", "STG", "SQR", "SYG", "VAL"]
 
 # If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
-feature_priority = {'ADM1': 20, 'PPLA': 20, 'PPL': 18, 'PPLA2': 19, 'PPLA3': 17, 'PPLA4': 16, 'PPLC': 16, 'PPLG': 15, 'ADM2': 14, 'MILB': 13,
-                    'NVB': 12, 'PPLF': 11, 'DEFAULT': 3, 'ADM0': 10, 'PPLL': 6, 'PPLQ': 5, 'PPLR': 4, 'PPLS': 3, 'PPLW': 3, 'PPLX': 3, 'BTL': 3,
+feature_priority = {'PP1M':22, 'PP1K':19, 'ADM1': 20, 'PPLA': 20, 'PPL': 18, 'PPLA2': 19, 'PPLA3': 17, 'PPLA4': 16, 'PPLC': 20, 'PPLG': 15,
+'ADM2': 19, 'MILB': 13,'NVB': 12, 'PPLF': 11, 'DEFAULT': 3, 'ADM0': 10, 'PPLL': 6, 'PPLQ': 5, 'PPLR': 4, 'PPLS': 3, 'PPLW': 3, 'PPLX': 3, 'BTL': 3,
                     'STLMT': 1, 'CMTY': 4, 'VAL': 1, 'CH': 4, 'MSQE': 4}
 
 result_text_list = {
@@ -521,3 +559,11 @@ admin1_name_start_year = {
     'ca.13': 1700,
     'ca.14': 1700
 }
+
+type_name = {"ADM1":'City', "ADM2":'City', "ADM3":'City', "ADM4":'City', "ADMF":'City',
+             "CH":'Church', "CSTL":'Castle', "CMTY":'Cemetery', "EST":'Estate', "HSP":'Hospital',
+           "HSTS":'Historic', "ISL":'Island', "MSQE":'Mosque', "MSTY":'Monastery', "MT":'Mountain', "MUS":'Museum', "PAL":'Palace',
+             "PPL":'City', "PPLA":'City', "PPLA2":'City', "PPLA3":'City', "PPLA4":'City',
+           "PPLC":'City', "PPLG":'City', "PPLH":'City', "PPLL":'Village', "PPLQ":'City', "PPLX":'City',
+            "PRK":'Park', "PRN":'Prison', "PRSH":'Parish', "RUIN":'Ruin',
+            "RLG":'Religious', "STG":'', "SQR":'Square', "SYG":'Synagogue', "VAL":'Valley', "PP1M":'City', "PP1K":'City'}

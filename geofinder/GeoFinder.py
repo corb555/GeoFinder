@@ -21,6 +21,7 @@ import glob
 import logging
 import os
 import sys
+import time
 import webbrowser
 from pathlib import Path
 from tkinter import filedialog
@@ -86,7 +87,7 @@ class GeoFinder:
         self.place = None
         self.skiplist = None
         self.global_replace = None
-        self.user_accepted = None
+        #self.user_accepted = None
         self.geodata = None
         self.out_suffix = ''
 
@@ -148,13 +149,13 @@ class GeoFinder:
         self.w.root.mainloop()  # ENTER MAIN LOOP and Wait for user to click on load button
 
     def load_data(self):
-        # Read in Skiplist, Replace list and  Already Accepted list
+        # Read in Skiplist, Replace list  list
         self.skiplist = CachedDictionary(self.cache_dir, "skiplist.pkl")
         self.skiplist.read()
         self.global_replace = CachedDictionary(self.cache_dir, "global_replace.pkl")
         self.global_replace.read()
-        self.user_accepted = CachedDictionary(self.cache_dir, "accepted.pkl")  # List of items that have been accepted
-        self.user_accepted.read()
+        #self.user_accepted = CachedDictionary(self.cache_dir, "accepted.pkl")  # List of items that have been accepted
+        #self.user_accepted.read()
 
         # Initialize geodata
         self.geodata = Geodata.Geodata(directory_name=self.directory, progress_bar=self.w.prog)
@@ -193,11 +194,12 @@ class GeoFinder:
             if '.ged' in ged_path:
                 self.out_suffix = "import.ged"
                 self.ancestry_file_handler = Gedcom.Gedcom(in_path=ged_path, out_suffix=temp_suffix, cache_d=self.cache_dir,
-                                                           progress=self.w.prog)  # Routines to open and parse GEDCOM file
+                                                           progress=self.w.prog, geodata=self.geodata)  # Routines to open and parse GEDCOM file
             elif '.gramps' in ged_path:
                 self.out_suffix = "import.gramps"
+                #self.out_suffix = "csv"
                 self.ancestry_file_handler = GrampsXml.GrampsXml(in_path=ged_path, out_suffix=temp_suffix, cache_d=self.cache_dir,
-                                                                 progress=self.w.prog)  # Routines to open and parse Gramps file
+                                                                 progress=self.w.prog,  geodata=self.geodata)  # Routines to open and parse Gramps file
         else:
             self.out_suffix = 'unk.new.ged'
 
@@ -254,7 +256,8 @@ class GeoFinder:
             # Find the next PLACE entry in  file
             # Process it and keep looping until we need user input
             self.place.clear()
-            town_entry, eof = self.ancestry_file_handler.get_next_place()
+            town_entry, eof, id = self.ancestry_file_handler.get_next_place()
+            self.place.id = id
 
             if eof:
                 self.end_of_file_shutdown()
@@ -273,7 +276,7 @@ class GeoFinder:
 
                     # Display status to user
                     if self.w.prog.shutdown_requested:
-                        self.periodic_update("Shutting down...")
+                        self.periodic_update("Creating Import...")
                     else:
                         self.periodic_update("Applying change")
                 elif self.place.result_type == GeoKeys.Result.DELETE:
@@ -306,13 +309,13 @@ class GeoFinder:
                     self.w.user_entry.set_text(self.place.name)  # Display place
                     break
                 continue
-                """
             elif self.w.prog.shutdown_requested:
                 # User requested shutdown.  Finish up going thru file, then shut down
-                self.periodic_update("Shutting Down...")
+                self.periodic_update("Creating Import...")
                 self.w.original_entry.set_text(" ")
                 self.ancestry_file_handler.write_asis()
                 continue
+                """
             elif self.skiplist.get(town_entry) is not None:
                 # item is in skiplist - Write out as-is and go to next error
                 # self.logger.debug(f'Found Skip for {town_entry}')
@@ -337,7 +340,7 @@ class GeoFinder:
                         # Strong match
                         # Write out line without user verification
                         if self.w.prog.shutdown_requested:
-                            self.periodic_update("Shutting down...")
+                            self.periodic_update("Creating Import...")
                         else:
                             self.periodic_update("Scanning")
 
@@ -353,19 +356,35 @@ class GeoFinder:
                         self.write_updated_place(self.place)
                         continue
                     else:
-                        # Have user review the match
+                        if self.w.prog.shutdown_requested:
+                            # User requested shutdown.  Write this item out as-is
+                            self.periodic_update("Creating Import...")
+                            self.w.original_entry.set_text(" ")
+                            self.ancestry_file_handler.write_asis()
+                            continue
+                        else:
+                            # Have user review the match
+                            self.w.status.configure(style="Good.TLabel")
+                            self.w.original_entry.set_text(self.place.name)  # Display place
+                            self.w.user_entry.set_text(self.place.name)  # Display place
+                            break
+                else:
+                    # No match
+                    if self.w.prog.shutdown_requested:
+                        # User requested shutdown.  Write this item out as-is
+                        self.periodic_update("Creating Import...")
+                        self.w.original_entry.set_text(" ")
+                        self.ancestry_file_handler.write_asis()
+                        continue
+                    else:
+                        # Have user review match
+                        self.logger.debug(f'User2 review for {town_entry}. status ={self.place.status}')
+
                         self.w.status.configure(style="Good.TLabel")
                         self.w.original_entry.set_text(self.place.name)  # Display place
                         self.w.user_entry.set_text(self.place.name)  # Display place
+                        # Have user review the match
                         break
-                else:
-                    self.logger.debug(f'User2 review for {town_entry}. status ={self.place.status}')
-
-                    self.w.status.configure(style="Good.TLabel")
-                    self.w.original_entry.set_text(self.place.name)  # Display place
-                    self.w.user_entry.set_text(self.place.name)  # Display place
-                    # Have user review the match
-                    break
 
         # Have user review the result
         self.display_result(self.place)
@@ -429,9 +448,11 @@ class GeoFinder:
 
         self.display_result(self.place)
 
-    def display_result(self, place):
+    def display_result(self, place:Loc.Loc):
         """ Display result details for an item  """
         # Enable buttons so user can either click Skip, or edit the item and Click Verify.
+        place.clean()
+
         TKHelper.enable_buttons(self.w.review_buttons)
         nm = place.format_full_nm(self.geodata.geo_files.output_replace_dct)
         self.logger.debug(f'disp result [{place.prefix}][{place.prefix_commas}][{nm}] res=[{place.result_type}]')
@@ -548,22 +569,12 @@ class GeoFinder:
 
         res = '@' + self.place.geoid + '@' + self.place.prefix
         self.logger.debug(f'Save [{ky}] :: [{res}]')
-
-        # Add item to global replace list .  This will be cached to disk.
-        #if self.w.original_entry.get_text() != self.w.user_entry.get_text():
-            # User made a change - save it
         self.global_replace.set(ky, res)
 
         # Periodically flush dict to disk
         if self.err_count % 3 == 1:
             self.global_replace.write()
         self.logger.debug(f'SAVE SetGblRep for [{ky}] res=[{res}] Updating DICT')
-        #else:
-            # User accepted the item as is.  Add to accept list
-         #   self.logger.debug(f'SAVE Accept for [{ky}] res=[{res}] Updating DICT')
-
-          #  self.user_accepted.set(ky, res)
-          #  self.user_accepted.write()
 
         # Write out corrected item to  output file
         if self.place.result_type != GeoKeys.Result.DELETE:
@@ -605,14 +616,15 @@ class GeoFinder:
         f' to Gedcom/Gramps?\n\n '):
             # Write file for importing back
             messagebox.showinfo("Generate Import File", "Reminder -  make sure the ancestry export file you are working on is up to date before "
-                                                        "generating a file to import back!")
+                                                        "generating a file to import back!\n\nThe file will take about 10 minutes per 1000 places")
 
             TKHelper.disable_buttons(button_list=self.w.review_buttons)
             self.w.quit_button.config(state="disabled")
             self.w.prog.startup = True
 
             self.w.user_entry.set_text(" ")
-            self.w.status.set_text("Quitting...")
+            self.w.status.set_text("Writing Import File...")
+            self.start_time = time.time()
             # Write out the item we are on
             self.ancestry_file_handler.write_asis()
 
@@ -700,10 +712,10 @@ class GeoFinder:
 
     def write_updated_place(self, place: Loc.Loc):
         # Write out updated location and lat/lon to  file
-        nm = place.format_full_nm(self.geodata.geo_files.output_replace_dct)
+        place.name = place.format_full_nm(self.geodata.geo_files.output_replace_dct)
 
         if place.result_type != GeoKeys.Result.DELETE:
-            self.ancestry_file_handler.write_updated(place.prefix + place.prefix_commas + nm)
+            self.ancestry_file_handler.write_updated(place.prefix + place.prefix_commas + place.name, place)
             self.ancestry_file_handler.write_lat_lon(lat=place.lat, lon=place.lon)
             #self.logger.debug(f'WRITE {place.prefix + place.prefix_commas + nm}')
         else:
@@ -718,8 +730,8 @@ class GeoFinder:
             self.skiplist.write()
         if self.global_replace:
             self.global_replace.write()
-        if self.user_accepted:
-            self.user_accepted.write()
+        #if self.user_accepted:
+        #    self.user_accepted.write()
         if self.cfg:
             self.cfg.write()
         if self.ancestry_file_handler:
@@ -750,6 +762,8 @@ class GeoFinder:
     def end_of_file_shutdown(self):
         # End of file reached
         TKHelper.disable_buttons(button_list=self.w.review_buttons)
+        #self.start_time = time.time()
+        self.logger.debug(f'COMPLETED time={int((time.time() - self.start_time)/60)} minutes')
         self.w.status.set_text("Done.  Shutting Down...")
         self.w.original_entry.set_text(" ")
         path = self.cfg.get("gedcom_path")

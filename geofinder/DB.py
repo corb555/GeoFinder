@@ -179,7 +179,7 @@ class DB:
         res = Result.NO_MATCH
         for query in query_list:
             row_list = self.select(query.where, from_tbl, query.args)
-            #self.logger.debug(f'select x from {from_tbl}  where {query.where} val={query.args}')
+            #self.logger.debug(f'select * from {from_tbl}  where {query.where} val={query.args} {self.order_str} {self.limit_str}')
             if len(row_list) > 0:
                 res = query.result  # Set specified success code
                 #self.logger.debug(row_list)
