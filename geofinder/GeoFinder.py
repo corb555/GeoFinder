@@ -341,7 +341,7 @@ class GeoFinder:
                         self.global_replace.set(town_entry, res)
                         self.logger.debug(f'Found Strong Match for {town_entry} res= [{res}] Setting DICT')
                         # Periodically flush dictionary to disk.  (We flush on exit as well)
-                        if self.err_count % 10 == 1:
+                        if self.err_count % 100 == 1:
                             self.global_replace.write()
 
                         self.write_updated_place(self.place, town_entry)
@@ -567,7 +567,7 @@ class GeoFinder:
         self.global_replace.set(ky, res)
 
         # Periodically flush dict to disk
-        if self.err_count % 3 == 1:
+        if self.err_count % 10 == 1:
             self.global_replace.write()
         self.logger.debug(f'SAVE SetGblRep for [{ky}] res=[{res}] Updating DICT')
 
