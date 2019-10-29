@@ -20,9 +20,8 @@ import copy
 import logging
 import math
 import re
-import string as st
 
-from geofinder import Loc
+from geofinder import Loc, GeoKeys
 
 
 class CSVEntry:
@@ -139,7 +138,6 @@ class GrampsCsv:
         place.id = row[CSVEntry.PLACE_ID]
 
         row[CSVEntry.TITLE] = place.prefix + place.prefix_commas + place.name
-        #row[CSVEntry.TITLE] = re.sub("S ", "s ", row[CSVEntry.TITLE])  # Fix the apostrophe S problem in Titles
         row[CSVEntry.FEAT] = place.feature
         row[CSVEntry.LAT] = f'{float(place.lat):.4f}'
 
@@ -149,10 +147,8 @@ class GrampsCsv:
         row[CSVEntry.ADMIN1_ID] = place.admin1_id
         row[CSVEntry.ISO] = place.country_iso
 
-        #place.calculate_type()
         self.geodata.set_place_type_text(place)
         row[CSVEntry.NAME] = self.get_csv_name(place)
-        #row[CSVEntry.NAME] = re.sub("S ", "s ", row[CSVEntry.NAME])  # Fix the apostrophe S problem in Titles
         row[CSVEntry.TYPE] = place.result_type_text
         key = self.get_csv_key(place)
         dict_idx = self.get_dict_id(place)
@@ -301,11 +297,8 @@ class GrampsCsv:
             enc = ''
         if self.csv_path is not None:
             # 0Place (ID), 1Title, 2Name, 3Type, 4latitude, 5longitude, 6enclosed_by
-            title = st.capwords(row[CSVEntry.TITLE])
-            title = re.sub("S ", "s ", title)  # Fix the apostrophe S problem in Titles
-
-            name = st.capwords(row[CSVEntry.NAME])
-            name = re.sub("S ", "s ", name)  # Fix the apostrophe S problem in Titles
+            title = GeoKeys.capwords(row[CSVEntry.TITLE])
+            name = GeoKeys.capwords(row[CSVEntry.NAME])
 
             if math.isnan(float(row[CSVEntry.LAT])) or  math.isnan(float(row[CSVEntry.LAT])) :
                 self.csvfile.write(f'[{row[CSVEntry.PLACE_ID]}],"{title}","{name}",{row[CSVEntry.TYPE]},'

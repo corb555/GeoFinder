@@ -19,6 +19,7 @@
 import collections
 import os
 import re
+import string as st
 
 import phonetics
 import unidecode
@@ -95,6 +96,23 @@ def remove_noise_words(res):
 
     res = re.sub(r"politischer bezirk ", ' ', res)  # Normalize
     return res
+
+def lowercase_match_group(matchobj):
+        return matchobj.group().lower()
+
+def capwords(nm):
+    if nm is not None:
+        # Use title(), then fix the apostrophe issue
+        nm = nm.title()
+
+        # Special handling for contractions
+        poss_regex = r"(?<=[a-z])[\']([A-Z])"
+        nm = re.sub(poss_regex, lowercase_match_group, nm)
+
+    return nm
+
+    #nm = re.sub(r"D\.c\.", "D.C.", nm)
+    # nm = re.sub("S ", "s ", nm)  # Fix the apostrophe S problem
 
 def search_normalize(res, iso):
     res = normalize(res)

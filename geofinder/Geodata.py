@@ -411,9 +411,6 @@ class Geodata:
         place.georow_list.clear()
 
         for rw, geo_row in enumerate(new_list):
-            # if rw==0:
-            #   place.prefix = geo_row[GeoKeys.Entry.PREFIX].title()
-            #  place.prefix = place.prefix.strip(' ')
             score = geo_row[GeoKeys.Entry.SCORE]
             if score < min_score:
                 min_score = score

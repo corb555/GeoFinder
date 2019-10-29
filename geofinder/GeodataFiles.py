@@ -167,16 +167,14 @@ class GeodataFiles:
         start_time = time.time()
 
         # Put in geonames file data
-        for fname in glob.glob(os.path.join(self.directory, "*.txt")):
-            # Read all geoname files except the  utility files and add to db
-            if os.path.basename(fname) not in ["admin2Codes.txt", "admin1CodesASCII.txt",
-                                               "alternateNamesV2.txt", "alternateNames.txt", "iso-languagecodes.txt"]:
-                error = self.read_geoname_file(fname)  # Read in info (lat/long) for all places from
+        for fname in ['allCountries.txt']:
+            # Read all geoname files
+            error = self.read_geoname_file(fname)  # Read in info (lat/long) for all places from
 
-                if error:
-                    self.logger.error(f'Error reading geoname file')
-                else:
-                    file_count += 1
+            if error:
+                self.logger.error(f'Error reading geoname file')
+            else:
+                file_count += 1
 
         if file_count == 0:
             self.logger.error(f'No geonames files found in {os.path.join(self.directory, "*.txt")}')

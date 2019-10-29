@@ -241,18 +241,6 @@ class Loc:
         if self.admin2_name is None:
             self.admin2_name = ''
 
-        """
-        if self.place_type == PlaceType.COUNTRY:
-            nm = f"{st.capwords(self.country_name)}"
-        elif self.place_type == PlaceType.ADMIN1:
-            nm = f"{st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
-        elif self.place_type == PlaceType.ADMIN2:
-            nm = f"{st.capwords(self.admin2_name)}," \
-                f" {st.capwords(self.admin1_name)}, {st.capwords(self.country_name)}"
-        else:
-            nm = f"{st.capwords(self.city1)}, {st.capwords(self.admin2_name)}, " \
-                f"{st.capwords(self.admin1_name)}, {st.capwords(str(self.country_name))}"
-        """
         if self.place_type == PlaceType.COUNTRY:
             nm = f"{self.country_name}"
         elif self.place_type == PlaceType.ADMIN1:
@@ -270,11 +258,8 @@ class Loc:
         else:
             self.prefix_commas = ''
 
-        nm = st.capwords(nm)
-        #nm = re.sub("S ", "s ", nm)  # Fix the apostrophe S problem in Titles
-        nm = re.sub(r"D.c.", "D.C.", nm)
-
-        self.prefix = st.capwords(self.prefix)
+        nm = GeoKeys.capwords(nm)
+        self.prefix = GeoKeys.capwords(self.prefix)
 
 
         # Perform any text replacements user entered into Output Tab
