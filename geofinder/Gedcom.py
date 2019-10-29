@@ -98,7 +98,7 @@ class Gedcom(AncestryFile):
 
             self.outfile.write(res)
 
-    def write_asis(self):
+    def write_asis(self, entry):
         """ Write out a place line as-is.  Put together the pieces:  level, Label, tag, value """
         if self.outfile is not None:
             if self.label is not None:

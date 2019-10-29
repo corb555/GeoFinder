@@ -40,7 +40,6 @@ class AncestryFile:
         self.infile = None
         self.error = False
         self.out_path = in_path + '.' + out_suffix
-        self.csv_path = in_path + '.' + 'csv'
         self.geodata = geodata
 
         self.more_available = False
@@ -166,7 +165,7 @@ class AncestryFile:
         """ Write updated place out """
         pass
 
-    def write_asis(self):
+    def write_asis(self, entry:str):
         """ Write out place entry as is.  """
         pass
 

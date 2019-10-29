@@ -19,7 +19,6 @@
 import collections
 import copy
 import logging
-import re
 import string as st
 from operator import itemgetter
 
@@ -129,14 +128,12 @@ class Geodata:
         """
         place.parse_place(place_name=location, geo_files=self.geo_files)
 
-        # If no country was found, set the country to country of previous entry
-        if place.country_iso == '':
-            place.country_iso = self.last_iso
         flags = ResultFlags(limited=False, filtered=False)
         result_list = []
 
-        self.logger.debug(f'Find LOCATION City=[{place.city1}] Adm2=[{place.admin2_name}]\
-        Adm1=[{place.admin1_name}] Pref=[{place.prefix}] Cntry=[{place.country_name}] iso=[{place.country_iso}]  Type={place.place_type} ')
+        #self.logger.debug(f'Find LOCATION City=[{place.city1}] Adm2=[{place.admin2_name}]\
+        #Adm1=[{place.admin1_name}] Pref=[{place.prefix}] Cntry=[{place.country_name}] iso=[{place.country_iso}]  Type={place.place_type} ')
+
         self.save_place = copy.copy(place)
 
         if place.place_type == Loc.PlaceType.ADVANCED_SEARCH:
@@ -161,7 +158,7 @@ class Geodata:
         for ty in [Loc.PlaceType.PREFIX, Loc.PlaceType.ADMIN2]:
             self.lookup_by_type(place, result_list, ty, self.save_place)
 
-        self.logger.debug(result_list)
+        #self.logger.debug(result_list)
 
         #  Move result list into place georow list
         place.georow_list.clear()
@@ -169,7 +166,7 @@ class Geodata:
 
         if len(place.georow_list) > 0:
             # Build list - sort and remove duplicates
-            self.logger.debug(f'Match {place.georow_list}')
+            #self.logger.debug(f'Match {place.georow_list}')
             self.process_result(place=place, targ_name=place.target, flags=flags)
             flags = self.build_result_list(place)
 
@@ -216,7 +213,7 @@ class Geodata:
 
     def process_result(self, place: Loc.Loc, targ_name, flags) -> None:
         # Copy geodata to place record and Put together status text
-        self.logger.debug(f'**PROCESS RESULT:  Res={place.result_type}  Targ={place.target} Georow_list={place.georow_list}')
+        #self.logger.debug(f'**PROCESS RESULT:  Res={place.result_type}  Targ={place.target} Georow_list={place.georow_list}')
         if place.result_type == GeoKeys.Result.NOT_SUPPORTED:
             place.place_type = Loc.PlaceType.COUNTRY
 
@@ -272,6 +269,7 @@ class Geodata:
         if len(place.georow_list) > 0:
             # Copy geo row to Place
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
+            place.name = place.format_full_nm(None)
             place.result_type = GeoKeys.Result.STRONG_MATCH
         else:
             place.result_type = GeoKeys.Result.NO_MATCH
@@ -288,7 +286,7 @@ class Geodata:
         elif place.place_type == Loc.PlaceType.CITY:
             place.result_type_text = self.get_type_name(place.feature)
         elif place.place_type == Loc.PlaceType.PREFIX:
-            place.result_type_text = 'Prefix'
+            place.result_type_text = 'Place'
         """
         if place.place_type == Loc.PlaceType.CITY:
             place.result_type_text = '' #GeoKeys.type_names.get(place.feature)
@@ -377,7 +375,7 @@ class Geodata:
 
         # Create new list without dupes (adjacent items with same name and same lat/lon)
         # Find if two items with same name are similar lat/lon (within Box Distance of 0.5 degrees)
-        self.logger.debug('===== BUILD RESULT =====')
+        #self.logger.debug('===== BUILD RESULT =====')
         for geo_row in list_copy:
             if self.validate_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1], 80) is False:
                 # Skip location if location name  didnt exist at the time of event WITH 80 years padding
@@ -389,9 +387,9 @@ class Geodata:
 
             new_row = list(geo_row)
             geo_row = tuple(new_row)
-            #self.logger.debug(f'{geo_row[GeoKeys.Entry.NAME]},{geo_row[GeoKeys.Entry.FEAT]} '
-            #                  f'{self.get_priority(geo_row[GeoKeys.Entry.FEAT])} {geo_row[GeoKeys.Entry.ADM2]}, '
-            #                  f'{geo_row[GeoKeys.Entry.ADM1]}')
+            self.logger.debug(f'{geo_row[GeoKeys.Entry.NAME]},{geo_row[GeoKeys.Entry.FEAT]} '
+                              f'{geo_row[GeoKeys.Entry.SCORE]:.1f} {geo_row[GeoKeys.Entry.ADM2]}, '
+                              f'{geo_row[GeoKeys.Entry.ADM1]} {geo_row[GeoKeys.Entry.ISO]}')
 
             if geo_row[GeoKeys.Entry.NAME] != prev_geo_row[GeoKeys.Entry.NAME]:
                 # Name is different.  Add previous item
@@ -419,7 +417,7 @@ class Geodata:
             score = geo_row[GeoKeys.Entry.SCORE]
             if score < min_score:
                 min_score = score
-            self.logger.debug(f'Score {score:.2f}  {geo_row[GeoKeys.Entry.NAME]}, {geo_row[GeoKeys.Entry.ADM2]}, {geo_row[GeoKeys.Entry.ADM1]}')
+            #self.logger.debug(f'Score {score:.2f}  {geo_row[GeoKeys.Entry.NAME]}, {geo_row[GeoKeys.Entry.ADM2]}, {geo_row[GeoKeys.Entry.ADM1]}')
             if score > min_score + 15 or score > 88:
                 break
             place.georow_list.append(geo_row)
@@ -473,12 +471,12 @@ feature_priority = {'PP1M':22, 'PP1K':19, 'ADM1': 20, 'PPLA': 20, 'PPL': 18, 'PP
                     'STLMT': 1, 'CMTY': 4, 'VAL': 1, 'CH': 4, 'MSQE': 4}
 
 result_text_list = {
-    GeoKeys.Result.STRONG_MATCH: 'matched! Click Save to accept:',
+    GeoKeys.Result.STRONG_MATCH: 'Matched! Click Save to accept:',
     GeoKeys.Result.MULTIPLE_MATCHES: ' Multiple matches.  Select one and click Verify or Double-Click',
-    GeoKeys.Result.NO_MATCH: 'not found.  Edit and click Verify.',
-    GeoKeys.Result.NOT_SUPPORTED: ' is not supported. Skip or Add Country in Config',
+    GeoKeys.Result.NO_MATCH: 'Not found.  Edit and click Verify.',
+    GeoKeys.Result.NOT_SUPPORTED: ' Country is not supported. Skip or Add Country in Config',
     GeoKeys.Result.NO_COUNTRY: 'No Country found.',
-    GeoKeys.Result.PARTIAL_MATCH: 'partial match.  Click Save to accept:',
+    GeoKeys.Result.PARTIAL_MATCH: 'Partial match.  Click Save to accept:',
     GeoKeys.Result.DELETE: 'Empty.  Click Save to delete entry.',
     GeoKeys.Result.WILDCARD_MATCH: 'Wildcard match. Click Save to accept:',
     GeoKeys.Result.SOUNDEX_MATCH: 'Soundex match. Click Save to accept:',
@@ -560,7 +558,7 @@ admin1_name_start_year = {
     'ca.14': 1700
 }
 
-type_name = {"ADM1":'City', "ADM2":'City', "ADM3":'City', "ADM4":'City', "ADMF":'City',
+type_name = {"ADM0":'Country', "ADM1":'City', "ADM2":'City', "ADM3":'City', "ADM4":'City', "ADMF":'City',
              "CH":'Church', "CSTL":'Castle', "CMTY":'Cemetery', "EST":'Estate', "HSP":'Hospital',
            "HSTS":'Historic', "ISL":'Island', "MSQE":'Mosque', "MSTY":'Monastery', "MT":'Mountain', "MUS":'Museum', "PAL":'Palace',
              "PPL":'City', "PPLA":'City', "PPLA2":'City', "PPLA3":'City', "PPLA4":'City',

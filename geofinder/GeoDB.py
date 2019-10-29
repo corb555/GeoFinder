@@ -680,7 +680,7 @@ class GeoDB:
 
         if len(row_list) > 0:
             res = row_list[0][Entry.NAME]
-            if res == 'USA':
+            if iso == 'us':
                 res = 'United States'
         return res
 

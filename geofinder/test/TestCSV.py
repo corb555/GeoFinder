@@ -22,13 +22,22 @@ import os
 import unittest
 from pathlib import Path
 
-from geofinder import Geodata, Loc, GrampsXml
+from geofinder import Geodata, Loc, GrampsXml, GrampsCsv
+
+
+#             ('12 Privet Drive,Dover, ,England,United Kingdom', "PPL", 'P0006', 'gb'),
+class RowEntry:
+    NAME = 0
+    FEAT = 1
+    PLACE_ID = 2
+    ISO = 3
 
 
 class TestCSV(unittest.TestCase):
     geodata = None
-    ancestry_file_handler = None
+    ancestry = None
     logger = None
+    csv = None
 
     @classmethod
     def setUpClass(cls):
@@ -38,6 +47,7 @@ class TestCSV(unittest.TestCase):
 
         # Load test data
         directory = os.path.join(str(Path.home()), "geoname_test")
+        csv_path = os.path.join(directory, "test")
         TestCSV.geodata = Geodata.Geodata(directory_name=directory, progress_bar=None)
         error: bool = TestCSV.geodata.read()
         if error:
@@ -52,37 +62,41 @@ class TestCSV(unittest.TestCase):
             TestCSV.logger.info('Requires ca.txt, gb.txt, de.txt from geonames.org in folder username/geoname_test')
             raise ValueError('Cannot open database')
 
-        TestCSV.ancestry_file_handler = GrampsXml.GrampsXml(in_path='', out_suffix='', cache_d=None,
-                                                            progress=None, geodata=TestCSV.geodata)  # Routines
+        TestCSV.csv = GrampsCsv.GrampsCsv(in_path=csv_path, geodata=TestCSV.geodata)
+
+        TestCSV.ancestry = GrampsXml.GrampsXml(in_path=csv_path, out_suffix='', cache_d=None,
+                                               progress=None, geodata=TestCSV.geodata)  # Routines
 
         # Set up CSV Data
         csv_data = [
-            ('United Kingdom', 'ADM0', 'P0001', 'gb'),
-             ('Scotland,United Kingdom', 'ADM1','P0002','gb'),
-            # ('Kent,England,United Kingdom', 'ADM2','P0003','gb'),
-            ('Canterbury,Kent,England,United Kingdom', "PPL", 'P0004', 'gb'),
-            ('St Eustace,Canterbury,Kent,England,United Kingdom', "PPL", 'P0005', 'gb'),
-            ('Dover, ,England,United Kingdom', "PPL", 'P0006', 'gb'),
-            ('Edinburgh, ,Scotland,United Kingdom', "PPL", 'P0007', 'gb'),
+            #('Portugal', 'ADM0', 'P0001', 'po'),
+             #('Scotland,United Kingdom', 'ADM1','P0002','gb'),
+             #('Kent,England,United Kingdom', 'ADM2','P0003','gb'),
+            #('Canterbury,Kent,England,United Kingdom', "PPL", 'P0004', 'gb'),
+            #('St Eustace,Canterbury,Kent,England,United Kingdom', "PPL", 'P0005', 'gb'),
+            #('Dover, ,England,United Kingdom', "PPL", 'P0006', 'gb'),
+            ('12 Privet Drive, Dover, ,England,United Kingdom', "PPL", 'P0006', 'gb'),
+            #('Edinburgh, ,Scotland,United Kingdom', "PPL", 'P0007', 'gb'),
+            #("St James's Palace, ,England,United Kingdom", "PPL", 'P0008', 'gb'),
         ]
 
         place = Loc.Loc()
 
         for row in csv_data:
             place.clear()
-            place.name = row[0]
-            place.feature = row[1]
-            place.parse_place(place_name=row[0], geo_files=TestCSV.geodata.geo_files)
+            place.name = row[RowEntry.NAME]
+            place.feature = row[RowEntry.FEAT]
+            place.parse_place(place_name=place.name, geo_files=TestCSV.geodata.geo_files)
             # Lookup record
             TestCSV.geodata.find_first_match(place.name, place)
-            place.id = row[2]
-            place.feature_to_type()
-            TestCSV.geodata.set_place_type_text(place)
-            #place.name = TestCSV.ancestry_file_handler.get_csv_name(place).title()
+            place.id = row[RowEntry.PLACE_ID]
+            TestCSV.csv.set_CSV_place_type(place)
+            #TestCSV.geodata.set_place_type_text(place)
+            #place.name = TestCSV.ancestry.get_csv_name(place).title()
 
-            TestCSV.ancestry_file_handler.create_csv_node(place)
+            TestCSV.csv.create_csv_node(place)
 
-        TestCSV.ancestry_file_handler.complete_csv()
+        TestCSV.csv.complete_csv()
 
     def setUp(self) -> None:
         self.place: Loc.Loc = Loc.Loc()
@@ -91,12 +105,16 @@ class TestCSV(unittest.TestCase):
         print("*****TEST: {}".format(title))
         place = Loc.Loc()
         place.parse_place(entry, TestCSV.geodata.geo_files )
-        place.feature_to_type()
+        self.geodata.find_first_match(place.name, place)
+        place.name = place.format_full_nm(None)
+        TestCSV.csv.set_CSV_place_type(place)
+        place.id = TestCSV.csv.get_csv_key(place)
+
         TestCSV.logger.debug(f'type={place.place_type}')
 
         TestCSV.geodata.set_place_type_text(place)
         #place_name = TestCSV.ancestry_file_handler.get_csv_name(place).title()
-        return TestCSV.ancestry_file_handler.get_enclosure_key(place)
+        return place.id
 
     # ===== TEST RESULT CODES
 
@@ -104,7 +122,7 @@ class TestCSV(unittest.TestCase):
         title = "City.  Good.  upper lowercase"
         key = self.run_key_test(title, "Dover,Kent,England,United Kingdom")
         self.assertEqual("DOVER_G5_ENG_GB", key, title)
-
+    
     def test_key02(self):
         title = "City.  Good.  upper lowercase"
         key = self.run_key_test(title, "Kent,England,United Kingdom")
@@ -128,7 +146,7 @@ class TestCSV(unittest.TestCase):
     def test_key06(self):
         title = "City.  Good.  upper lowercase"
         key = self.run_key_test(title, "Dover,xyz,England,United Kingdom")
-        self.assertEqual("DOVER_ _ENG_GB", key, title)
+        self.assertEqual("DOVER_G5_ENG_GB", key, title)
 
     def test_key07(self):
         title = "City.  Good.  upper lowercase"
@@ -137,8 +155,8 @@ class TestCSV(unittest.TestCase):
 
     def test_key08(self):
         title = "City.  Good.  upper lowercase"
-        key = self.run_key_test(title, "Dover,England,United Kingdom")
-        self.assertEqual("DOVER_G5_ENG_GB", key, title)
+        key = self.run_key_test(title, "Marks Square,Dover,,England,United Kingdom")
+        self.assertEqual("MARKS SQUARE_DOVER_G5_ENG_GB", key, title)
 
     def test_key09(self):
         title = "City.  Good.  upper lowercase"
