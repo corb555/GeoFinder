@@ -58,6 +58,7 @@ class AncestryFile:
         self.date = ''
         self.abt_flag = False
 
+
         if out_suffix is not '':
             # Create an output file with same name with "out.ged" appended
             self.outfile = open(self.out_path, "w",
@@ -149,7 +150,7 @@ class AncestryFile:
         if self.progress_bar is not None:
             self.progress_bar.update_progress(percent, msg)
         else:
-            self.logger.debug('prog is None')
+            self.logger.debug(f'prog set to None.  Msg={msg}')
 
     def get_name(self, nam: str, depth: int = 0) -> str:
         return ''

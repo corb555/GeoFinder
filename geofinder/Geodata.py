@@ -465,7 +465,7 @@ default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ",
 # If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
 feature_priority = {'PP1M':22, 'PP1K':19, 'ADM1': 20, 'PPLA': 20, 'PPL': 18, 'PPLA2': 19, 'PPLA3': 17, 'PPLA4': 16, 'PPLC': 20, 'PPLG': 15,
 'ADM2': 19, 'MILB': 13,'NVB': 12, 'PPLF': 11, 'DEFAULT': 3, 'ADM0': 10, 'PPLL': 6, 'PPLQ': 5, 'PPLR': 4, 'PPLS': 3, 'PPLW': 3, 'PPLX': 3, 'BTL': 3,
-                    'STLMT': 1, 'CMTY': 4, 'VAL': 1, 'CH': 4, 'MSQE': 4}
+                    'STLMT': 1, 'CMTY': 4, 'VAL': 1, 'CH': 4, 'MSQE': 4,  'HSP': -6}
 
 result_text_list = {
     GeoKeys.Result.STRONG_MATCH: 'Matched! Click Save to accept:',

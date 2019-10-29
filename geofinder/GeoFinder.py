@@ -247,7 +247,10 @@ class GeoFinder:
 
     def update_statistics(self):
         done = self.matched_count + self.skip_count + self.review_count
-        remaining = self.ancestry_file_handler.place_total - done
+        if self.ancestry_file_handler.place_total is not None:
+            remaining = self.ancestry_file_handler.place_total - done
+        else:
+            remaining = 0
         self.w.statistics_text.set_text(f'Matched={self.matched_count}   Skipped={self.skip_count}  Needed Review={self.review_count}  '
                                         f'Remaining={remaining} Total={self.ancestry_file_handler.place_total}')
         return done

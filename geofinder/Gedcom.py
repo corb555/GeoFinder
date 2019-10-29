@@ -55,7 +55,8 @@ class Gedcom(AncestryFile):
             self.build_person_dictionary()
         else:
             # Get Place count from person dictionary
-            self.place_total = self.person_cd.dict.get(PLACE_TOTAL_KEY)
+            if self.person_cd.dict.get(PLACE_TOTAL_KEY):
+                self.place_total = self.person_cd.dict.get(PLACE_TOTAL_KEY)
             self.logger.debug(f'Place Total ={self.place_total}')
 
     def parse_line(self, line: str):
@@ -221,7 +222,7 @@ class Gedcom(AncestryFile):
         This is used to do lookup from ID to name
         """
         while True:
-            line, err = self.read_and_parse_line()
+            line, err, id = self.read_and_parse_line()
             if err:
                 break  # END OF FILE
 

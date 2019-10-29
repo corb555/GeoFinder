@@ -114,7 +114,8 @@ class GeoDB:
             res_nm = result_place.format_full_nm(None)
             # todo - move feature priority into scoring routine
             score = self.match_score(inp=nm, res=res_nm,
-                                     feature_score=Geodata.Geodata.get_priority(rw[GeoKeys.Entry.FEAT]))
+                                     feature_score=Geodata.Geodata.get_priority(rw[GeoKeys.Entry.FEAT]),
+                                     iso=result_place.country_iso)
 
             # Remove items in prefix that are in result
             tk_list = res_nm.split(",")
@@ -127,9 +128,11 @@ class GeoDB:
         if place.result_type == Result.STRONG_MATCH and len(place.prefix) > 0:
             place.result_type = Result.PARTIAL_MATCH
 
-    def match_score(self, inp, res, feature_score)->int:
+    def match_score(self, inp, res, feature_score, iso)->int:
         inp = GeoKeys.semi_normalize(inp)
+        inp = GeoKeys.apply_aliases(inp, iso)
         res = GeoKeys.semi_normalize(res)
+        res = GeoKeys.apply_aliases(res, iso)
         res = re.sub(r"'", ' ', res)  # Normalize
         res = GeoKeys.remove_noise_words(res)
 

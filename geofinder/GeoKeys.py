@@ -111,11 +111,7 @@ def capwords(nm):
 
     return nm
 
-    #nm = re.sub(r"D\.c\.", "D.C.", nm)
-    # nm = re.sub("S ", "s ", nm)  # Fix the apostrophe S problem
-
-def search_normalize(res, iso):
-    res = normalize(res)
+def apply_aliases(res, iso):
     res = re.sub(r'prussia', 'germany', res)
     res = re.sub(r' near ', ' ', res)
 
@@ -124,6 +120,11 @@ def search_normalize(res, iso):
     if iso == 'fr':
         res = re.sub(r'normandy', 'normandie', res)
         res = re.sub(r'brittany', 'bretagne', res)
+    return res
+
+def search_normalize(res, iso):
+    res = normalize(res)
+    res = apply_aliases(res, iso)
     return res
 
 def _phrase_normalize(res) -> str:
@@ -160,7 +161,7 @@ def normalize(res) -> str:
 
 
 def semi_normalize(res) -> str:
-    """ Strip commas. Also strip spaces and normalize spelling for items such as Saint and County and chars   ø ß """
+    """ Do NOT Strip commas.  strip spaces and normalize spelling for items such as Saint and County and chars   ø ß """
 
     # Convert UT8 to ascii
     res = unidecode.unidecode(res)
