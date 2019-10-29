@@ -708,7 +708,7 @@ class GeoFinder:
     def setup_logging(msg):
         logger = logging.getLogger(__name__)
         fmt = "%(levelname)s %(name)s.%(funcName)s %(lineno)d: %(message)s"
-        logging.basicConfig(level=logging.DEBUG, format=fmt)
+        logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, format=fmt)
         logger.info(msg)
         return logger
 
