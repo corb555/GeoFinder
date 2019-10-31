@@ -20,6 +20,7 @@
 import logging
 import os
 import pickle
+from tkinter import messagebox
 from typing import Dict
 
 
@@ -55,8 +56,11 @@ class CachedDictionary:
         else:
             self.logger.error("Missing {}".format(path))
             # Create empty file
-            with open(path, 'wb') as file:
-                pickle.dump(self.dict, file)
+            try:
+                with open(path, 'wb') as file:
+                    pickle.dump(self.dict, file)
+            except OSError as e:
+                messagebox.showwarning('File Error',f'{e}')
             self.error = True
             return True
 

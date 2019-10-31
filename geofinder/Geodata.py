@@ -108,6 +108,9 @@ class Geodata:
         elif typ == Loc.PlaceType.COUNTRY:
             place.target = place.country_name
             place.place_type = Loc.PlaceType.COUNTRY
+        elif typ == Loc.PlaceType.ADVANCED_SEARCH:
+            place.target = place.city1
+            place.place_type = Loc.PlaceType.ADVANCED_SEARCH
 
         self.geo_files.geodb.lookup_place(place=place)
         result_list.extend(place.georow_list)
@@ -225,15 +228,15 @@ class Geodata:
             place.result_type = GeoKeys.Result.PARTIAL_MATCH
 
         place.prefix = place.prefix.strip(' ')
-        self.set_place_type_text(place=place)
+        place.set_place_type_text()
         place.status = f'{place.result_type_text}  {result_text_list.get(place.result_type)} '
         if flags.limited:
             place.status += ' First 300 matches shown...'
 
         if flags.filtered:
             place.status = f'{place.result_type_text}  {result_text_list.get(place.result_type)} '
-            place.status += ' ***VERIFY EVENT DATE***'
-            place.result_type = GeoKeys.Result.PARTIAL_MATCH
+            #place.status += ' ***VERIFY EVENT DATE***'
+            #place.result_type = GeoKeys.Result.PARTIAL_MATCH
 
         self.update_prefix(place=place)
 
@@ -274,30 +277,6 @@ class Geodata:
         else:
             place.result_type = GeoKeys.Result.NO_MATCH
 
-    def set_place_type_text(self, place: Loc.Loc):
-        if place.result_type == GeoKeys.Result.NO_COUNTRY:
-            place.result_type_text = 'Country'
-        elif place.place_type == Loc.PlaceType.COUNTRY:
-            place.result_type_text = 'Country'
-        elif place.place_type == Loc.PlaceType.ADMIN1:
-            place.result_type_text = self.get_district1_type(place.country_iso)
-        elif place.place_type == Loc.PlaceType.ADMIN2:
-            place.result_type_text = 'County'
-        elif place.place_type == Loc.PlaceType.CITY:
-            place.result_type_text = self.get_type_name(place.feature)
-        elif place.place_type == Loc.PlaceType.PREFIX:
-            place.result_type_text = 'Place'
-        """
-        if place.place_type == Loc.PlaceType.CITY:
-            place.result_type_text = '' #GeoKeys.type_names.get(place.feature)
-            if place.result_type_text is None:
-                place.result_type_text = ' '
-        elif place.place_type == Loc.PlaceType.ADMIN1:
-            place.result_type_text = self.get_district1_type(place.country_iso)
-        else:
-            place.result_type_text = Loc.place_type_name_dict[place.place_type]
-        """
-
     def set_last_iso(self, iso):
         self.last_iso = iso
 
@@ -335,19 +314,18 @@ class Geodata:
 
         return is_valid
 
-    def validate_year_for_location(self, event_year: int, iso: str, admin1: str, padding: int) -> bool:
+    def valid_year_for_location(self, event_year: int, iso: str, admin1: str, padding: int) -> bool:
         # See if this location name was valid at the time of the event
         # Try looking up start year by state/province
-        event_year += padding
-        start_year = admin1_name_start_year.get(f'{iso}.{admin1.lower()}')
-        if start_year is None:
+        place_year = admin1_name_start_year.get(f'{iso}.{admin1.lower()}')
+        if place_year is None:
             # Try looking up start year by country
-            start_year = country_name_start_year.get(iso)
-        if start_year is None:
-            start_year = -1
+            place_year = country_name_start_year.get(iso)
+        if place_year is None:
+            place_year = -1
 
-        if event_year < start_year and event_year != 0 + padding:
-            # self.logger.debug(f'Val year:  loc year={start_year}  event yr={event_year} loc={admin1},{iso}')
+        if event_year + padding < place_year and event_year != 0:
+            #self.logger.debug(f'Invalid year:  incorporation={place_year}  event={event_year} loc={admin1},{iso} pad={padding}')
             return False
         else:
             return True
@@ -377,11 +355,11 @@ class Geodata:
         # Find if two items with same name are similar lat/lon (within Box Distance of 0.5 degrees)
         #self.logger.debug('===== BUILD RESULT =====')
         for geo_row in list_copy:
-            if self.validate_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1], 80) is False:
-                # Skip location if location name  didnt exist at the time of event WITH 80 years padding
+            if self.valid_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1], 60) is False:
+                # Skip location if location name  didnt exist at the time of event WITH 60 years padding
                 continue
 
-            if self.validate_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1], 0) is False:
+            if self.valid_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1], 0) is False:
                 # Flag if location name  didnt exist at the time of event
                 date_filtered = True
 
@@ -415,12 +393,13 @@ class Geodata:
             if score < min_score:
                 min_score = score
             #self.logger.debug(f'Score {score:.2f}  {geo_row[GeoKeys.Entry.NAME]}, {geo_row[GeoKeys.Entry.ADM2]}, {geo_row[GeoKeys.Entry.ADM1]}')
-            if score > min_score + 15 or score > 88:
+            if score > min_score + 20 or score > 88:
                 break
             place.georow_list.append(geo_row)
 
         if min_score < 20 and len(place.georow_list) == 1:
             place.result_type = GeoKeys.Result.STRONG_MATCH
+            self.logger.debug(f'strong match {geo_row[GeoKeys.Entry.NAME]}')
 
         return ResultFlags(limited=limited_flag, filtered=date_filtered)
 
@@ -432,31 +411,6 @@ class Geodata:
 
         return (22.0 - float(f_prior) )/ 6.0
 
-    @staticmethod
-    def get_type_name(feature):
-        nm = type_name.get(feature)
-        if nm is None:
-            nm = ''
-        return nm
-
-    @staticmethod
-    def get_district1_type(iso) -> str:
-        # Return the local country term for Admin1 district
-        if iso in ["al"]:
-            return "County"
-        elif iso in ["us", "at", "bm", "br", "de"]:
-            return "State"
-        elif iso in ["ac", "an", 'ao', 'bb', 'bd']:
-            return "Parish"
-        elif iso in ["ae"]:
-            return "Emirate"
-        elif iso in ["bc", "bf", "bh", "bl", "bn"]:
-            return "District"
-        elif iso in ["gb"]:
-            return "Country"
-        else:
-            return "Province"
-
 
 default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ", "HSP",
            "HSTS", "ISL", "MSQE", "MSTY", "MT", "MUS", "PAL", "PPL", "PPLA", "PPLA2", "PPLA3", "PPLA4",
@@ -465,7 +419,7 @@ default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ",
 # If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
 feature_priority = {'PP1M':22, 'PP1K':19, 'ADM1': 20, 'PPLA': 20, 'PPL': 18, 'PPLA2': 19, 'PPLA3': 17, 'PPLA4': 16, 'PPLC': 20, 'PPLG': 15,
 'ADM2': 19, 'MILB': 13,'NVB': 12, 'PPLF': 11, 'DEFAULT': 3, 'ADM0': 10, 'PPLL': 6, 'PPLQ': 5, 'PPLR': 4, 'PPLS': 3, 'PPLW': 3, 'PPLX': 3, 'BTL': 3,
-                    'STLMT': 1, 'CMTY': 4, 'VAL': 1, 'CH': 4, 'MSQE': 4,  'HSP': -6}
+                    'STLMT': 1, 'CMTY': 4, 'VAL': -6, 'CH': 4, 'MSQE': 4,  'HSP': -6}
 
 result_text_list = {
     GeoKeys.Result.STRONG_MATCH: 'Matched! Click Save to accept:',
@@ -555,10 +509,3 @@ admin1_name_start_year = {
     'ca.14': 1700
 }
 
-type_name = {"ADM0":'Country', "ADM1":'City', "ADM2":'City', "ADM3":'City', "ADM4":'City', "ADMF":'City',
-             "CH":'Church', "CSTL":'Castle', "CMTY":'Cemetery', "EST":'Estate', "HSP":'Hospital',
-           "HSTS":'Historic', "ISL":'Island', "MSQE":'Mosque', "MSTY":'Monastery', "MT":'Mountain', "MUS":'Museum', "PAL":'Palace',
-             "PPL":'City', "PPLA":'City', "PPLA2":'City', "PPLA3":'City', "PPLA4":'City',
-           "PPLC":'City', "PPLG":'City', "PPLH":'City', "PPLL":'Village', "PPLQ":'City', "PPLX":'City',
-            "PRK":'Park', "PRN":'Prison', "PRSH":'Parish', "RUIN":'Ruin',
-            "RLG":'Religious', "STG":'', "SQR":'Square', "SYG":'Synagogue', "VAL":'Valley', "PP1M":'City', "PP1K":'City'}

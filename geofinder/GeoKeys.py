@@ -112,6 +112,8 @@ def capwords(nm):
     return nm
 
 def apply_aliases(res, iso):
+    res = re.sub(r"'", '', res)  # Normalize hyphens
+
     res = re.sub(r'prussia', 'germany', res)
     res = re.sub(r' near ', ' ', res)
 
@@ -123,7 +125,7 @@ def apply_aliases(res, iso):
     return res
 
 def search_normalize(res, iso):
-    res = normalize(res)
+    res = semi_normalize(res)
     res = apply_aliases(res, iso)
     return res
 

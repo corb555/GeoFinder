@@ -21,6 +21,7 @@ import logging
 import os
 import pickle
 from pathlib import Path
+from tkinter import messagebox
 
 from geofinder import CachedDictionary, GeoKeys
 from geofinder.TKHelper import TKHelper
@@ -46,7 +47,8 @@ class Config:
         self.config_cd.dict[name] = val
 
     def write(self):
-        self.config_cd.write()
+        if self.config_cd:
+            self.config_cd.write()
 
     def read(self):
         fname = 'config.pkl'
@@ -79,13 +81,25 @@ class Config:
         else:
             return True
 
-    def create_directories(self):
+    def create_directories(self)->bool:
         if not os.path.exists(self.directory):
             self.logger.info(f'Creating main folder {self.directory}')
-            os.makedirs(self.directory)
+            try:
+                os.makedirs(self.directory)
+                if os.path.exists(self.directory):
+                    self.logger.info(f'Creating cache folder {self.cache_dir}')
+                    os.makedirs(self.cache_dir)
+                else:
+                    messagebox.showerror('Geoname Data Folder not created',
+                                         f'Error \n\n{self.directory} ')
+                    return True
+            except OSError as e:
+                self.logger.warning(e)
+                messagebox.showerror('Geoname Data Folder not created',
+                                       f'Error {e}\n\n{self.directory} ')
+                return True
 
-        if not os.path.exists(self.cache_dir):
-            self.logger.info(f'Creating cache folder {self.cache_dir}')
-            os.makedirs(self.cache_dir)
+        return False
+
 
 

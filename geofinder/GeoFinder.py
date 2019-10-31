@@ -16,10 +16,12 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+import argparse
 import copy
 import glob
 import logging
 import os
+import platform
 import sys
 import time
 import webbrowser
@@ -77,6 +79,7 @@ class GeoFinder:
             raise Exception("GeoFinder Requires Python 3.6 or higher.")
         val = ''
         print(f'GeoFinder Requires Python 3.6 or higher {val}')
+
         self.save_enabled = False  # Only allow SAVE when we have an item that was matched in geonames
         self.user_selected_list = False  # Indicates whether user selected a list entry or text edit entry
         self.err_count = 0
@@ -88,14 +91,29 @@ class GeoFinder:
         self.place = None
         self.skiplist = None
         self.global_replace = None
-        #self.user_accepted = None
         self.geodata = None
         self.out_suffix = ''
+        self.out_diag_file = None
+        self.in_diag_file = None
 
         self.logger = self.setup_logging('geofinder Init')
 
+        # initiate the parser
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--path",  metavar='path', help="Base path for geonames_data folder")
+        #parser.add_argument("--verbose", help="Enable verbose logging")
+
+        # read arguments from the command line
+        args = parser.parse_args()
+        base_path = str(Path.home())
+
+        # check for --path
+        if args.path:
+            self.logger.info(f"--path Base path set to {args.path}" )
+            base_path = args.path
+
         # Save our base directory and cache directory
-        self.directory: str = os.path.join(str(Path.home()), GeoKeys.get_directory_name())
+        self.directory: str = os.path.join(base_path, GeoKeys.get_directory_name())
         self.cache_dir = GeoKeys.get_cache_directory(self.directory)
 
         # Create App window and configure  window buttons and widgets
@@ -103,9 +121,17 @@ class GeoFinder:
         self.util = UtilLayout.UtilLayout(root=self.w.root, directory=self.directory, cache_dir=self.cache_dir)
         self.w.create_initialization_widgets()
         self.w.config_button.config(state="normal")
-
         # Set up configuration  class
         self.cfg = Config.Config()
+
+        if not os.path.exists(self.directory):
+            # Create directories for GeoFinder
+            if messagebox.askyesno('Geoname Data Folder not found',
+                                   f'Create Geoname folder?\n\n{self.directory} '):
+                err = self.cfg.create_directories()
+                self.logger.debug(f'Created {self.directory}')
+            else:
+                self.shutdown()
 
         # Ensure GeoFinder directory structure is valid
         if self.cfg.valid_directories():
@@ -142,9 +168,6 @@ class GeoFinder:
             self.w.load_button.config(state="disabled")
             TKHelper.set_preferred_button(self.w.config_button, self.w.initialization_buttons, "Preferred.TButton")
 
-            # Create directories for GeoFinder
-            self.cfg.create_directories()
-
         # Flag to indicate whether we are in startup or in Window loop.  Determines how window idle is called
         self.startup = False
         self.w.root.mainloop()  # ENTER MAIN LOOP and Wait for user to click on load button
@@ -172,7 +195,7 @@ class GeoFinder:
         error = self.geodata.read_geonames()
         if error:
             TKHelper.fatal_error(MISSING_FILES)
-        self.logger.debug(f'Geoname dictionary has {self.geodata.geo_files.geodb.get_row_count()} entries')
+        self.logger.info(f'Geoname dictionary has {self.geodata.geo_files.geodb.get_row_count()} entries')
         self.w.root.update()
         self.w.prog.update_progress(100, " ")
 
@@ -241,7 +264,7 @@ class GeoFinder:
                     place.prefix = rep_tokens[PREFIX_TOKEN]
                     place.prefix_commas = ','
                     #place.name = place.prefix + ',' + place.name
-                self.logger.debug(f'Found Replace.  Pref=[{place.prefix}] place={place.name} Res={place.result_type}')
+                #self.logger.debug(f'Found Replace.  Pref=[{place.prefix}] place={place.name} Res={place.result_type}')
 
         return geoid
 
@@ -296,7 +319,8 @@ class GeoFinder:
                     # Output updated place to ancestry file
                     self.write_updated_place(self.place, town_entry)
                     if self.place.prefix != '':
-                       self.logger.debug(f'write upd prefix= [{self.place.name}]')
+                        pass
+                        #self.logger.debug(f'write upd prefix= [{self.place.name}]')
 
                     # Display status to user
                     if self.w.prog.shutdown_requested:
@@ -360,6 +384,8 @@ class GeoFinder:
                             continue
                         else:
                             # Have user review the match
+                            self.logger.debug(f'user review for {town_entry} res= [{self.place.result_type}] ')
+
                             self.w.status.configure(style="Good.TLabel")
                             self.w.original_entry.set_text(self.place.name)  # Display place
                             self.w.user_entry.set_text(self.place.name)  # Display place
@@ -375,7 +401,7 @@ class GeoFinder:
                         continue
                     else:
                         # Have user review match
-                        self.logger.debug(f'User2 review for {town_entry}. status ={self.place.status}')
+                        #self.logger.debug(f'User2 review for {town_entry}. status ={self.place.status}')
 
                         self.w.status.configure(style="Good.TLabel")
                         self.w.original_entry.set_text(self.place.name)  # Display place
@@ -405,7 +431,7 @@ class GeoFinder:
         # User selected item from listbox - get listbox selection
         pref, town_entry, dbid = self.get_list_selection()
         self.place.target = str(dbid)
-        self.logger.debug(f'selected pref=[{pref}] [{town_entry}] id={dbid} id={self.place.geoid}')
+        #self.logger.debug(f'selected pref=[{pref}] [{town_entry}] id={dbid} id={self.place.geoid}')
 
         # Update the user edit widget with the List selection item
         self.w.user_entry.set_text(town_entry)
@@ -413,22 +439,22 @@ class GeoFinder:
         # Since we are verifying users choice, Get exact match by geoid
         self.geodata.lookup_geoid(self.place)
         self.place.prefix = pref
-        self.logger.debug(f'id={self.place.geoid} res={self.place.result_type} {self.place.georow_list}')
+        #self.logger.debug(f'id={self.place.geoid} res={self.place.result_type} {self.place.georow_list}')
 
     def doubleclick_handler(self, _):
-        self.logger.debug('Double click handler')
+        #self.logger.debug('Double click handler')
         self.get_user_selection()
         self.display_result(self.place)
         self.save_handler()
 
     def verify_handler(self):
-        self.logger.debug('Verify Handler')
+        #self.logger.debug('Verify Handler')
         self.verify_item(from_user=True)
 
     def verify_item(self, from_user:bool):
         """ The User clicked verify.  Verify if the users new Place entry has a match in geonames data.  """
         # Do we verify item from listbox or from text edit field?
-        self.logger.debug(f'verify item ')
+        #self.logger.debug(f'verify item ')
         if self.user_selected_list:
             self.get_user_selection()
         else:
@@ -452,7 +478,7 @@ class GeoFinder:
 
         TKHelper.enable_buttons(self.w.review_buttons)
         nm = place.format_full_nm(self.geodata.geo_files.output_replace_dct)
-        self.logger.debug(f'disp result [{place.prefix}][{place.prefix_commas}][{nm}] res=[{place.result_type}]')
+        #self.logger.debug(f'disp result [{place.prefix}][{place.prefix_commas}][{nm}] res=[{place.result_type}]')
 
         # Enable action buttons based on type of result
         if place.result_type == GeoKeys.Result.MULTIPLE_MATCHES or \
@@ -527,8 +553,8 @@ class GeoFinder:
             self.geodata.geo_files.geodb.copy_georow_to_place(geo_row, temp_place)
 
             nm = temp_place.format_full_nm(self.geodata.geo_files.output_replace_dct)
-            valid = self.geodata.validate_year_for_location(event_year=place.event_year, iso=temp_place.country_iso,
-                                                            admin1=temp_place.admin1_id, padding=0)
+            valid = self.geodata.valid_year_for_location(event_year=place.event_year, iso=temp_place.country_iso,
+                                                         admin1=temp_place.admin1_id, padding=0)
             if valid:
                 # Get prefix
                 self.list_insert(nm, geo_row[GeoKeys.Entry.PREFIX],geo_row[GeoKeys.Entry.ID], f'{int(geo_row[GeoKeys.Entry.SCORE]):d}',
@@ -543,7 +569,7 @@ class GeoFinder:
         """ Write out original entry as-is and skip any matches in future  """
         self.skip_count += 1
 
-        self.logger.debug(f'Skip for {self.w.original_entry.get_text()}  Updating SKIP dict')
+        #self.logger.debug(f'Skip for {self.w.original_entry.get_text()}  Updating SKIP dict')
 
         self.skiplist.set(self.w.original_entry.get_text(), " ")
         self.ancestry_file_handler.write_asis(self.w.original_entry.get_text())
@@ -566,13 +592,13 @@ class GeoFinder:
             self.place.prefix = ''
 
         res = '@' + self.place.geoid + '@' + self.place.prefix
-        self.logger.debug(f'Save [{ky}] :: [{res}]')
+        #self.logger.debug(f'Save [{ky}] :: [{res}]')
         self.global_replace.set(ky, res)
 
         # Periodically flush dict to disk
         if self.err_count % 10 == 1:
             self.global_replace.write()
-        self.logger.debug(f'SAVE SetGblRep for [{ky}] res=[{res}] Updating DICT')
+        #self.logger.debug(f'SAVE SetGblRep for [{ky}] res=[{res}] Updating DICT')
 
         # Write out corrected item to  output file
         if self.place.result_type != GeoKeys.Result.DELETE:
@@ -690,7 +716,7 @@ class GeoFinder:
         place.georow_list.clear()
 
     def display_one_georow(self, txt, geoid, score, feat):
-        self.logger.debug(f'DISP ONE ROW {txt}')
+        #self.logger.debug(f'DISP ONE ROW {txt}')
         self.clear_display_list()
         # self.w.scrollbar.grid_remove()  # Just one item, so hide scrollbar
         self.list_insert(txt, '', geoid, score=score, feature=feat)
@@ -721,13 +747,13 @@ class GeoFinder:
         self.in_diag_file.write(f'{entry}\n')
 
         if place.result_type != GeoKeys.Result.DELETE:
-            self.logger.debug(f'Write Updated - name={place.name} pref=[{place.prefix}]')
+            #self.logger.debug(f'Write Updated - name={place.name} pref=[{place.prefix}]')
 
             self.ancestry_file_handler.write_updated(place.prefix + place.prefix_commas + place.name, place)
             self.ancestry_file_handler.write_lat_lon(lat=place.lat, lon=place.lon)
             self.out_diag_file.write(place.prefix + place.prefix_commas + place.name + '\n')
         else:
-            self.logger.debug('zero len, no output')
+            #self.logger.debug('zero len, no output')
             self.out_diag_file.write('DELETE\n')
 
     def shutdown(self):
@@ -745,8 +771,10 @@ class GeoFinder:
             self.cfg.write()
         if self.ancestry_file_handler:
             self.ancestry_file_handler.close()
-        self.out_diag_file.close()
-        self.in_diag_file.close()
+        if self.out_diag_file:
+            self.out_diag_file.close()
+        if self.in_diag_file:
+            self.in_diag_file.close()
 
         self.w.root.quit()
         self.logger.info('SYS EXIT')
@@ -806,7 +834,11 @@ class GeoFinder:
         countries = CachedDictionary(self.cache_dir, 'country_list.pkl')
         self.logger.debug('load country selections list')
 
-        countries.read()
+        err = countries.read()
+        if err:
+            messagebox.showwarning('File error','Shutting down')
+            self.shutdown()
+
         country_dct = countries.dict
         if len(country_dct) == 0:
             self.logger.warning('no countries specified')

@@ -24,7 +24,7 @@ import sys
 import time
 from tkinter import messagebox
 
-from geofinder import DB, Loc, GeoKeys, Geodata
+from geofinder import DB, Loc, GeoKeys, Geodata, MatchScore
 from geofinder.GeoKeys import Query, Result, Entry, get_soundex
 
 
@@ -36,6 +36,7 @@ class GeoDB:
     def __init__(self, database):
         self.logger = logging.getLogger(__name__)
         self.start = 0
+        self.match = MatchScore.MatchScore()
 
         self.database = database
         # See if DB exists
@@ -55,7 +56,7 @@ class GeoDB:
             res = self.db.db_test('main.geodata')
 
             if res:
-                self.logger.debug(f'DB error for {database}')
+                self.logger.warning(f'DB error for {database}')
                 if messagebox.askyesno('Error',
                                        f'Geoname database is empty or corrupt:\n\n {database} \n\nDo you want to delete it and rebuild?'):
                     messagebox.showinfo('', 'Deleting Geoname database')
@@ -94,7 +95,6 @@ class GeoDB:
                     # Some English counties have had Shire removed from name, try doing that
                     place.target = re.sub('shire', '', place.target)
                     self.select_admin2(place)
-
         elif place.place_type == Loc.PlaceType.COUNTRY:
             self.select_country(place)
         elif place.place_type == Loc.PlaceType.ADVANCED_SEARCH:
@@ -108,17 +108,22 @@ class GeoDB:
         # Add search quality score to each entry
         for idx, rw in enumerate(place.georow_list):
             self.copy_georow_to_place(row=rw, place=result_place)
+            if len(place.prefix) > 0:
+                result_place.prefix = ' '
+                result_place.prefix_commas = ','
+            else:
+                result_place.prefix = ''
+            result_place.name = result_place.format_full_nm(None)
             update = list(rw)
             update.append(1)  # Extend list row and assign score
-            result_place.prefix = ''
-            res_nm = result_place.format_full_nm(None)
+
+            result_place.feature = rw[GeoKeys.Entry.FEAT]
             # todo - move feature priority into scoring routine
-            score = self.match_score(inp=nm, res=res_nm,
-                                     feature_score=Geodata.Geodata.get_priority(rw[GeoKeys.Entry.FEAT]),
+            score = self.match.match_score(inp_place=place, res_place=result_place,
                                      iso=result_place.country_iso)
 
             # Remove items in prefix that are in result
-            tk_list = res_nm.split(",")
+            tk_list = result_place.name.split(",")
             for item in tk_list:
                 place.prefix = re.sub(item.strip(' ').lower(), '', place.prefix)
 
@@ -127,91 +132,6 @@ class GeoDB:
 
         if place.result_type == Result.STRONG_MATCH and len(place.prefix) > 0:
             place.result_type = Result.PARTIAL_MATCH
-
-    def match_score(self, inp, res, feature_score, iso)->int:
-        inp = GeoKeys.semi_normalize(inp)
-        inp = GeoKeys.apply_aliases(inp, iso)
-        res = GeoKeys.semi_normalize(res)
-        res = GeoKeys.apply_aliases(res, iso)
-        res = re.sub(r"'", ' ', res)  # Normalize
-        res = GeoKeys.remove_noise_words(res)
-
-        score : int = self.match_score_calc(inp, res)
-        return  score + feature_score
-
-    def match_score_calc(self, inp, res)->int:
-        # Return a score 0-100 reflecting the difference between the user input and the result:
-        # The percent of characters in inp that were NOT matched by a word in result
-        # Lower score is better match.  0 is perfect match, 100 is no match
-
-        original_inp_tokens = inp.split(',')
-        inp2 = copy.copy(inp)
-        inp2 = re.sub(',', ' ', inp2)
-        inp_words = inp2.split(' ')
-
-        result_tokens = res.split(",")
-
-        # Counties are frequently wrong.  Minimize impact
-        if len(result_tokens) > 2:
-            # See if result county is in user request.  If it is not, delete it
-            if result_tokens[-3].strip(' ') not in inp:
-                result_tokens[-3] = ''
-
-        # Countries are frequently left out.  Minimize impact
-        if len(result_tokens) > 0:
-            # See if result country is in user request.  If it is not, delete it
-            if result_tokens[-1].strip(' ') not in inp:
-                result_tokens[-1] = ''
-
-        # Join tokens back into comma separated list
-        out = ','.join(map(str, result_tokens))
-        orig_res_len = len(out)
-
-        # If any WORD in input is in result, delete it from input and from result
-        lst = sorted(inp_words, key=len, reverse=True)      # Use longest words first
-        for idx, word in enumerate(lst):
-            if len(word) > 2 and word in res:
-                # If input word is in result, delete it from input string and result string
-                inp = re.sub(word, '', inp)
-                out = re.sub(word, '', out)
-
-        in_score = 0
-
-        # Strip out any remaining CHARACTERS in inp that match out
-        length = min(len(out), len(inp))
-        match_list = [i for i in range(length) if inp[i] == out[i]]
-        char_list = list(inp)    # Convert string to list so we can modify
-        for idx in match_list:
-            char_list[idx] = ' '
-        inp = ''.join(char_list)   # Convert back from list to string
-
-        #self.logger.debug(f' In [{inp}] Res [{out}]')
-
-        # For each input token calculate new size divided by original size
-        inp_tokens = inp.split(',')
-
-        for idx, tk in enumerate(inp_tokens):
-            # Tokens to the right end have slightly higher weighting
-            weight = (1.0 + idx * .005)
-            if len(original_inp_tokens[idx].strip(' ')) > 0:
-                in_score += int(100.0 * len(inp_tokens[idx].strip(' ')) / len(original_inp_tokens[idx].strip(' ')) * weight)
-
-        # Average over number of tokens, e.g. average percent of tokens unmatched
-        in_score = in_score / len(original_inp_tokens)
-
-        # Output score (percent of first token in output that was not matched)
-        new_len = len(out.strip(' '))
-        if orig_res_len > 0:
-            out_score = (int((0.09 * 100.0) * new_len / orig_res_len))
-            if new_len > 0:
-                out_score += 1
-        else:
-            out_score = 0
-
-        score = in_score + out_score
-        #self.logger.debug(f'Sc={score}  [{original_inp_tokens[0]}] DB [{res}]  InS={in_score:.1f} InRem [{inp}] '
-        #                  f'OutS={out_score:.1f} OutRem [{out}]  ')
-        return int(score)
 
         """
         res:float = float(Levenshtein.distance(str(GeoKeys.normalize(inp)), str(GeoKeys.normalize(result))))
@@ -232,24 +152,23 @@ class GeoDB:
         if len(lookup_target) == 0:
             return
         pattern = self.create_wildcard(lookup_target)
-        iso_pattern = place.country_iso
         feature_pattern = self.create_wildcard(place.feature)
         self.logger.debug(f'Advanced Search. Targ=[{pattern}] feature=[{feature_pattern}]'
-                          f'  iso=[{iso_pattern}] ')
+                          f'  iso=[{place.country_iso}] ')
 
-        query_list = []
-        query_list.append(Query(where="name LIKE ? AND country LIKE ? AND f_code LIKE ?",
-                                args=(pattern, iso_pattern, feature_pattern),
-                                result=Result.PARTIAL_MATCH))
+        query_list = [
+            Query(where="name LIKE ? AND country LIKE ? AND f_code LIKE ?",
+                                args=(pattern, place.country_iso, place.feature.upper()),
+                                result=Result.PARTIAL_MATCH)]
 
         # Search main DB
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
-        self.logger.debug(place.georow_list)
+        #self.logger.debug(f'main Result {place.georow_list}')
 
         # Search admin DB
         admin_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
         place.georow_list.extend(admin_list)
-        self.logger.debug(place.georow_list)
+        #self.logger.debug(f'admin Result {place.georow_list}')
 
     def select_city(self, place: Loc):
         """
@@ -305,7 +224,7 @@ class GeoDB:
             # lookup by wildcard name, admin1
             query_list.append(Query(where="name LIKE ? AND country = ? AND admin1_id = ?",
                                     args=(pattern, place.country_iso, place.admin1_id),
-                                    result=Result.PARTIAL_MATCH))
+                                    result=Result.WILDCARD_MATCH))
         elif len(place.admin2_name) == 0:
             # lookup by name
             # admin1 and admin2 werent entered, so a match here is an exact match
@@ -429,24 +348,6 @@ class GeoDB:
         ]
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
 
-        """
-        # if nothing found, Try admin1 as city instead
-        if len(place.georow_list) == 0:
-            save_admin1 = place.admin1_name
-            place.city1 = place.admin1_name
-            place.target = place.city1
-            place.admin1_name = ''
-            self.logger.debug(f'Try admin1: [{place.target}]')
-
-            self.select_city(place)
-
-            if len(place.georow_list) == 0:
-                # still not found.  restore admin1
-                place.admin1_name = save_admin1
-                place.city1 = ''
-            else:
-                place.place_type = Loc.PlaceType.CITY
-        """
 
     def select_country(self, place: Loc):
         """Search for Admin1 entry"""

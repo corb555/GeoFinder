@@ -150,7 +150,7 @@ class AncestryFile:
         if self.progress_bar is not None:
             self.progress_bar.update_progress(percent, msg)
         else:
-            self.logger.debug(f'prog set to None.  Msg={msg}')
+            self.logger.debug(f'{msg}')
 
     def get_name(self, nam: str, depth: int = 0) -> str:
         return ''

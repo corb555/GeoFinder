@@ -19,7 +19,6 @@
 import argparse
 import logging
 import re
-import string as st
 from typing import List, Tuple
 
 from geofinder import GeoKeys
@@ -261,7 +260,6 @@ class Loc:
         nm = GeoKeys.capwords(nm)
         self.prefix = GeoKeys.capwords(self.prefix)
 
-
         # Perform any text replacements user entered into Output Tab
         if replace_dct:
             for key in replace_dct:
@@ -310,3 +308,51 @@ class Loc:
             self.city1 = ''
         elif self.place_type == PlaceType.CITY:
             self.prefix = ''
+
+    def set_place_type_text(self):
+        if self.result_type == GeoKeys.Result.NO_COUNTRY:
+            self.result_type_text = 'Country'
+        elif self.place_type == PlaceType.COUNTRY:
+            self.result_type_text = 'Country'
+        elif self.place_type == PlaceType.ADMIN1:
+            self.result_type_text = self.get_district1_type(self.country_iso)
+        elif self.place_type == PlaceType.ADMIN2:
+            self.result_type_text = 'County'
+        elif self.place_type == PlaceType.CITY:
+            self.result_type_text = self.get_type_name(self.feature)
+        elif self.place_type == PlaceType.PREFIX:
+            self.result_type_text = 'Place'
+
+    @staticmethod
+    def get_district1_type(iso) -> str:
+        # Return the local country term for Admin1 district
+        if iso in ["al"]:
+            return "County"
+        elif iso in ["us", "at", "bm", "br", "de"]:
+            return "State"
+        elif iso in ["ac", "an", 'ao', 'bb', 'bd']:
+            return "Parish"
+        elif iso in ["ae"]:
+            return "Emirate"
+        elif iso in ["bc", "bf", "bh", "bl", "bn"]:
+            return "District"
+        elif iso in ["gb"]:
+            return "Country"
+        else:
+            return "Province"
+
+    @staticmethod
+    def get_type_name(feature):
+        nm = type_name.get(feature)
+        if nm is None:
+            nm = ''
+        return nm
+
+
+type_name = {"ADM0": 'Country', "ADM1": 'City', "ADM2": 'City', "ADM3": 'City', "ADM4": 'City', "ADMF": 'City',
+             "CH": 'Church', "CSTL": 'Castle', "CMTY": 'Cemetery', "EST": 'Estate', "HSP": 'Hospital',
+             "HSTS": 'Historic', "ISL": 'Island', "MSQE": 'Mosque', "MSTY": 'Monastery', "MT": 'Mountain', "MUS": 'Museum', "PAL": 'Palace',
+             "PPL": 'City', "PPLA": 'City', "PPLA2": 'City', "PPLA3": 'City', "PPLA4": 'City',
+             "PPLC": 'City', "PPLG": 'City', "PPLH": 'City', "PPLL": 'Village', "PPLQ": 'City', "PPLX": 'City',
+             "PRK": 'Park', "PRN": 'Prison', "PRSH": 'Parish', "RUIN": 'Ruin',
+             "RLG": 'Religious', "STG": '', "SQR": 'Square', "SYG": 'Synagogue', "VAL": 'Valley', "PP1M": 'City', "PP1K": 'City'}
