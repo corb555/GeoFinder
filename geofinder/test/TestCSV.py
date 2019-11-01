@@ -112,12 +112,11 @@ class TestCSV(unittest.TestCase):
 
         TestCSV.logger.debug(f'type={place.place_type}')
 
-        TestCSV.geodata.set_place_type_text(place)
+        place.set_place_type_text()
         #place_name = TestCSV.ancestry_file_handler.get_csv_name(place).title()
         return place.id
 
     # ===== TEST RESULT CODES
-
     def test_key01(self):
         title = "City.  Good.  upper lowercase"
         key = self.run_key_test(title, "Dover,Kent,England,United Kingdom")

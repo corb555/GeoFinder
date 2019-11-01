@@ -16,7 +16,6 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-import copy
 import logging
 import os
 import re
@@ -24,7 +23,7 @@ import sys
 import time
 from tkinter import messagebox
 
-from geofinder import DB, Loc, GeoKeys, Geodata, MatchScore
+from geofinder import DB, Loc, GeoKeys, MatchScore
 from geofinder.GeoKeys import Query, Result, Entry, get_soundex
 
 
@@ -84,6 +83,9 @@ class GeoDB:
         self.start = time.time()
         place.result_type = Result.STRONG_MATCH
 
+        if place.country_iso != '' and place.country_name == '':
+            place.country_name = self.get_country_name(place.country_iso)
+
         # Lookup Place based on Place Type
         if place.place_type == Loc.PlaceType.ADMIN1:
             self.select_admin1(place)
@@ -104,15 +106,17 @@ class GeoDB:
             self.select_city(place)
 
         nm = place.name
+        self.logger.debug(f'Search results for {place.target} pref[{place.prefix}]')
 
         # Add search quality score to each entry
         for idx, rw in enumerate(place.georow_list):
             self.copy_georow_to_place(row=rw, place=result_place)
-            if len(place.prefix) > 0:
+            if len(place.prefix) > 0 and result_place.prefix=='':
                 result_place.prefix = ' '
                 result_place.prefix_commas = ','
             else:
                 result_place.prefix = ''
+
             result_place.name = result_place.format_full_nm(None)
             update = list(rw)
             update.append(1)  # Extend list row and assign score
@@ -120,7 +124,7 @@ class GeoDB:
             result_place.feature = rw[GeoKeys.Entry.FEAT]
             # todo - move feature priority into scoring routine
             score = self.match.match_score(inp_place=place, res_place=result_place,
-                                     iso=result_place.country_iso)
+                                     iso=result_place.country_iso, orig_name=nm)
 
             # Remove items in prefix that are in result
             tk_list = result_place.name.split(",")
@@ -179,8 +183,8 @@ class GeoDB:
             return
         pattern = self.create_wildcard(lookup_target)
         sdx = get_soundex(lookup_target)
-        self.logger.debug(f'CITY lookup. Targ=[{lookup_target}] adm1 id=[{place.admin1_id}]'
-                          f' adm2 id=[{place.admin2_id}] iso=[{place.country_iso}] patt =[{pattern}] sdx={sdx}')
+        self.logger.debug(f'CITY lkp targ=[{lookup_target}] adm1 id=[{place.admin1_id}]'
+                          f' adm2 id=[{place.admin2_id}] iso=[{place.country_iso}] patt =[{pattern}] sdx={sdx} pref={place.prefix}')
 
         query_list = []
 
@@ -586,11 +590,13 @@ class GeoDB:
             res = row_list[0][Entry.NAME]
             if iso == 'us':
                 res = 'United States'
+        else:
+            res = ''
         return res
 
     def get_country_iso(self, place: Loc) -> str:
         """ Return ISO code for specified country"""
-        lookup_target = place.country_name
+        lookup_target = GeoKeys.country_normalize(place.country_name)
         if len(lookup_target) == 0:
             return ''
 

@@ -19,7 +19,6 @@
 import collections
 import os
 import re
-import string as st
 
 import phonetics
 import unidecode
@@ -129,13 +128,33 @@ def search_normalize(res, iso):
     res = apply_aliases(res, iso)
     return res
 
+def country_normalize(res):
+    """ normalize local language Country name to US country name for lookups """
+    natural_names = {
+    'norge': 'norway',
+    'sverige': 'sweden',
+    'osterreich' : 'austria',
+    'belgie' : 'belgium',
+    'brasil' : 'brazil',
+    'danmark' : 'denmark',
+    'magyarorszag' : 'hungary',
+    'italia' : 'italy',
+    'espana' : 'spain',
+    'deutschland' : 'germany',
+    'suisse' : 'switzerland',
+    'schweiz' : 'switzerland',
+    }
+    if natural_names.get(res):
+        res = natural_names.get(res)
+    return res
+
 def _phrase_normalize(res) -> str:
     """ Strip spaces and normalize spelling for items such as Saint and County """
     # Replacement patterns to clean up entries
     res = re.sub('r.k. |r k ', 'rooms katholieke ',res)
     res = re.sub('saints |sainte |sint |saint |sankt |st. ', 'st ', res)  # Normalize Saint
     res = re.sub(r' co\.', ' county', res)  # Normalize County
-    res = re.sub(r'united states', 'usa', res)  # Normalize County
+    res = re.sub(r'united states', 'usa', res)  # Normalize USA
 
     if 'amt' not in res:
         res = re.sub(r'^mt ', 'mount ', res)

@@ -104,18 +104,18 @@ class SetupErrorFrame:
         if not alt_found:
             # Alternate Names file is missing
             # error_dict["Optional alternateNamesV2.txt not found"] = ""
-            self.logger.warning('optional alternateNamesV2.txt not found')
+            self.logger.warning(' alternateNamesV2.txt not found')
             # self.file_error = True
 
         self.logger.debug(f'geoname file count={count}')
         if count == 0:
             # No data files, add error to error dictionary
-            error_dict["No Geoname.org data files found. e.g. AllCountries.txt"] = ""
+            error_dict["Missing Geoname.org  files: e.g AllCountries.txt, alternateNamesV2.txt "] = ""
             self.logger.warning('No Geonames files found')
             self.file_error = True
 
         if self.file_error:
-            self.status.set_text("Download AllCountries.zip from geonames.org and place in {}".format(self.directory))
+            self.status.set_text("Download missing from geonames.org and place in {}".format(self.directory))
 
         # Get country list and validate
         self.logger.debug('load countries')

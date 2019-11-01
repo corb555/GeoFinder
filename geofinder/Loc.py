@@ -215,6 +215,8 @@ class Loc:
             self.admin2_name = 'new york city'
             self.target = self.admin2_name
 
+        #self.name = self.format_full_nm(None)
+
         self.logger.debug(f"***** PARSE: {place_name} City [{self.city1}] Adm2 [{self.admin2_name}]"
                           f" Adm1 [{self.admin1_name}] adm1_id [{self.admin1_id}] Cntry [{self.country_name}] Pref=[{self.prefix}]"
                           f" type_id={self.place_type}")
@@ -326,7 +328,7 @@ class Loc:
     @staticmethod
     def get_district1_type(iso) -> str:
         # Return the local country term for Admin1 district
-        if iso in ["al"]:
+        if iso in ["al","no"]:
             return "County"
         elif iso in ["us", "at", "bm", "br", "de"]:
             return "State"

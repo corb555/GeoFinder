@@ -71,7 +71,11 @@ class CachedDictionary:
         path = os.path.join(self.cache_directory, self.fname)
         self.logger.debug("Write {}".format(path))
 
-        with open(path, 'wb') as file:
-            pickle.dump(self.dict, file)
+        try:
+            with open(path, 'wb') as file:
+                pickle.dump(self.dict, file)
+        except OSError as e:
+            messagebox.showwarning('File Write Error',e)
+            return  True
 
         return False

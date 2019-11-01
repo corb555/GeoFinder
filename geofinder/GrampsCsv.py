@@ -147,7 +147,7 @@ class GrampsCsv:
         row[CSVEntry.ADMIN1_ID] = place.admin1_id
         row[CSVEntry.ISO] = place.country_iso
 
-        self.geodata.set_place_type_text(place)
+        place.set_place_type_text()
         row[CSVEntry.NAME] = self.get_csv_name(place)
         row[CSVEntry.TYPE] = place.result_type_text
         key = self.get_csv_key(place)
@@ -204,14 +204,14 @@ class GrampsCsv:
 
         enclosure_place.remove_old_fields()
         enclosure_place.name = enclosure_place.format_full_nm(None)
-        self.geodata.set_place_type_text(enclosure_place)
+        enclosure_place.set_place_type_text()
         # enclosure_place.city1 = tkns[1]
         save_type = enclosure_place.place_type
         self.geodata.find_first_match(enclosure_place.name, enclosure_place)
         enclosure_place.place_type = save_type
         enclosure_place.remove_old_fields()
         enclosure_place.name = enclosure_place.format_full_nm(None)
-        self.geodata.set_place_type_text(enclosure_place)
+        enclosure_place.set_place_type_text()
         enclosure_place.id = self.get_csv_key(enclosure_place)
 
         # place.name = place.format_full_nm(None)

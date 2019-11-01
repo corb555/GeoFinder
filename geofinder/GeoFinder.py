@@ -35,7 +35,7 @@ from geofinder.CachedDictionary import CachedDictionary
 from geofinder.Geodata import ResultFlags
 from geofinder.TKHelper import TKHelper
 
-MISSING_FILES = 'Missing Files.  Please run geoutil and correct errors in Errors Tab'
+MISSING_FILES = 'Missing Files.  Please select Config and correct errors in Errors Tab'
 file_types = 'GEDCOM / Gramps XML'
 
 GEOID_TOKEN = 1
@@ -105,16 +105,18 @@ class GeoFinder:
 
         # read arguments from the command line
         args = parser.parse_args()
-        base_path = str(Path.home())
 
         # check for --path
         if args.path:
             self.logger.info(f"--path Base path set to {args.path}" )
             base_path = args.path
+        else:
+            base_path = str(Path.home())
 
         # Save our base directory and cache directory
         self.directory: str = os.path.join(base_path, GeoKeys.get_directory_name())
         self.cache_dir = GeoKeys.get_cache_directory(self.directory)
+        self.logger.info(f'Cache directory {self.cache_dir}')
 
         # Create App window and configure  window buttons and widgets
         self.w: AppLayout.AppLayout = AppLayout.AppLayout(self)
@@ -122,14 +124,21 @@ class GeoFinder:
         self.w.create_initialization_widgets()
         self.w.config_button.config(state="normal")
         # Set up configuration  class
-        self.cfg = Config.Config()
+        self.cfg = Config.Config(self.directory)
 
-        if not os.path.exists(self.directory):
+        if not os.path.exists(self.cache_dir):
             # Create directories for GeoFinder
-            if messagebox.askyesno('Geoname Data Folder not found',
-                                   f'Create Geoname folder?\n\n{self.directory} '):
+            if messagebox.askyesno('Geoname Data Cache Folder not found',
+                                   f'Create Geoname Cache folder?\n\n{self.cache_dir} '):
                 err = self.cfg.create_directories()
-                self.logger.debug(f'Created {self.directory}')
+                if not os.path.exists(self.cache_dir):
+                    messagebox.showwarning('Geoname Data Cache Folder not found',
+                                           f'Unable to create folder\n\n{self.cache_dir} ')
+                    self.shutdown()
+                else:
+                    self.logger.debug(f'Created {self.cache_dir}')
+                    messagebox.showinfo('Geoname Data Cache Folder created',
+                                           f'Created folder\n\n{self.cache_dir} ')
             else:
                 self.shutdown()
 
@@ -836,8 +845,8 @@ class GeoFinder:
 
         err = countries.read()
         if err:
-            messagebox.showwarning('File error','Shutting down')
-            self.shutdown()
+            file_error = True
+            return file_error
 
         country_dct = countries.dict
         if len(country_dct) == 0:

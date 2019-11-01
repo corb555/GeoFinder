@@ -29,12 +29,12 @@ from geofinder.TKHelper import TKHelper
 
 class Config:
     """ Read and set configuration parameters """
-    def __init__(self):
+    def __init__(self, directory):
         self.logger = logging.getLogger(__name__)
         self.config_cd: CachedDictionary
         self.config_cd = None
 
-        self.directory: str = os.path.join(str(Path.home()), GeoKeys.get_directory_name())
+        self.directory: str = directory
         self.cache_dir = GeoKeys.get_cache_directory(self.directory)
 
     def get(self, param) -> str:
@@ -77,26 +77,26 @@ class Config:
 
     def valid_directories(self)->bool:
         if not os.path.exists(self.cache_dir):
+            messagebox.showwarning('Folder Missing',f'Folder not found:\n\n{self.cache_dir}')
             return False
         else:
             return True
 
     def create_directories(self)->bool:
-        if not os.path.exists(self.directory):
-            self.logger.info(f'Creating main folder {self.directory}')
+        if not os.path.exists(self.cache_dir):
+            self.logger.info(f'Creating folder {self.cache_dir}')
             try:
-                os.makedirs(self.directory)
-                if os.path.exists(self.directory):
-                    self.logger.info(f'Creating cache folder {self.cache_dir}')
-                    os.makedirs(self.cache_dir)
+                os.makedirs(self.cache_dir)
+                if os.path.exists(self.cache_dir):
+                    self.logger.info(f'Created cache folder {self.cache_dir}')
                 else:
-                    messagebox.showerror('Geoname Data Folder not created',
-                                         f'Error \n\n{self.directory} ')
+                    messagebox.showerror('Geoname Data Folders not created',
+                                         f'Error \n\n{self.cache_dir} ')
                     return True
             except OSError as e:
                 self.logger.warning(e)
-                messagebox.showerror('Geoname Data Folder not created',
-                                       f'Error {e}\n\n{self.directory} ')
+                messagebox.showerror('Geoname Data Folders not created',
+                                       f'Error {e}\n\n{self.cache_dir} ')
                 return True
 
         return False

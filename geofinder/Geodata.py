@@ -102,8 +102,8 @@ class Geodata:
             place.place_type = Loc.PlaceType.ADMIN1
         elif typ == Loc.PlaceType.PREFIX:
             place.target = place.prefix
-            place.city1 = place.prefix
-            place.prefix = ''
+            #place.city1 = place.prefix
+            #place.prefix = ''
             place.place_type = Loc.PlaceType.CITY
         elif typ == Loc.PlaceType.COUNTRY:
             place.target = place.country_name
@@ -111,6 +111,22 @@ class Geodata:
         elif typ == Loc.PlaceType.ADVANCED_SEARCH:
             place.target = place.city1
             place.place_type = Loc.PlaceType.ADVANCED_SEARCH
+
+        self.geo_files.geodb.lookup_place(place=place)
+        result_list.extend(place.georow_list)
+        self.update_prefix(place=place)
+
+        # Restore items
+        place.city1 = save_place.city1
+        place.admin2_name = save_place.admin2_name
+        place.admin1_name = save_place.admin1_name
+        place.prefix = save_place.prefix
+
+    def lookup_as_admin2(self, place, result_list, typ, save_place):
+        place.target = place.city1
+        place.admin2 = place.city1
+        place.city1 = ''
+        place.place_type = Loc.PlaceType.ADMIN2
 
         self.geo_files.geodb.lookup_place(place=place)
         result_list.extend(place.georow_list)
@@ -160,6 +176,9 @@ class Geodata:
         # Simple parse can be wrong, so also try prefix token  as city and admin2 token as city
         for ty in [Loc.PlaceType.PREFIX, Loc.PlaceType.ADMIN2]:
             self.lookup_by_type(place, result_list, ty, self.save_place)
+
+        # Try city as Admin2
+        self.lookup_as_admin2(place, result_list, ty, self.save_place)
 
         #self.logger.debug(result_list)
 
@@ -418,7 +437,7 @@ default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ",
 
 # If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
 feature_priority = {'PP1M':22, 'PP1K':19, 'ADM1': 20, 'PPLA': 20, 'PPL': 18, 'PPLA2': 19, 'PPLA3': 17, 'PPLA4': 16, 'PPLC': 20, 'PPLG': 15,
-'ADM2': 19, 'MILB': 13,'NVB': 12, 'PPLF': 11, 'DEFAULT': 3, 'ADM0': 10, 'PPLL': 6, 'PPLQ': 5, 'PPLR': 4, 'PPLS': 3, 'PPLW': 3, 'PPLX': 3, 'BTL': 3,
+'ADM2': 16, 'MILB': 13,'NVB': 12, 'PPLF': 11, 'DEFAULT': 3, 'ADM0': 10, 'PPLL': 6, 'PPLQ': 5, 'PPLR': 4, 'PPLS': 3, 'PPLW': 3, 'PPLX': 3, 'BTL': 3,
                     'STLMT': 1, 'CMTY': 4, 'VAL': -6, 'CH': 4, 'MSQE': 4,  'HSP': -6}
 
 result_text_list = {

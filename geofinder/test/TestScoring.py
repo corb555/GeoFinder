@@ -57,7 +57,7 @@ class TestScoring(unittest.TestCase):
         res_place = Loc.Loc()
         res_place.name = out
         res_place.country_iso = 'gb'
-        scr = TestScoring.scoring.match_score_calc( in_place, res_place)
+        scr = TestScoring.scoring.match_score_calc( in_place, res_place, in_place.name)
         return scr
 
     # ===== TEST SCORING
@@ -70,7 +70,7 @@ class TestScoring(unittest.TestCase):
     def test_scr02(self):
         title = "Input word1"
         scr = self.run_test3(title, "London, England,", "London, England, United Kingdom")
-        self.assertGreater(5, scr, title)
+        self.assertGreater(7, scr, title)
 
     # St Margaret, Westminster Cathedral, Greater London, England, United Kingdom
 
