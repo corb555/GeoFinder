@@ -64,7 +64,7 @@ class TestGeodata(unittest.TestCase):
         if error:
             logger.info("Missing geoname Files.")
             logger.info('Requires ca.txt, gb.txt, de.txt from geonames.org in folder username/geoname_test')
-            raise ValueError('Cannot open database')
+            raise ValueError('Missing ca.txt, gb.txt, de.txt from geonames.org')
 
     def setUp(self) -> None:
         self.place: Loc.Loc = Loc.Loc()

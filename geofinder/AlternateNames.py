@@ -30,9 +30,9 @@ ALT_NAME = 3
 
 class AlternateNames(FileReader):
     """
-    Read in alternate names file and add appropriate entries to geoname dictionary
+    Read in Alternate names file and add appropriate entries to geoname dictionary
     Each row contains a geoname ID, an alternative name for that entity, and the language
-    If the lang is english and the ID is in our geonames dictionary, we add this as an alternative name
+    If the lang is in our Config and the ID is in our geonames dictionary, we add this as an alternative name
     FileReader calls handle_line every time it reads a line
     """
 
@@ -65,16 +65,16 @@ class AlternateNames(FileReader):
 
         self.loc.georow_list = []
 
-        # Alternate names are in multiple languages.  Only add if item is in requested lang
+        # Alternate names are in multiple languages.  Only add if item is in requested lang list
         if alt_tokens[ALT_LANG] in self.lang_list:
             # Add this alias to geoname db if there is already an entry (geoname DB is filtered based on feature)
-            # See if item has a primary entry with same GEOID in Main DB
+            # See if item has an entry with same GEOID in Main DB
             dbid = self.geo_files.geodb.geoid_main_dict.get(alt_tokens[ALT_GEOID])
             if dbid is not None:
                 self.loc.target = dbid
                 self.geo_files.geodb.lookup_main_dbid(place=self.loc)
             else:
-                # See if item has a primary entry with same GEOID in Admin DB
+                # See if item has an  entry with same GEOID in Admin DB
                 dbid = self.geo_files.geodb.geoid_admin_dict.get(alt_tokens[ALT_GEOID])
                 if dbid is not None:
                     self.loc.target = dbid
@@ -90,3 +90,7 @@ class AlternateNames(FileReader):
 
                 self.geo_files.geodb.insert(geo_row=new_row, feat_code=lst[GeoDB.Entry.FEAT])
                 self.count += 1
+
+                # Add name to altnames table
+                self.geo_files.geodb.insert_alternate_name(alt_tokens[ALT_NAME],
+                                                           alt_tokens[ALT_GEOID], alt_tokens[ALT_LANG])

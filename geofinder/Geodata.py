@@ -122,7 +122,7 @@ class Geodata:
         place.admin1_name = save_place.admin1_name
         place.prefix = save_place.prefix
 
-    def lookup_as_admin2(self, place, result_list, typ, save_place):
+    def lookup_as_admin2(self, place:Loc.Loc, result_list, save_place:Loc.Loc):
         place.target = place.city1
         place.admin2 = place.city1
         place.city1 = ''
@@ -178,7 +178,7 @@ class Geodata:
             self.lookup_by_type(place, result_list, ty, self.save_place)
 
         # Try city as Admin2
-        self.lookup_as_admin2(place, result_list, ty, self.save_place)
+        self.lookup_as_admin2(place=place,result_list=result_list,save_place=self.save_place)
 
         #self.logger.debug(result_list)
 
@@ -418,7 +418,6 @@ class Geodata:
 
         if min_score < 20 and len(place.georow_list) == 1:
             place.result_type = GeoKeys.Result.STRONG_MATCH
-            self.logger.debug(f'strong match {geo_row[GeoKeys.Entry.NAME]}')
 
         return ResultFlags(limited=limited_flag, filtered=date_filtered)
 

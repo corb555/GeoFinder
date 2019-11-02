@@ -18,12 +18,12 @@
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 
 import csv
-import glob
 import logging
 import os
 import re
 import time
 from collections import namedtuple
+from tkinter import messagebox
 from typing import Dict
 
 from geofinder import CachedDictionary, Country, GeoDB, GeoKeys, Loc, AlternateNames, UtilFeatureFrame
@@ -49,6 +49,8 @@ class GeodataFiles:
     def __init__(self, directory: str, progress_bar):
         self.logger = logging.getLogger(__name__)
         self.geodb = None
+        self.required_db_version = 2
+        self.db_upgrade_text = 'Adding support for non-English output'
         self.directory: str = directory
         self.progress_bar = progress_bar
         self.line_num = 0
@@ -132,34 +134,57 @@ class GeodataFiles:
 
         # Use db if it exists and is newer than the geonames directory
         cache_dir = GeoKeys.get_cache_directory(self.directory)
-        fullpath = os.path.join(cache_dir, 'geodata.db')
-        self.logger.debug(f'path for geodata.db: {fullpath}')
+        db_path = os.path.join(cache_dir, 'geodata.db')
+        self.logger.debug(f'path for geodata.db: {db_path}')
+        err_msg = ''
 
-        if os.path.exists(fullpath):
-            # See if db exists and is fresh (newer than other files)
-            self.logger.debug('DB exists')
-            dir_time = os.path.getmtime(self.directory)
-            cache_time = os.path.getmtime(fullpath)
-            if cache_time > dir_time:
-                self.logger.info(f'db up to date: {fullpath}')
-                self.geodb = GeoDB.GeoDB(os.path.join(cache_dir, 'geodata.db'))
-                # Ensure DB has reasonable number of records
-                count = self.geodb.get_row_count()
-                self.logger.info(f'Geoname entries = {count:,}')
-                if count > 1000:
-                    # No error if DB has over 1000 records
-                    return False
+        # Validate Database setup
+        if os.path.exists(db_path):
+            # See if db is fresh (newer than other files)
+            self.logger.debug(f'DB found at {db_path}')
+            self.geodb = GeoDB.GeoDB(db_path=db_path, version=self.required_db_version)
 
-        # DB  is stale or not available, rebuild it from geoname files
-        self.logger.debug(f'{fullpath} not new.  Building db ')
-        self.geodb = GeoDB.GeoDB(os.path.join(cache_dir, 'geodata.db'))
+            # Make sure DB is correct version
+            ver = self.geodb.get_db_version()
+            if ver != self.required_db_version:
+                err_msg = f'Database version will be upgraded:\n\n{self.db_upgrade_text}\n\n' \
+                    f'Upgrading database from V{ver} to V{self.required_db_version}.'
+            else:
+                # Correct Version.  Make sure DB is not stale
+                dir_time = os.path.getmtime(self.directory)
+                cache_time = os.path.getmtime(db_path)
+                if cache_time > dir_time:
+                    self.logger.info(f'DB is up to date')
+                    # Ensure DB has reasonable number of records
+                    count = self.geodb.get_row_count()
+                    self.logger.info(f'Geoname entries = {count:,}')
+                    if count < 1000:
+                        # Error if DB has under 1000 records
+                        err_msg = f'Geoname Database is too small.\n\n {db_path}\n\nRebuilding DB '
+                else:
+                    # DB is stale
+                    err_msg = f'DB {db_path} is older than geonames.org files.  Rebuilding DB '
+        else:
+            err_msg = f'Database not found at\n\n{db_path}.\n\nBuilding DB'
+
+        if err_msg == '':
+            # No DB errors detected
+            return False
+
+        # DB error detected - rebuild database
+        messagebox.showinfo('Database Error', err_msg)
+
+        # DB  error.  Rebuild it from geoname files
+        self.logger.debug(err_msg)
+
+        if os.path.exists(db_path):
+            os.remove(db_path)
+
+        self.geodb = GeoDB.GeoDB(db_path=db_path, version=self.required_db_version)
         self.country = Country.Country(self.progress_bar, geodb=self.geodb, lang_list=self.lang_list)
 
         # walk thru list of files ending in .txt e.g US.txt, FR.txt, all_countries.txt, etc
         file_count = 0
-
-        # Clear out all geo_data data since we are rebuilding
-        self.geodb.clear_geoname_data()
 
         # Put in country data
         self.country.read()
@@ -167,12 +192,12 @@ class GeodataFiles:
         start_time = time.time()
 
         # Put in geonames file data
-        for fname in ['allCountries.txt']:
+        for fname in ['allCountries.txt', 'ca.txt', 'gb.txt', 'de.txt', 'fr.txt', 'nl.txt']:
             # Read all geoname files
             error = self.read_geoname_file(fname)  # Read in info (lat/long) for all places from
 
             if error:
-                self.logger.error(f'Error reading geoname file')
+                self.logger.error(f'Error reading geoname file {fname}')
             else:
                 file_count += 1
 
@@ -189,7 +214,7 @@ class GeodataFiles:
         self.logger.info(f'Geonames entries = {self.geodb.get_row_count():,}')
 
         start_time = time.time()
-        self.progress("Final Step: Creating Indices for Database...", 95)
+        self.progress("3) Final Step: Creating Indices for Database...", 95)
         self.geodb.create_geoid_index()
         self.geodb.create_indices()
         self.logger.debug(f'Indices done.  Elapsed ={time.time() - start_time}')
@@ -238,6 +263,9 @@ class GeodataFiles:
                     if geoname_row.iso.lower() in self.supported_countries_dct and \
                             geoname_row.feat_code in self.feature_code_list_dct:
                         self.insert_georow(geoname_row)
+                        if geoname_row.name.lower() != GeoKeys.normalize(geoname_row.name):
+                            self.geodb.insert_alternate_name(geoname_row.name,
+                                                                   geoname_row.id, 'en')
 
                     if self.progress_bar is not None:
                         if self.progress_bar.shutdown_requested:

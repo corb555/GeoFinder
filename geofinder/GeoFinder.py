@@ -515,6 +515,7 @@ class GeoFinder:
         else:
             self.w.status.configure(style="Error.TLabel")
 
+        # set Verify as preferred button
         if len(place.georow_list) > 1:
             TKHelper.set_preferred_button(self.w.verify_button, self.w.review_buttons, "Preferred.TButton")
             self.set_save_allowed(False)
@@ -653,7 +654,7 @@ class GeoFinder:
         self.w.prog.shutdown_requested = True
 
         if messagebox.askyesno('Generate Import File?', f'All updates saved.\n\nDo you want to generate a file for import'
-        f' to Gedcom/Gramps?\n\n '):
+        f' to Gedcom/Gramps?\n\n',default='no'):
             # Write file for importing back
             messagebox.showinfo("Generate Import File", "Reminder -  make sure the ancestry export file you are working on is up to date before "
                                                         "generating a file to import back!\n\nThe file will take about 10 minutes per 1000 places")

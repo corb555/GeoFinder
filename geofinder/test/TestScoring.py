@@ -124,7 +124,6 @@ class TestScoring(unittest.TestCase):
     def test_tot02(self):
         title = "total word1"
         out, inp = self.run_test1(title, "Frunce", "Paris, France")
-        TestScoring.logger.debug  (f'[{inp}] [{out}]')
         out, inp = self.run_test2(title, inp, out)
         self.assertEqual('u', inp, title)
 

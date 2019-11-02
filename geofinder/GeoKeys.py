@@ -129,7 +129,7 @@ def search_normalize(res, iso):
     return res
 
 def country_normalize(res):
-    """ normalize local language Country name to US country name for lookups """
+    """ normalize local language Country name to English country name for lookups """
     natural_names = {
     'norge': 'norway',
     'sverige': 'sweden',

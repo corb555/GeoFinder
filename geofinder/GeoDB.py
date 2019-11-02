@@ -32,21 +32,21 @@ class GeoDB:
     geoname data database.  Add items, look up items, create tables, indices
     """
 
-    def __init__(self, database):
+    def __init__(self, db_path, version):
         self.logger = logging.getLogger(__name__)
         self.start = 0
         self.match = MatchScore.MatchScore()
 
-        self.database = database
+        self.db_path = db_path
         # See if DB exists
-        if os.path.exists(database):
+        if os.path.exists(db_path):
             db_exists = True
         else:
             db_exists = False
 
-        self.db = DB.DB(database)
+        self.db = DB.DB(db_path)
         if self.db.err:
-            self.logger.error(f"Error! cannot open database {database}.")
+            self.logger.error(f"Error! cannot open database {db_path}.")
             raise ValueError('Cannot open database')
 
         # If DB exists
@@ -55,23 +55,27 @@ class GeoDB:
             res = self.db.db_test('main.geodata')
 
             if res:
-                self.logger.warning(f'DB error for {database}')
+                self.logger.warning(f'DB error for {db_path}')
                 if messagebox.askyesno('Error',
-                                       f'Geoname database is empty or corrupt:\n\n {database} \n\nDo you want to delete it and rebuild?'):
+                                       f'Geoname database is empty or corrupt:\n\n {db_path} \n\nDo you want to delete it and rebuild?'):
                     messagebox.showinfo('', 'Deleting Geoname database')
                     self.db.conn.close()
-                    os.remove(database)
-
+                    os.remove(db_path)
                 sys.exit()
         else:
             # DB didnt exist.  Create tables.
             self.create_tables()
 
-        self.db.set_speed_pragmas()
-        self.db.set_params(select_str='name, country, admin1_id, admin2_id, lat, lon, f_code, geoid, sdx', order_str='', limit_str='LIMIT 160')
+            self.db.set_speed_pragmas()
+            self.db.set_params(order_str='', limit_str='LIMIT 160')
+            self.insert_version(version)
+
         self.geoid_main_dict = {}  # Key is GEOID, Value is DB ID for entry
         self.geoid_admin_dict = {}  # Key is GEOID, Value is DB ID for entry
         self.place_type = ''
+
+    def delete_db(self):
+        self.logger.info('Deleting geoname DB')
 
     def lookup_place(self, place: Loc.Loc) -> []:
         """
@@ -92,7 +96,7 @@ class GeoDB:
         elif place.place_type == Loc.PlaceType.ADMIN2:
             self.get_admin1_id(place=place)
             self.select_admin2(place)
-            if len(place.georow_list) ==0:
+            if len(place.georow_list) == 0:
                 if 'shire' in place.target:
                     # Some English counties have had Shire removed from name, try doing that
                     place.target = re.sub('shire', '', place.target)
@@ -111,7 +115,7 @@ class GeoDB:
         # Add search quality score to each entry
         for idx, rw in enumerate(place.georow_list):
             self.copy_georow_to_place(row=rw, place=result_place)
-            if len(place.prefix) > 0 and result_place.prefix=='':
+            if len(place.prefix) > 0 and result_place.prefix == '':
                 result_place.prefix = ' '
                 result_place.prefix_commas = ','
             else:
@@ -124,7 +128,7 @@ class GeoDB:
             result_place.feature = rw[GeoKeys.Entry.FEAT]
             # todo - move feature priority into scoring routine
             score = self.match.match_score(inp_place=place, res_place=result_place,
-                                     iso=result_place.country_iso, orig_name=nm)
+                                           iso=result_place.country_iso, orig_name=nm)
 
             # Remove items in prefix that are in result
             tk_list = result_place.name.split(",")
@@ -136,17 +140,6 @@ class GeoDB:
 
         if place.result_type == Result.STRONG_MATCH and len(place.prefix) > 0:
             place.result_type = Result.PARTIAL_MATCH
-
-        """
-        res:float = float(Levenshtein.distance(str(GeoKeys.normalize(inp)), str(GeoKeys.normalize(result))))
-        if len(inp) > 0:
-            return int(100*res / float(len(inp)))
-        else:
-            if len(result) > 0:
-                return 100
-            else:
-                return 0
-        """
 
     def advanced_search(self, place: Loc):
         """
@@ -162,17 +155,17 @@ class GeoDB:
 
         query_list = [
             Query(where="name LIKE ? AND country LIKE ? AND f_code LIKE ?",
-                                args=(pattern, place.country_iso, place.feature.upper()),
-                                result=Result.PARTIAL_MATCH)]
+                  args=(pattern, place.country_iso, place.feature.upper()),
+                  result=Result.PARTIAL_MATCH)]
 
         # Search main DB
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
-        #self.logger.debug(f'main Result {place.georow_list}')
+        # self.logger.debug(f'main Result {place.georow_list}')
 
         # Search admin DB
         admin_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
         place.georow_list.extend(admin_list)
-        #self.logger.debug(f'admin Result {place.georow_list}')
+        # self.logger.debug(f'admin Result {place.georow_list}')
 
     def select_city(self, place: Loc):
         """
@@ -197,7 +190,7 @@ class GeoDB:
             query_list.append(Query(where="name LIKE ?",
                                     args=(pattern,),
                                     result=Result.WILDCARD_MATCH))
-            #query_list.append(Query(where="name LIKE ?",
+            # query_list.append(Query(where="name LIKE ?",
             #                        args=(pattern + ' historical',),
             #                        result=Result.WILDCARD_MATCH))
             query_list.append(Query(where="sdx = ?",
@@ -351,7 +344,6 @@ class GeoDB:
                   result=Result.SOUNDEX_MATCH)
         ]
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
-
 
     def select_country(self, place: Loc):
         """Search for Admin1 entry"""
@@ -552,7 +544,7 @@ class GeoDB:
             for item in tk_list:
                 place.prefix = re.sub(item.strip(' ').lower(), '', place.prefix)
 
-            update[GeoKeys.Entry.SCORE] = int(score*100)
+            update[GeoKeys.Entry.SCORE] = int(score * 100)
             place.georow_list[idx] = tuple(update)
 
     def lookup_main_dbid(self, place: Loc) -> None:
@@ -624,6 +616,47 @@ class GeoDB:
 
         return res
 
+    def copy_altnames_to_place(self, row, place: Loc):
+        # Copy data from DB row into Place
+        # self.logger.debug(row)
+        place.admin1_id = ''
+        place.admin2_id = ''
+        place.city1 = ''
+
+        place.country_iso = str(row[Entry.ISO])
+        place.country_name = str(self.get_country_name(row[Entry.ISO]))
+        place.lat = row[Entry.LAT]
+        place.lon = row[Entry.LON]
+        place.feature = str(row[Entry.FEAT])
+        place.geoid = str(row[Entry.ID])
+
+        if place.feature == 'ADM0':
+            self.place_type = Loc.PlaceType.COUNTRY
+            pass
+        elif place.feature == 'ADM1':
+            place.admin1_id = row[Entry.ADM1]
+            self.place_type = Loc.PlaceType.ADMIN1
+        elif place.feature == 'ADM2':
+            place.admin1_id = row[Entry.ADM1]
+            place.admin2_id = row[Entry.ADM2]
+            self.place_type = Loc.PlaceType.ADMIN2
+        else:
+            place.admin1_id = row[Entry.ADM1]
+            place.admin2_id = row[Entry.ADM2]
+            place.city1 = row[Entry.NAME]
+            self.place_type = Loc.PlaceType.CITY
+
+        place.admin1_name = str(self.get_admin1_name(place))
+        place.admin2_name = str(self.get_admin2_name(place))
+        if place.admin2_name is None:
+            place.admin2_name = ''
+        if place.admin1_name is None:
+            place.admin1_name = ''
+
+        place.city1 = self.get_alt_name(place.geoid)  #str(place.city1)
+        if place.city1 is None:
+            place.city1 = ''
+
     def copy_georow_to_place(self, row, place: Loc):
         # Copy data from DB row into Place
         # self.logger.debug(row)
@@ -675,6 +708,7 @@ class GeoDB:
         # Create indices
         self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS geoid_idx ON geodata(geoid)')
         self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS admgeoid_idx ON admin(geoid)')
+        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS altnamegeoid_idx ON altname(geoid)')
 
     def create_indices(self):
         # Create indices
@@ -682,8 +716,6 @@ class GeoDB:
         self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS country_idx ON geodata(country)')
         self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS admin1_idx ON geodata(admin1_id)')
         self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS sdx_idx ON geodata(sdx)')
-
-        # self.db.create_index(create_table_sql='CREATE INDEX geoid_idx ON geodata(geoid)')
 
         self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS adm_name_idx ON admin(name)')
         self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS adm_country_idx ON admin(country)')
@@ -721,6 +753,17 @@ class GeoDB:
         self.logger.info('Closing Database')
         self.db.conn.close()
 
+    def get_alt_name(self, geoid)->str:
+            # retrieve alternate name
+            query_list = [
+                Query(where="geoid = ?",
+                      args=(geoid,),
+                      result=Result.STRONG_MATCH)]
+            select = 'sfdsf'
+            row_list, res = self.db.process_query(select=select, from_tbl='main.altname', query_list=query_list)
+            self.logger.debug(row_list[0])
+            return row_list[0]
+
     def insert(self, geo_row: (), feat_code: str):
         # We split the data into 2  tables, 1) Admin: ADM0/ADM1/ADM2,  and 2) city data
         if feat_code == 'ADM1' or feat_code == 'ADM0' or feat_code == 'ADM2':
@@ -737,6 +780,44 @@ class GeoDB:
             self.geoid_main_dict[geo_row[Entry.ID]] = row_id
 
         return row_id
+
+    def insert_alternate_name(self, alternate_name: str, geoid: str, lang: str):
+        # We split the data into 2  tables, 1) Admin: ADM0/ADM1/ADM2,  and 2) city data
+        row = (alternate_name,  lang, geoid)
+        sql = ''' INSERT OR IGNORE INTO altname(name,lang, geoid)
+                  VALUES(?,?,?) '''
+        row_id = self.db.execute(sql, row)
+
+    def insert_version(self, db_version: int):
+        self.db.begin()
+
+        sql = ''' INSERT OR IGNORE INTO version(version)
+                  VALUES(?) '''
+        args = (db_version,)
+        row_id = self.db.execute(sql, args)
+        self.db.commit()
+
+    def get_db_version(self)->int:
+        # If version table does not exist, this is V1
+        if self.db.table_exists('version'):
+            # query version ID
+            query_list = [
+                Query(where="version like ?",
+                      args=('%'),
+                      result=Result.STRONG_MATCH)]
+
+            from_tbl='main.version'
+            row_list = None
+            select_str = '*'
+            row_list, res = self.db.process_query(select_string=select_str, from_tbl='main.version', query_list=query_list)
+
+            ver = int(row_list[0][1])
+            self.logger.debug(f'Version = {ver}')
+            return ver
+        else:
+            # No version table, so this is V1
+            self.logger.debug('No version table.  Version is 1')
+            return 1
 
     def create_tables(self):
         # name, country, admin1_id, admin2_id, lat, lon, f_code, geoid
@@ -767,5 +848,19 @@ class GeoDB:
                 sdx     text
                                     );"""
 
-        for tbl in [sql_geodata_table, sql_admin_table]:
+        # name, country, admin1_id, admin2_id, lat, lon, f_code, geoid
+        sql_alt_name_table = """CREATE TABLE IF NOT EXISTS altname    (
+                id           integer primary key autoincrement not null,
+                name     text,
+                lang     text,
+                geoid      text
+                                    );"""
+
+        # name, country, admin1_id, admin2_id, lat, lon, f_code, geoid
+        sql_version_table = """CREATE TABLE IF NOT EXISTS version    (
+                id           integer primary key autoincrement not null,
+                version     integer
+                                    );"""
+
+        for tbl in [sql_geodata_table, sql_admin_table, sql_version_table, sql_alt_name_table]:
             self.db.create_table(tbl)

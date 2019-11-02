@@ -177,7 +177,7 @@ class GrampsCsv:
                 # A node is already there and we don't have a P, so do nothing
                 place.id = res[CSVEntry.PLACE_ID]
 
-        self.logger.debug(f'\nCREATE CSV NODE {key.upper()} idx={dict_idx}: {row}\n{place.name}')
+        #self.logger.debug(f'\nCREATE CSV NODE {key.upper()} idx={dict_idx}: {row}\n{place.name}')
 
     def move_up_level(self, enclosure_place, idx) -> bool:
         enclosure_place.lat = 99.9

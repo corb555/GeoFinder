@@ -34,7 +34,7 @@ class DB:
     def __init__(self, db_filename: str):
         self.logger = logging.getLogger(__name__)
 
-        self.select_str = '*'
+        #self.select_str = '*'
         self.order_str = ''
         self.limit_str = ''
         self.cur = None
@@ -65,9 +65,8 @@ class DB:
             self.logger.error(e)
             sys.exit()
 
-    def set_params(self, select_str: str, order_str: str, limit_str: str):
+    def set_params(self,  order_str: str, limit_str: str):
         # Set values for SELECT, ORDER BY, and LIMIT
-        self.select_str = select_str
         self.order_str = order_str
         self.limit_str = limit_str
 
@@ -105,8 +104,8 @@ class DB:
 
     def delete_table(self, tbl):
         cur = self.conn.cursor()
-        # noinspection SqlWithoutWhere
         try:
+            # noinspection SqlWithoutWhere
             cur.execute(f'DELETE FROM {tbl}')
         except Exception as e:
             messagebox.showwarning('Error', f'{DB_CORRUPT_MSG}\n {e}')
@@ -142,9 +141,9 @@ class DB:
         # Commit transaction
         self.cur.execute("commit")
 
-    def select(self, where, from_tbl, args):
+    def select(self, select_str, where, from_tbl, args):
         cur = self.conn.cursor()
-        sql = f"SELECT {self.select_str} FROM {from_tbl} WHERE {where} {self.order_str} {self.limit_str}"
+        sql = f"SELECT {select_str} FROM {from_tbl} WHERE {where} {self.order_str} {self.limit_str}"
         res = [""]
         try:
             cur.execute(sql, args)
@@ -156,12 +155,39 @@ class DB:
             sys.exit()
         return res
 
-    def db_test(self, from_tbl: str):
-        where = 'name like ? AND country like ?'
-        args = ('b%','b%')
+    def table_exists(self, table_name):
+        # SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';
+        where = "type=? AND name=?"
+        from_tbl = 'sqlite_master'
+        select_str = 'name'
+        args = ('table', table_name)
 
         cur = self.conn.cursor()
-        sql = f"SELECT {self.select_str} FROM {from_tbl} WHERE {where} {self.order_str} {self.limit_str}"
+
+        # See if Version Table exists.  If it does not, then the version is 1.0
+        sql = f"SELECT {select_str} FROM {from_tbl} WHERE {where} {self.order_str} {self.limit_str}"
+
+        self.logger.debug(f'version sql={sql} args=[{args}]')
+        try:
+            cur.execute(sql, args)
+            res = cur.fetchall()
+            self.logger.debug(f'DB version tbl: {res}')
+            if len(res) > 0:
+                self.logger.debug(f'{table_name} table exists')
+                return True
+            else:
+                self.logger.debug(f'{table_name} table NOT FOUND')
+                return False
+        except Exception as e:
+            self.logger.warning(f'DB ERROR {e}')
+            return False
+
+    def db_test(self, from_tbl: str):
+        where = 'name = ? AND country = ?'
+        args = ('ba','fr')
+
+        cur = self.conn.cursor()
+        sql = f"SELECT {'name'} FROM {from_tbl} WHERE {where} {self.order_str} {self.limit_str}"
 
         self.logger.debug(f'db test sql={sql} args=[{args}]')
         try:
@@ -170,22 +196,27 @@ class DB:
             self.logger.debug('DB no error')
             return False
         except Exception as e:
-            self.logger.debug('DB ERROR')
+            self.logger.warning(f'DB ERROR {e}')
             return True
 
-    def process_query_list(self, from_tbl: str, query_list: [Query]):
+    def process_query(self, select_string, from_tbl: str, query_list: [Query]):
         # Try each query in list until we find a match
         row_list = None
         res = Result.NO_MATCH
         for query in query_list:
-            row_list = self.select(query.where, from_tbl, query.args)
+            row_list = self.select(select_string, query.where, from_tbl, query.args)
             #self.logger.debug(f'select * from {from_tbl}  where {query.where} val={query.args} {self.order_str} {self.limit_str}')
             if len(row_list) > 0:
                 res = query.result  # Set specified success code
                 #self.logger.debug(row_list)
                 # Found match.  Break out of loop
                 break
+        return row_list, res
 
+    def process_query_list(self, from_tbl: str, query_list: [Query]):
+        # Try each query in list until we find a match
+        select_str = 'name, country, admin1_id, admin2_id, lat, lon, f_code, geoid, sdx'
+        row_list, res = self.process_query(select_string=select_str, from_tbl=from_tbl, query_list=query_list)
         return row_list, res
 
     def set_speed_pragmas(self):
