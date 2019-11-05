@@ -30,12 +30,12 @@ class MatchScore:
 
     def match_score(self, inp_place, res_place) -> int:
         if '*' in inp_place.original_entry:
+            # if it was a wildcard search it's hard to rank.  just set to 40
             score = 40
         else:
             score: int = self.match_score_calc(inp_place, res_place)
 
-        feature_score = Geodata.Geodata.get_priority(res_place.feature)
-        return score + feature_score
+        return score
 
     def match_score_calc(self, inp_place: Loc.Loc, res_place: Loc.Loc) -> int:
         # Return a score 0-100 reflecting the difference between the user input and the result:
@@ -120,12 +120,17 @@ class MatchScore:
         else:
             pref_score = 0
 
-        # Add up input score, weighted output score and prefix score
-        score = in_score + 0.2 * out_score + pref_score
-
         if inp_place.standard_parse == False:
-            # Tokens were not in correct order, so give penalty
-            score += 3
+            # Calculate parse penalty.  If Tokens were not in hierarchical order,  give penalty
+            parse_penalty = 3
+        else:
+            parse_penalty = 0
+
+        # Feature score is to ensure "important" places (large city, etc) get somewhat higher rank.
+        feature_score = Geodata.Geodata.get_priority(res_place.feature)
+
+        # Add up input score, weighted output score, prefix score, feature and parse penalty
+        score = in_score + 0.2 * out_score + pref_score + feature_score + parse_penalty
 
         self.logger.debug(f'SC {score:.1f} [{res_place.original_entry}]  out={out_score * 0.2:.1f} in={in_score:.1f} {pref_score} {score_text}')
         inp_place.place_type = save_type

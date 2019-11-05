@@ -1,11 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="geodata.db" uuid="4e558cf7-de28-4f94-8f28-a081a351d9b1">
+    <data-source source="LOCAL" name="test geodata.db" uuid="c405bcb2-413d-4de4-aebc-868f718193b4">
       <driver-ref>sqlite.xerial</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
-      <jdbc-url>jdbc:sqlite:$USER_HOME$/geoname_data/cache/geodata.db</jdbc-url>
+      <jdbc-url>jdbc:sqlite:$USER_HOME$/geoname_test/cache/geodata.db</jdbc-url>
+      <driver-properties>
+        <property name="enable_load_extension" value="true" />
+      </driver-properties>
+    </data-source>
+    <data-source source="LOCAL" name="geodata.db" uuid="65a6cdce-a897-4a77-9dae-ff85384288d5">
+      <driver-ref>sqlite.xerial</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
+      <jdbc-url>jdbc:sqlite:$PROJECT_DIR$/../geoname_data/cache/geodata.db</jdbc-url>
       <driver-properties>
         <property name="enable_load_extension" value="true" />
       </driver-properties>
