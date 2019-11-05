@@ -182,6 +182,7 @@ class GeodataFiles:
         self.logger.debug(err_msg)
 
         if os.path.exists(db_path):
+            self.geodb.close()
             os.remove(db_path)
 
         self.geodb = GeoDB.GeoDB(db_path=db_path, version=self.required_db_version)
