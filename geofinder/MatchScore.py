@@ -24,6 +24,7 @@ from geofinder import GeoKeys, Geodata, Loc
 
 class MatchScore:
     """ Calculate how close two placenames are lexically """
+
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class MatchScore:
         feature_score = Geodata.Geodata.get_priority(res_place.feature)
         return score + feature_score
 
-    def match_score_calc(self, inp_place:Loc.Loc, res_place:Loc.Loc) -> int:
+    def match_score_calc(self, inp_place: Loc.Loc, res_place: Loc.Loc) -> int:
         # Return a score 0-100 reflecting the difference between the user input and the result:
         # The percent of characters in inp that were NOT matched by a word in result
         # Lower score is better match.  0 is perfect match, 100 is no match
@@ -44,70 +45,66 @@ class MatchScore:
         num_inp_tokens = 1
 
         in_pref = inp_place.prefix
-        if  in_pref == '':
+        if in_pref == '':
             in_pref = ' '
         save_type = inp_place.place_type
         inp_place.place_type = Loc.PlaceType.CITY
-        inp = in_pref + ',' + inp_place.format_full_nm(None)
-        inp_place.place_type = save_type
 
+        # Create input full name
+        inp = in_pref + ',' + inp_place.format_full_nm(None)
         inp = GeoKeys.search_normalize(inp, inp_place.country_iso)
         inp = GeoKeys.remove_noise_words(inp)
         inp_tokens = inp.split(',')
         inp_tokens[-1], modified = GeoKeys.country_normalize(inp_tokens[-1])
 
-        # Store length of original tokens
+        # Store length of original tokens and strip spaces
         for it, tk in enumerate(inp_tokens):
             inp_tokens[it] = inp_tokens[it].strip(' ')
-            tmp = re.sub(' ','', inp_tokens[it])
+            tmp = re.sub(' ', '', inp_tokens[it])
             inp_len[it] = len(tmp)
 
-        res_pref = res_place.prefix
-        #if  res_pref == '':
-        #    res_pref = ' '
-        save_type = res_place.place_type
-
+        # Create result full name
         pref = " "
         res_place.original_entry = pref + ',' + res_place.format_full_nm(None)
         res = GeoKeys.search_normalize(res_place.original_entry, res_place.country_iso)
         res = GeoKeys.remove_noise_words(res)
         res_tokens = res.split(',')
+
+        # Normalize country (last token)
         res_tokens[-1], modified = GeoKeys.country_normalize(res_tokens[-1])
 
         res = ', '.join(map(str, res_tokens))
         orig_res_len = len(res)
 
         # Create a list of all the words in input
-        inp2 = ', '.join(inp_tokens)
+        input_word_list = ', '.join(inp_tokens)
 
-        #self.logger.debug(f'Matchscore: Res [{res}] In [{inp2}] ')
-
-        res, inp2 = self.remove_matching_words(res, inp2)
-        res, inp2 = self.remove_matching_characters(res, inp2)
-        #self.logger.debug(f'Removed: In [{inp2}] Res [{res}]')
+        # Find any words in input list that are in result and remove from input and result
+        res, input_word_list = self.remove_matching_words(res, input_word_list)
+        res, input_word_list = self.remove_matching_characters(res, input_word_list)
 
         # For each input token calculate percent of new size vs original size
-        inp_tokens2 = inp2.split(',')
+        inp_tokens2 = input_word_list.split(',')
         in_score = 0
 
-        # Each item in place hierarchy gets a different weighting
+        # Each token in place hierarchy gets a different weighting
         #        Pref, city,cty,state,country
-        weight = [0.1, 1.0, 0.4, 0.6, 0.9 ]
-
+        weight = [0.1, 1.0, 0.4, 0.6, 0.9]
         score_text = ''
 
+        # Calculate percent of unmatched characters in each token of input, then apply weighting
         for idx, tk in enumerate(inp_tokens):
             if inp_len[idx] > 0:
-                sc = int(100.0 * len(inp_tokens2[idx]) / inp_len[idx])
-                in_score += sc * weight[idx]
-                score_text += f'  {idx}) [{tk}] {sc}% * {weight[idx]} '
+                unmatched_percent = int(100.0 * len(inp_tokens2[idx]) / inp_len[idx])
+                in_score += unmatched_percent * weight[idx]
+                score_text += f'  {idx}) [{tk}] {unmatched_percent}% * {weight[idx]} '
                 num_inp_tokens += 1.0 * weight[idx]
-                #self.logger.debug(f'{idx} [{inp_tokens2[idx]}:{inp_tokens[idx]}] rawscr={sc}% orig_len={inp_len[idx]} wgt={weight[idx]}')
+                # self.logger.debug(f'{idx} [{inp_tokens2[idx]}:{inp_tokens[idx]}] rawscr={sc}% orig_len={inp_len[idx]} wgt={weight[idx]}')
 
         # Average over number of tokens, e.g. average percent of tokens unmatched
         in_score = in_score / num_inp_tokens
 
-        # Output score (percent of output that was not matched)
+        # Calculate percent of result that was not matched - not weighted per token
         new_len = len(res.strip(' '))
         if orig_res_len > 0:
             out_score = int(100.0 * new_len / orig_res_len)
@@ -116,27 +113,31 @@ class MatchScore:
         else:
             out_score = 0
 
-
         if len(inp_place.prefix) > 0:
-            # prefix penalty
-            pref_score = 2 * len(inp_place.prefix) + 2 *len(inp_place.extra)
+            # The prefix isnt used for search or match.   Apply a penalty if the search had an unused prefix
+            # Penalty is based on size of prefix
+            pref_score = len(inp_place.prefix) + len(inp_place.extra)
         else:
             pref_score = 0
 
-        score =  in_score + 0.2 * out_score + pref_score
+        # Add up input score, weighted output score and prefix score
+        score = in_score + 0.2 * out_score + pref_score
+
         if inp_place.standard_parse == False:
             # Tokens were not in correct order, so give penalty
             score += 3
 
-        self.logger.debug(f'SC {score:.1f} [{res_place.original_entry}]  out={out_score*0.2:.1f} in={in_score:.1f} {pref_score} {score_text}')
+        self.logger.debug(f'SC {score:.1f} [{res_place.original_entry}]  out={out_score * 0.2:.1f} in={in_score:.1f} {pref_score} {score_text}')
+        inp_place.place_type = save_type
 
         return int(score)
 
     def remove_matching_words(self, out: str, inp: str):
+        # Remove any WORD in input that is in result, delete it from both input and from result
+
         inp_words = inp.split(' ')
 
-        # If any WORD in input is in result, delete it from input and from result
-        lst = sorted(inp_words, key=len, reverse=True)  # Use longest words first
+        lst = sorted(inp_words, key=len, reverse=True)  # Remove longest words first
         for idx, word in enumerate(lst):
             targ = word.strip(',')
             if len(word) > 2 and targ in out:
@@ -154,8 +155,8 @@ class MatchScore:
         match_list = []
 
         for i in range(length):
-            idx = len(inp)-i-1
-            if inp[idx] == out[len(out)-i-1] and inp[idx] != ',':
+            idx = len(inp) - i - 1
+            if inp[idx] == out[len(out) - i - 1] and inp[idx] != ',':
                 match_list.append(idx)
 
             if inp[i] == out[i] and inp[i] != ',':
