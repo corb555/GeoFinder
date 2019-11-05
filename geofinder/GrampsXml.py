@@ -86,12 +86,13 @@ class GrampsXml(AncestryFile):
         if '<places>' in line:
             # Reached the start of Places XML section.  Accumulate XML text until end of section
             self.state = State.COLLECT_PLACE_XML
+            self.logger.debug('XML places section - start')
         elif '</places>' in line:
             # Reached the end of Places section
             # TODO - Handle case where there is additional data on </places> line, such as '</places> <objects>'
             line += '\n'
             self.place_xml_lines += bytes(line, "utf8")
-            self.logger.debug(f'xml len={len(self.place_xml_lines)}')
+            self.logger.debug(f'XML Places section - complete.  len={len(self.place_xml_lines)}')
 
             # Build tree from XML string
             try:
@@ -100,7 +101,7 @@ class GrampsXml(AncestryFile):
                 self.logger.warning(f'XML parse error')
                 self.xml_tree = None
             self.place_total = sum([1 for entry in self.xml_tree.getiterator('placeobject')])
-            self.logger.info(f'PLACE COUNT={self.place_total}')
+            self.logger.info(f'XML Parse complete. PLACE COUNT={self.place_total}')
 
             self.state = State.WALK_PLACE_TREE
             self.more_available = True
@@ -117,9 +118,11 @@ class GrampsXml(AncestryFile):
             #    self.place_total += 1
             line = re.sub('placeobj', 'placeobject', line)
             self.place_xml_lines += bytes(line, "utf8")
+            #self.logger.debug(f'Collect XML [{line}]')
             self.tag = 'IGNORE'
         elif self.state == State.PASS_THROUGH:
             #  output line in get_next_place
+            #self.logger.debug(f'Pass through XML [{line}]')
             pass
         elif self.state == State.WALK_PLACE_TREE:
             # Set self.value with next place
@@ -127,6 +130,7 @@ class GrampsXml(AncestryFile):
 
             if not self.more_available:
                 # Got to END OF TREE.  WRITE XML tree
+                self.logger.debug('End of XML tree')
                 self.write_out_tree()
                 self.csv.complete_csv()
 
@@ -135,6 +139,7 @@ class GrampsXml(AncestryFile):
     def write_out_tree(self):
         # Write out XML tree
         tmp_name = self.out_path + '.tmp'
+        self.logger.debug(f'Writing XML tree {tmp_name}')
         self.xml_tree.write(tmp_name)
 
         # Append XML tmp file to our output file
@@ -169,7 +174,7 @@ class GrampsXml(AncestryFile):
         self.plac = self.xml_tree.find('placeobject')
 
         if self.plac is not None:
-            # print(f'\n\nPLACEOBJECT {self.place.tag} =========')
+            #self.logger.debug(f'\n\nPLACEOBJECT {self.place.tag} =========')
             self.id = self.plac.get("id")
             self.title = ''
             self.name = ''
@@ -186,6 +191,7 @@ class GrampsXml(AncestryFile):
                     self.tag = 'PLAC'
                     self.value = place_entry.text
                     self.title = self.value
+                    self.logger.debug(f'PTITLE <{place_entry.tag} VALUE="{self.value}"/>')
                     self.got_place = True
                     #return
                 elif place_entry.tag == 'pname' and self.got_pname is False:
@@ -193,7 +199,7 @@ class GrampsXml(AncestryFile):
                     self.tag = 'PLAC'
                     self.value = place_entry.get('value')
                     self.name = self.value
-                    # print(f'PNAME <{place_entry.tag} VALUE="{self.value}"/>')
+                    self.logger.debug(f'PNAME <{place_entry.tag} VALUE="{self.value}"/>')
                     self.got_pname = True
                     #return
                 elif place_entry.tag == 'coord':
@@ -201,7 +207,7 @@ class GrampsXml(AncestryFile):
                     self.lon = place_entry.attrib.get('long')
                     self.lat = place_entry.attrib.get('lat')
                     self.tag = 'IGNORE'
-                    # print(f'<{place_entry.tag} LONG="{self.lon}" LAT="{self.lat}"/>')
+                    #self.logger.debug(f'<{place_entry.tag} LONG="{self.lon}" LAT="{self.lat}"/>')
                     self.plac.remove(place_entry)
                 else:
                     # print(f'DD <{place_entry.tag} {place_entry.attrib}>')
@@ -223,6 +229,7 @@ class GrampsXml(AncestryFile):
             self.got_place = False
         else:
             # Tree completed.  No more place objects available
+            self.logger.debug('XML tree complete')
             self.more_available = False
 
     def write_updated(self, txt, place):

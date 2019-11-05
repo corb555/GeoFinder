@@ -721,7 +721,7 @@ class GeoDB:
         if '*' in pattern:
             return re.sub(r"\*", "%", pattern)
         else:
-            return f'{pattern}%'
+            return f'%{pattern}%'
 
     @staticmethod
     def create_county_wildcard(pattern):

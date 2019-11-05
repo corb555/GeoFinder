@@ -16,8 +16,10 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+import gzip
 import logging
 import os
+from tkinter import messagebox
 from typing import Union, Tuple
 
 from geofinder import Progress
@@ -59,7 +61,7 @@ class AncestryFile:
         self.abt_flag = False
 
 
-        if out_suffix is not '':
+        if out_suffix != '':
             # Create an output file with same name with "out.ged" appended
             self.outfile = open(self.out_path, "w",
                                 encoding='utf-8')
@@ -69,6 +71,7 @@ class AncestryFile:
         # Open Ancestry file in utf-8.  Replace any non-UTF-8 characters (e.g. Latin)
         err = self.open(in_path)
         if err:
+            self.logger.error(f'Cannot open {in_path}')
             return
 
         if self.output_latlon is False:
@@ -77,7 +80,8 @@ class AncestryFile:
     def open(self, in_path) -> bool:
         # Open ancestry file
         if os.path.exists(in_path):
-            self.infile = open(in_path, 'rU', encoding='utf-8', errors='replace')
+            # gzip.open('file.gz', 'rt', encoding='utf-8')
+            self.infile = gzip.open(in_path, 'rt', encoding='utf-8', errors='replace')
             self.filesize: int = int(os.path.getsize(in_path))  # Used for progress bar calculation
             self.logger.info(f'Opened  {in_path} Size={self.filesize}')
             self.error: bool = False
@@ -112,9 +116,13 @@ class AncestryFile:
         id =''
         if not self.more_available:
             line = self.infile.readline()
+            #self.logger.debug(f'Read line [{line}]')
             self.line_num += 1
             if line == "":
                 # End of File
+                self.logger.info(f'End of file. PLACE COUNT={self.place_total}')
+                if self.place_total < 10:
+                    messagebox.showinfo('File Read', f'File contained {self.place_total} places')
                 return "", True, id
         else:
             line = ''

@@ -91,7 +91,7 @@ class GeoFinder:
         self.skiplist = None
         self.global_replace = None
         self.geodata = None
-        self.out_suffix = ''
+        self.out_suffix = 'unknown_suffix'
         self.out_diag_file = None
         self.in_diag_file = None
 
@@ -350,6 +350,8 @@ class GeoFinder:
                 else:
                     self.logger.warning(f'Error looking up GEOID=[{replacement_geoid}] for [{town_entry}] ')
                     self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
+                    self.w.original_entry.set_text(f'Error looking up GEOID=[{replacement_geoid}] for [{town_entry}]' )
+                    self.w.user_entry.set_text(f'Error looking up GEOID=[{replacement_geoid}] for [{town_entry}]' )
                     self.geodata.find_location(town_entry, self.place, self.w.prog.shutdown_requested)
                     break
                 continue
@@ -832,11 +834,14 @@ class GeoFinder:
         # End of file reached
         TKHelper.disable_buttons(button_list=self.w.review_buttons)
         # self.start_time = time.time()
-        self.logger.debug(f'COMPLETED time={int((time.time() - self.start_time) / 60)} minutes')
+        #self.logger.debug(f'COMPLETED time={int((time.time() - self.start_time) / 60)} minutes')
         self.w.status.set_text("Done.  Shutting Down...")
         self.w.original_entry.set_text(" ")
         path = self.cfg.get("gedcom_path")
-        os.rename(f"{path}.{temp_suffix}", f"{path}.{self.out_suffix}")
+        self.ancestry_file_handler.close()
+        if len (path) > 10:
+            os.remove(f"{path}.{self.out_suffix}")
+            os.rename(f"{path}.{temp_suffix}", f"{path}.{self.out_suffix}")
         if 'ramp' in self.out_suffix:
             self.out_suffix = 'csv'
         self.update_statistics()

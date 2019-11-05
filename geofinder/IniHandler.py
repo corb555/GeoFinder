@@ -22,14 +22,14 @@ import sys
 from pathlib import Path
 from tkinter import messagebox, filedialog
 
-from build.lib.geofinder import GeoKeys
+from geofinder import GeoKeys
 
 
 class IniHandler:
-    def __init__(self, home_path:Path, ini_name):
+    def __init__(self, home_path:str, ini_name):
         self.directory:Path = Path()
         #self.home_path = str(Path.home())
-        self.home_path:Path = home_path
+        self.home_path:Path = Path(home_path)
 
         self.ini = configparser.ConfigParser()
         self.ini_path:Path = Path(os.path.join(str(self.home_path), ini_name))
