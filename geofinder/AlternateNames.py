@@ -87,10 +87,12 @@ class AlternateNames(FileReader):
                 lst[GeoDB.Entry.NAME] = GeoKeys.normalize(alt_tokens[ALT_NAME])
                 lst.append(GeoKeys.get_soundex(alt_tokens[ALT_NAME]))
                 new_row = tuple(lst)   # Convert back to tuple
-
-                self.geo_files.geodb.insert(geo_row=new_row, feat_code=lst[GeoDB.Entry.FEAT])
-                self.count += 1
+                if alt_tokens[ALT_LANG] != 'en' or 'ADM' not in lst[GeoDB.Entry.FEAT]:
+                    # Only add if not English or not ADM1/ADM2
+                    self.geo_files.geodb.insert(geo_row=new_row, feat_code=lst[GeoDB.Entry.FEAT])
+                    self.count += 1
 
                 # Add name to altnames table
-                self.geo_files.geodb.insert_alternate_name(alt_tokens[ALT_NAME],
+                if alt_tokens[ALT_LANG] != 'en':
+                    self.geo_files.geodb.insert_alternate_name(alt_tokens[ALT_NAME],
                                                            alt_tokens[ALT_GEOID], alt_tokens[ALT_LANG])

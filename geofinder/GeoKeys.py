@@ -110,26 +110,60 @@ def capwords(nm):
 
     return nm
 
-def apply_aliases(res, iso):
-    res = re.sub(r"'", '', res)  # Normalize hyphens
+def search_normalize(res, iso)->str:
+    res = semi_normalize(res)
+    return res
 
-    res = re.sub(r'prussia', 'germany', res)
-    res = re.sub(r' near ', ' ', res)
+def admin1_normalize(res, iso):
+    #res = re.sub(r"'", '', res)  # Normalize hyphens
 
     if iso == 'gb':
         res = re.sub(r'middlesex', 'greater london', res)
     if iso == 'fr':
         res = re.sub(r'normandy', 'normandie', res)
         res = re.sub(r'brittany', 'bretagne', res)
+
+        res = re.sub(r'burgundy', 'bourgogne franche comte', res)
+        res = re.sub(r'franche comte', 'bourgogne franche comte', res)
+        res = re.sub(r'aquitaine', 'nouvelle aquitaine', res)
+        res = re.sub(r'limousin', 'nouvelle aquitaine', res)
+        res = re.sub(r'poitou charentes', 'nouvelle aquitaine', res)
+        res = re.sub(r'alsace', 'grand est', res)
+        res = re.sub(r'champagne ardenne', 'grand est', res)
+        res = re.sub(r'lorraine', 'grand est', res)
+        res = re.sub(r'languedoc roussillon', 'occitanie', res)
+        res = re.sub(r'midi pyrenees', 'occitanie', res)
+        res = re.sub(r'nord pas de calais', 'hauts de france', res)
+        res = re.sub(r'picardy', 'hauts de france', res)
+        res = re.sub(r'auvergne', 'auvergne rhone alpes', res)
+        res = re.sub(r'rhone alpes', 'auvergne rhone alpes', res)
+
     return res
 
-def search_normalize(res, iso):
-    res = semi_normalize(res)
-    res = apply_aliases(res, iso)
-    return res
+def admin2_normalize(res)->(str, bool):
+    """
+    Some English counties have had Shire removed from name, try doing that
+    :param res:
+    :return: (result, modified)
+    result - new string
+    modified - True if modified
+    """
+    if 'shire' in res:
+        res = re.sub('shire', '', res)
+        return res, True
+    else:
+        return res, False
 
-def country_normalize(res):
-    """ normalize local language Country name to English country name for lookups """
+def country_normalize(res)->(str,bool):
+    """
+    normalize local language Country name to standardized English country name for lookups
+    :param res:
+    :return: (result, modified)
+    result - new string
+    modified - True if modified
+    """
+    res = re.sub(r'\.', '', res)  # remove .
+
     natural_names = {
     'norge': 'norway',
     'sverige': 'sweden',
@@ -141,12 +175,16 @@ def country_normalize(res):
     'italia' : 'italy',
     'espana' : 'spain',
     'deutschland' : 'germany',
+    'prussia' : 'germany',
     'suisse' : 'switzerland',
     'schweiz' : 'switzerland',
+
     }
     if natural_names.get(res):
         res = natural_names.get(res)
-    return res
+        return res, True
+    else:
+        return res, False
 
 def _phrase_normalize(res) -> str:
     """ Strip spaces and normalize spelling for items such as Saint and County """

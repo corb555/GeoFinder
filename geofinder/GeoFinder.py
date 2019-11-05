@@ -21,10 +21,10 @@ import copy
 import glob
 import logging
 import os
-import platform
 import sys
 import time
 import webbrowser
+from configparser import ConfigParser
 from pathlib import Path
 from tkinter import filedialog
 from tkinter import messagebox
@@ -70,6 +70,26 @@ class GeoFinder:
 
     """
 
+    def ini_read(self, section, key):
+        # parse existing file
+        self.ini.read(self.ini_path)
+
+        # read values from a section
+        return self.ini.get(section, key)
+
+    def ini_set(self, section, key, val):
+        # update existing value
+        self.ini.set(section, key, val)
+        # save to a file
+        with open(self.ini_path, 'w') as configfile:
+            self.ini.write(configfile)
+
+    def ini_add_section(self, section):
+        # add a new section and some values
+        self.ini.add_section(section)
+        # save to a file
+        with open(self.ini_path, 'w') as configfile:
+            self.ini.write(configfile)
 
     def __init__(self):
         print('GeoFinder v{}'.format(__version__.__version__))
@@ -96,35 +116,62 @@ class GeoFinder:
         self.out_diag_file = None
         self.in_diag_file = None
 
-        self.logger = self.setup_logging('geofinder Init')
-
         # initiate the parser
         parser = argparse.ArgumentParser()
-        parser.add_argument("--path",  metavar='path', help="Base path for geonames_data folder")
-        #parser.add_argument("--verbose", help="Enable verbose logging")
+        parser.add_argument("--logging", help="Enable quiet logging")
+        parser.add_argument("--diagnostics", help="Create diagnostics files")
 
         # read arguments from the command line
         args = parser.parse_args()
 
-        # check for --path
-        if args.path:
-            self.logger.info(f"--path Base path set to {args.path}" )
-            base_path = args.path
+        # check for --verbose switch
+        if args.logging == 'info':
+            self.logger = self.setup_logging_info('geofinder Init')
+            self.logger.info(f"--logging set to INFO logging {args.logging}" )
         else:
-            base_path = str(Path.home())
+            self.logger = self.setup_logging('geofinder Init')
 
-        # Save our base directory and cache directory
-        self.directory: str = os.path.join(base_path, GeoKeys.get_directory_name())
-        self.cache_dir = GeoKeys.get_cache_directory(self.directory)
-        self.logger.info(f'Cache directory {self.cache_dir}')
+        # check for --diagnostics switch
+        if args.diagnostics:
+            self.logger.info(f"--diagnostics files enabled {args.diagnostics}" )
+            self.diagnostics = True
+        else:
+            self.diagnostics= False
 
         # Create App window and configure  window buttons and widgets
         self.w: AppLayout.AppLayout = AppLayout.AppLayout(self)
-        self.util = UtilLayout.UtilLayout(root=self.w.root, directory=self.directory, cache_dir=self.cache_dir)
         self.w.create_initialization_widgets()
         self.w.config_button.config(state="normal")
+
+        # Get our base directory path from INI file.  Create INI if it doesnt exist
+        home_path = str(Path.home())
+
+        self.ini = ConfigParser()
+        self.ini_path: Path = Path(os.path.join(home_path, 'geofinder.ini'))
+
+        if self.ini_path.is_file():
+            self.directory = Path(self.ini_read('PATH', 'DIRECTORY'))
+        else:
+            # Not Found.  Create INI file
+            self.ini_add_section('PATH')
+            self.directory = Path(os.path.join(home_path, GeoKeys.get_directory_name()))
+            self.ini_set(section='PATH', key='DIRECTORY', val=self.directory)
+
+        #  if directory doesnt exist, prompt user for folder
+        if not self.directory.is_dir():
+            messagebox.showinfo('Geofinder Folder not found','Choose Folder for GeoFinder data in next dialog')
+            self.directory = filedialog.askdirectory(initialdir = home_path,title = "Choose Folder for GeoFinder data")
+            if len(self.directory) == 0:
+                sys.exit()
+            else:
+                self.ini_set(section='PATH', key='DIRECTORY', val=self.directory)
+
+        self.cache_dir = GeoKeys.get_cache_directory(self.directory)
+        self.logger.info(f'Cache directory {self.cache_dir}')
+
         # Set up configuration  class
         self.cfg = Config.Config(self.directory)
+        self.util = UtilLayout.UtilLayout(root=self.w.root, directory=self.directory, cache_dir=self.cache_dir)
 
         if not os.path.exists(self.cache_dir):
             # Create directories for GeoFinder
@@ -329,7 +376,7 @@ class GeoFinder:
                     self.write_updated_place(self.place, town_entry)
                     if self.place.prefix != '':
                         pass
-                        #self.logger.debug(f'write upd prefix= [{self.place.name}]')
+                        #self.logger.debug(f'write upd prefix= [{self.place.original_entry}]')
 
                     # Display status to user
                     if self.w.prog.shutdown_requested:
@@ -341,7 +388,7 @@ class GeoFinder:
                 else:
                     self.logger.warning(f'Error looking up GEOID=[{replacement_geoid}] for [{town_entry}] ')
                     self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
-                    self.geodata.find_location(town_entry, self.place)
+                    self.geodata.find_location(town_entry, self.place, self.w.prog.shutdown_requested)
                     break
                 continue
             elif self.skiplist.get(town_entry) is not None:
@@ -354,10 +401,10 @@ class GeoFinder:
                 # Found a  PLACE entry that we don't have a global replace or skip for
                 # See if it is in our place database
                 self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
-                self.geodata.find_location(town_entry, self.place)
-                if self.place.result_type not in GeoKeys.successful_match:
-                    self.geodata.set_last_iso('')
-                    self.geodata.find_location(town_entry, self.place)
+                self.geodata.find_location(town_entry, self.place, self.w.prog.shutdown_requested)
+                #if self.place.result_type not in GeoKeys.successful_match:
+                #    self.geodata.set_last_iso('')
+                #    self.geodata.find_location(town_entry, self.place)
 
                 if self.place.result_type in GeoKeys.successful_match:
                     # FOUND A MATCH
@@ -396,8 +443,8 @@ class GeoFinder:
                             self.logger.debug(f'user review for {town_entry} res= [{self.place.result_type}] ')
 
                             self.w.status.configure(style="Good.TLabel")
-                            self.w.original_entry.set_text(self.place.name)  # Display place
-                            self.w.user_entry.set_text(self.place.name)  # Display place
+                            self.w.original_entry.set_text(self.place.original_entry)  # Display place
+                            self.w.user_entry.set_text(self.place.original_entry)  # Display place
                             break
                 else:
                     # No match
@@ -413,8 +460,8 @@ class GeoFinder:
                         #self.logger.debug(f'User2 review for {town_entry}. status ={self.place.status}')
 
                         self.w.status.configure(style="Good.TLabel")
-                        self.w.original_entry.set_text(self.place.name)  # Display place
-                        self.w.user_entry.set_text(self.place.name)  # Display place
+                        self.w.original_entry.set_text(self.place.original_entry)  # Display place
+                        self.w.user_entry.set_text(self.place.original_entry)  # Display place
                         # Have user review the match
                         break
 
@@ -470,24 +517,22 @@ class GeoFinder:
             # User typed in text entry window - get edit field value and look it up
             town_entry: str = self.w.user_entry.get()
             if len(town_entry) > 0:
-                self.geodata.find_location(town_entry, self.place)
+                self.geodata.find_location(town_entry, self.place, self.w.prog.shutdown_requested)
             else:
                 # User entry is blank - prompt to delete this entry
                 self.place.clear()
                 self.place.result_type = GeoKeys.Result.DELETE
                 self.logger.debug('Blank: DELETE')
-                self.geodata.process_result(self.place, '', ResultFlags(limited=False, filtered=False))
+                self.geodata.process_result(self.place, ResultFlags(limited=False, filtered=False))
 
         self.display_result(self.place)
 
     def display_result(self, place:Loc.Loc):
         """ Display result details for an item  """
         # Enable buttons so user can either click Skip, or edit the item and Click Verify.
-        place.clean()
+        place.safe_strings()
 
         TKHelper.enable_buttons(self.w.review_buttons)
-        nm = place.format_full_nm(self.geodata.geo_files.output_replace_dct)
-        #self.logger.debug(f'disp result [{place.prefix}][{place.prefix_commas}][{nm}] res=[{place.result_type}]')
 
         # Enable action buttons based on type of result
         if place.result_type == GeoKeys.Result.MULTIPLE_MATCHES or \
@@ -562,6 +607,7 @@ class GeoFinder:
         for geo_row in place.georow_list:
             self.geodata.geo_files.geodb.copy_georow_to_place(geo_row, temp_place)
 
+            self.geodata.geo_files.geodb.set_display_names(temp_place)
             nm = temp_place.format_full_nm(self.geodata.geo_files.output_replace_dct)
             valid = self.geodata.valid_year_for_location(event_year=place.event_year, iso=temp_place.country_iso,
                                                          admin1=temp_place.admin1_id, padding=0)
@@ -593,7 +639,7 @@ class GeoFinder:
     def save_handler(self):
         """ Save the Place.  Add Place to global replace list and replace if we see it again. """
         self.matched_count += 1
-        self.geodata.set_last_iso(self.place.country_iso)
+        #self.geodata.set_last_iso(self.place.country_iso)
 
         ky = self.w.original_entry.get_text()
         if self.place.result_type == GeoKeys.Result.DELETE:
@@ -751,20 +797,34 @@ class GeoFinder:
         logger.info(msg)
         return logger
 
+    @staticmethod
+    def setup_logging_info(msg):
+        logger = logging.getLogger(__name__)
+        fmt = "%(levelname)s %(name)s.%(funcName)s %(lineno)d: %(message)s"
+        logging.basicConfig(level=logging.INFO, stream=sys.stdout, format=fmt)
+        logger.info(msg)
+        return logger
+
     def write_updated_place(self, place: Loc.Loc, entry):
         # Write out updated location and lat/lon to  file
-        place.name = place.format_full_nm(self.geodata.geo_files.output_replace_dct)
-        self.in_diag_file.write(f'{entry}\n')
+        self.geodata.geo_files.geodb.set_display_names(place)
+        place.original_entry = place.format_full_nm(self.geodata.geo_files.output_replace_dct)
+        prefix = GeoKeys.capwords(self.place.prefix)
+        if self.diagnostics:
+            self.in_diag_file.write(f'{entry}\n')
+
 
         if place.result_type != GeoKeys.Result.DELETE:
             #self.logger.debug(f'Write Updated - name={place.name} pref=[{place.prefix}]')
 
-            self.ancestry_file_handler.write_updated(place.prefix + place.prefix_commas + place.name, place)
+            self.ancestry_file_handler.write_updated(prefix + place.prefix_commas + place.original_entry, place)
             self.ancestry_file_handler.write_lat_lon(lat=place.lat, lon=place.lon)
-            self.out_diag_file.write(place.prefix + place.prefix_commas + place.name + '\n')
+            self.out_diag_file.write(prefix + place.prefix_commas + place.original_entry + '\n')
         else:
             #self.logger.debug('zero len, no output')
-            self.out_diag_file.write('DELETE\n')
+            if self.diagnostics:
+                self.out_diag_file.write('DELETE\n')
+            pass
 
     def shutdown(self):
         """ Shutdown - write out Gbl Replace and skip file and exit """
@@ -833,7 +893,7 @@ class GeoFinder:
             if self.w.prog.shutdown_requested == False:
                 self.w.status.set_text(msg)
                 self.w.status.configure(style="Good.TLabel")
-                self.w.original_entry.set_text(self.place.name)  # Display place
+                self.w.original_entry.set_text(self.place.original_entry)  # Display place
             self.w.root.update_idletasks()  # Let GUI update
 
     def check_configuration(self):

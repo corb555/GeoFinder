@@ -19,7 +19,6 @@
 import collections
 import copy
 import logging
-import string as st
 from operator import itemgetter
 
 from geofinder import GeodataFiles, GeoKeys, Loc
@@ -37,29 +36,32 @@ class Geodata:
     def __init__(self, directory_name: str, progress_bar):
         self.logger = logging.getLogger(__name__)
         self.status = "geoname file error"
-        self.directory: st = directory_name
+        self.directory: str = directory_name
         self.progress_bar = progress_bar  # progress_bar
         self.geo_files = GeodataFiles.GeodataFiles(self.directory, progress_bar=self.progress_bar)  # , geo_district=self.geo_district)
         self.save_place = None
-        self.last_iso = ''
 
-    def update_prefix(self, place):
+    def update_rowlist_prefix(self, place: Loc.Loc):
+        """
+        Set all the prefix values in the georow_list
+        :param place:
+        """
+
         temp_place = Loc.Loc()
-        tokens = place.name.split(',')
+        tokens = place.original_entry.split(',')
 
-        # Set all the prefix values in the georow_list
         for idx, rw in enumerate(place.georow_list):
             update = list(rw)
 
             # Put unused fields into prefix
             self.geo_files.geodb.copy_georow_to_place(rw, temp_place)
             temp_place.prefix = ''
-            nm = GeoKeys.search_normalize(temp_place.format_full_nm(self.geo_files.output_replace_dct),place.country_iso)
+            nm = GeoKeys.search_normalize(temp_place.format_full_nm(self.geo_files.output_replace_dct), place.country_iso)
             # self.logger.debug(f'NAME ={nm}')
             place.prefix = ''
 
-            for num,fld in enumerate(tokens[:2]):
-                item = GeoKeys.search_normalize(fld,place.country_iso)
+            for num, fld in enumerate(tokens[:2]):
+                item = GeoKeys.search_normalize(fld, place.country_iso)
                 add_item = False
                 # self.logger.debug(f'item={item} ')
                 if num == 0 and item not in nm:
@@ -86,51 +88,52 @@ class Geodata:
             place.georow_list[idx] = tuple(update)
 
     def lookup_by_type(self, place, result_list, typ, save_place):
+        self.logger.debug(f'Lookup by Type.  pre[{place.prefix}] {place.city1}  {place.place_type}')
+
         if typ == Loc.PlaceType.CITY:
-            place.target = place.city1
-            place.city1 = place.city1
-            place.place_type = Loc.PlaceType.CITY
+            # Try City as city (do as-is)
+            pass
         elif typ == Loc.PlaceType.ADMIN2:
-            place.target = place.admin2_name
+            # Try ADMIN2 as city
+            place.prefix += place.city1
             place.city1 = place.admin2_name
             place.admin2_name = ''
-            place.place_type = Loc.PlaceType.CITY
-        elif typ == Loc.PlaceType.ADMIN1:
-            place.target = place.admin1_name
-            place.city1 = place.admin1_name
-            place.admin1_name = ''
-            place.place_type = Loc.PlaceType.ADMIN1
         elif typ == Loc.PlaceType.PREFIX:
-            place.target = place.prefix
-            #place.city1 = place.prefix
-            #place.prefix = ''
-            place.place_type = Loc.PlaceType.CITY
-        elif typ == Loc.PlaceType.COUNTRY:
-            place.target = place.country_name
-            place.place_type = Loc.PlaceType.COUNTRY
+            # Try Prefix as City
+            place.city1 = place.prefix
+            place.prefix = place.city1
         elif typ == Loc.PlaceType.ADVANCED_SEARCH:
-            place.target = place.city1
-            place.place_type = Loc.PlaceType.ADVANCED_SEARCH
+            # Advanced Search
+            self.geo_files.geodb.lookup_place(place=place)
+            result_list.extend(place.georow_list)
+            return
+        else:
+            self.logger.warning(f'Unknown TYPE {typ}')
+
+        place.target = place.city1
+        place.place_type = Loc.PlaceType.CITY
 
         self.geo_files.geodb.lookup_place(place=place)
         result_list.extend(place.georow_list)
-        self.update_prefix(place=place)
+        self.update_rowlist_prefix(place=place)
 
         # Restore items
         place.city1 = save_place.city1
         place.admin2_name = save_place.admin2_name
-        place.admin1_name = save_place.admin1_name
         place.prefix = save_place.prefix
+        place.extra = save_place.extra
 
-    def lookup_as_admin2(self, place:Loc.Loc, result_list, save_place:Loc.Loc):
+    def lookup_as_admin2(self, place: Loc.Loc, result_list, save_place: Loc.Loc):
+        # Try City as ADMIN2
+        place.extra = place.admin2_name
         place.target = place.city1
-        place.admin2 = place.city1
+        place.admin2_name = place.city1
         place.city1 = ''
         place.place_type = Loc.PlaceType.ADMIN2
 
         self.geo_files.geodb.lookup_place(place=place)
         result_list.extend(place.georow_list)
-        self.update_prefix(place=place)
+        self.update_rowlist_prefix(place=place)
 
         # Restore items
         place.city1 = save_place.city1
@@ -138,7 +141,7 @@ class Geodata:
         place.admin1_name = save_place.admin1_name
         place.prefix = save_place.prefix
 
-    def find_location(self, location: str, place: Loc.Loc):
+    def find_location(self, location: str, place: Loc.Loc, shutdown):
         """
         Find a location in the geoname dictionary.
         First parse the location into <prefix>, city, <district2>, district1, country.
@@ -146,41 +149,60 @@ class Geodata:
         Update place with -- lat, lon, district, city, country_iso, result code
         """
         place.parse_place(place_name=location, geo_files=self.geo_files)
+        if shutdown:
+            # During shutdown there is no user verification and no reason to try wildcard searches
+            self.geo_files.geodb.db.use_wildcards = False
 
         flags = ResultFlags(limited=False, filtered=False)
         result_list = []
 
-        #self.logger.debug(f'Find LOCATION City=[{place.city1}] Adm2=[{place.admin2_name}]\
-        #Adm1=[{place.admin1_name}] Pref=[{place.prefix}] Cntry=[{place.country_name}] iso=[{place.country_iso}]  Type={place.place_type} ')
+        self.logger.debug(f'Find LOCATION City=[{place.city1}] Adm2=[{place.admin2_name}]\
+        Adm1=[{place.admin1_name}] Pref=[{place.prefix}] Cntry=[{place.country_name}] iso=[{place.country_iso}]  Type={place.place_type} ')
 
+        # Save a shallow copy so we can restore fields
         self.save_place = copy.copy(place)
 
         if place.place_type == Loc.PlaceType.ADVANCED_SEARCH:
             # Lookup location with advanced search params
             self.logger.debug('Advanced Search')
             self.lookup_by_type(place, result_list, place.place_type, self.save_place)
+            place.georow_list.clear()
+            place.georow_list.extend(result_list)
+
+            if len(place.georow_list) > 0:
+                # Build list - sort and remove duplicates
+                # self.logger.debug(f'Match {place.georow_list}')
+                self.process_result(place=place, flags=flags)
+                flags = self.build_result_list(place)
             return
 
         self.country_is_valid(place)
 
         # The country in this entry is not supported (not loaded into DB)
         if place.result_type == GeoKeys.Result.NOT_SUPPORTED:
-            self.process_result(place=place, targ_name=place.target, flags=flags)
+            self.process_result(place=place, flags=flags)
             return
 
-        # Try standard lookup based on simple parse:  city, county, state/province, country
+        # 1) Try standard lookup based on parse:  city, county, state/province, country
+        place.standard_parse = True
+        self.logger.debug(f'1) Standard Lookup pre[{place.prefix}] {place.city1}  {place.place_type}')
         self.geo_files.geodb.lookup_place(place=place)
         result_list.extend(place.georow_list)
-        self.update_prefix(place=place)
+        self.update_rowlist_prefix(place=place)
 
-        # Simple parse can be wrong, so also try prefix token  as city and admin2 token as city
+        # Try alternatives since parsing can be wrong
+        # 2) Try:  a) prefix as city, b) admin2 as city
+        place.standard_parse = False
+
         for ty in [Loc.PlaceType.PREFIX, Loc.PlaceType.ADMIN2]:
             self.lookup_by_type(place, result_list, ty, self.save_place)
 
-        # Try city as Admin2
-        self.lookup_as_admin2(place=place,result_list=result_list,save_place=self.save_place)
+        # 3) Try city as Admin2
+        self.logger.debug(f'Try city as ADM2 pre[{place.prefix}] adm2={place.admin2_name}  {place.place_type}')
 
-        #self.logger.debug(result_list)
+        self.lookup_as_admin2(place=place, result_list=result_list, save_place=self.save_place)
+
+        # self.logger.debug(result_list)
 
         #  Move result list into place georow list
         place.georow_list.clear()
@@ -188,8 +210,8 @@ class Geodata:
 
         if len(place.georow_list) > 0:
             # Build list - sort and remove duplicates
-            #self.logger.debug(f'Match {place.georow_list}')
-            self.process_result(place=place, targ_name=place.target, flags=flags)
+            # self.logger.debug(f'Match {place.georow_list}')
+            self.process_result(place=place, flags=flags)
             flags = self.build_result_list(place)
 
         if len(place.georow_list) == 0:
@@ -203,39 +225,39 @@ class Geodata:
             place.result_type = GeoKeys.Result.MULTIPLE_MATCHES
 
         # Process the results
-        self.process_result(place=place, targ_name=place.target, flags=flags)
+        self.process_result(place=place,  flags=flags)
         self.logger.debug(f'Status={place.status}')
 
     def lookup_geoid(self, place):
         flags = ResultFlags(limited=False, filtered=False)
         self.geo_files.geodb.lookup_geoid(place)
-        self.update_prefix(place=place)
-        self.process_result(place,'', flags=flags)
+        self.update_rowlist_prefix(place=place)
+        self.process_result(place=place,  flags=flags)
 
     def search_city(self, place):
         place.target = place.city1
         place.prefix = f' {place.admin2_name.title()}'
         self.logger.debug(f' Try city [{place.target}] as city')
         self.geo_files.geodb.lookup_place(place=place)
-        self.update_prefix(place=place)
+        self.update_rowlist_prefix(place=place)
 
     def search_admin2(self, place):
         place.target = place.admin2_name
         place.prefix = f' {place.city1.title()}'
         self.logger.debug(f'  Try admin2  [{place.target}] as city')
         self.geo_files.geodb.lookup_place(place=place)
-        self.update_prefix(place=place)
+        self.update_rowlist_prefix(place=place)
 
     def search_admin1(self, place):
         place.target = place.admin1_name
         # place.prefix = f' {place.city1.title()} {place.admin2_name.title()}'
         self.logger.debug(f'  Try admin1  [{place.target}] as city')
         self.geo_files.geodb.lookup_place(place=place)
-        self.update_prefix(place=place)
+        self.update_rowlist_prefix(place=place)
 
-    def process_result(self, place: Loc.Loc, targ_name, flags) -> None:
+    def process_result(self, place: Loc.Loc, flags) -> None:
         # Copy geodata to place record and Put together status text
-        #self.logger.debug(f'**PROCESS RESULT:  Res={place.result_type}  Targ={place.target} Georow_list={place.georow_list}')
+        # self.logger.debug(f'**PROCESS RESULT:  Res={place.result_type}  Targ={place.target} Georow_list={place.georow_list}')
         if place.result_type == GeoKeys.Result.NOT_SUPPORTED:
             place.place_type = Loc.PlaceType.COUNTRY
 
@@ -250,16 +272,16 @@ class Geodata:
         place.set_place_type_text()
         place.status = f'{place.result_type_text}  {result_text_list.get(place.result_type)} '
         if flags.limited:
-            place.status += ' First 300 matches shown...'
+            place.status = ' First 100 matches shown...'
 
         if flags.filtered:
             place.status = f'{place.result_type_text}  {result_text_list.get(place.result_type)} '
-            #place.status += ' ***VERIFY EVENT DATE***'
-            #place.result_type = GeoKeys.Result.PARTIAL_MATCH
+            # place.status += ' ***VERIFY EVENT DATE***'
+            # place.result_type = GeoKeys.Result.PARTIAL_MATCH
 
-        self.update_prefix(place=place)
+        self.update_rowlist_prefix(place=place)
 
-    def find_first_match(self, location: st, place: Loc.Loc):
+    def find_first_match(self, location: str, place: Loc.Loc):
         """
         Find the first match for this location in the geoname dictionary.
         First parse the location into <prefix>, city, <district2>, district1, country.
@@ -273,7 +295,7 @@ class Geodata:
 
         # Lookup location
         self.geo_files.geodb.lookup_place(place=place)
-        self.update_prefix(place=place)
+        self.update_rowlist_prefix(place=place)
 
         # Clear to a single entry
         if len(place.georow_list) > 1:
@@ -282,7 +304,7 @@ class Geodata:
             place.georow_list.append(row)
             place.result_type = GeoKeys.Result.STRONG_MATCH
 
-        self.process_result(place=place, targ_name=place.target, flags=ResultFlags(limited=False, filtered=False))
+        self.process_result(place=place,  flags=ResultFlags(limited=False, filtered=False))
 
     def find_geoid(self, geoid: str, place: Loc.Loc):
         place.target = geoid
@@ -291,13 +313,10 @@ class Geodata:
         if len(place.georow_list) > 0:
             # Copy geo row to Place
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
-            place.name = place.format_full_nm(None)
+            place.original_entry = place.format_full_nm(None)
             place.result_type = GeoKeys.Result.STRONG_MATCH
         else:
             place.result_type = GeoKeys.Result.NO_MATCH
-
-    def set_last_iso(self, iso):
-        self.last_iso = iso
 
     def read(self) -> bool:
         """ Read in geo name files which contain place names and their lat/lon.
@@ -311,7 +330,7 @@ class Geodata:
         self.progress("Reading Geoname files...", 70)
         return self.geo_files.read_geoname()
 
-    def progress(self, msg: st, percent: int):
+    def progress(self, msg: str, percent: int):
         if self.progress_bar is not None:
             self.progress_bar.update_progress(percent, msg)
         else:
@@ -333,7 +352,8 @@ class Geodata:
 
         return is_valid
 
-    def valid_year_for_location(self, event_year: int, iso: str, admin1: str, padding: int) -> bool:
+    @staticmethod
+    def valid_year_for_location(event_year: int, iso: str, admin1: str, padding: int) -> bool:
         # See if this location name was valid at the time of the event
         # Try looking up start year by state/province
         place_year = admin1_name_start_year.get(f'{iso}.{admin1.lower()}')
@@ -344,7 +364,7 @@ class Geodata:
             place_year = -1
 
         if event_year + padding < place_year and event_year != 0:
-            #self.logger.debug(f'Invalid year:  incorporation={place_year}  event={event_year} loc={admin1},{iso} pad={padding}')
+            # self.logger.debug(f'Invalid year:  incorporation={place_year}  event={event_year} loc={admin1},{iso} pad={padding}')
             return False
         else:
             return True
@@ -356,7 +376,7 @@ class Geodata:
         date_filtered = False  # Flag to indicate whether we dropped locations due to event date
         event_year = place.event_year
 
-        if len(place.georow_list) > 299:
+        if len(place.georow_list) > 100:
             limited_flag = True
         else:
             limited_flag = False
@@ -369,10 +389,11 @@ class Geodata:
         # Create a dummy 'previous' row so first comparison works
         prev_geo_row = self.geo_files.geodb.make_georow(name='q', iso='q', adm1='q', adm2='q', lat=900, lon=900, feat='q', geoid='q', sdx='q')
         idx = 0
+        geoid_list = []
 
         # Create new list without dupes (adjacent items with same name and same lat/lon)
         # Find if two items with same name are similar lat/lon (within Box Distance of 0.5 degrees)
-        #self.logger.debug('===== BUILD RESULT =====')
+        # self.logger.debug('===== BUILD RESULT =====')
         for geo_row in list_copy:
             if self.valid_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1], 60) is False:
                 # Skip location if location name  didnt exist at the time of event WITH 60 years padding
@@ -387,6 +408,10 @@ class Geodata:
             #self.logger.debug(f'{geo_row[GeoKeys.Entry.NAME]},{geo_row[GeoKeys.Entry.FEAT]} '
             #                  f'{geo_row[GeoKeys.Entry.SCORE]:.1f} {geo_row[GeoKeys.Entry.ADM2]}, '
             #                  f'{geo_row[GeoKeys.Entry.ADM1]} {geo_row[GeoKeys.Entry.ISO]}')
+            if geo_row[GeoKeys.Entry.ID] in geoid_list:
+                continue
+
+            geoid_list.append(geo_row[GeoKeys.Entry.ID])
 
             if geo_row[GeoKeys.Entry.NAME] != prev_geo_row[GeoKeys.Entry.NAME]:
                 # Name is different.  Add previous item
@@ -409,10 +434,11 @@ class Geodata:
 
         for rw, geo_row in enumerate(new_list):
             score = geo_row[GeoKeys.Entry.SCORE]
+
             if score < min_score:
                 min_score = score
-            #self.logger.debug(f'Score {score:.2f}  {geo_row[GeoKeys.Entry.NAME]}, {geo_row[GeoKeys.Entry.ADM2]}, {geo_row[GeoKeys.Entry.ADM1]}')
-            if score > min_score + 20 or score > 88:
+            self.logger.debug(f'Score {score:.2f}  {geo_row[GeoKeys.Entry.NAME]}, {geo_row[GeoKeys.Entry.ADM2]}, {geo_row[GeoKeys.Entry.ADM1]}')
+            if score > min_score + 20 or score > 288:
                 break
             place.georow_list.append(geo_row)
 
@@ -427,7 +453,7 @@ class Geodata:
         if f_prior is None:
             f_prior = 1
 
-        return (22.0 - float(f_prior) )/ 6.0
+        return (22.0 - float(f_prior)) / 6.0
 
 
 default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ", "HSP",
@@ -435,9 +461,10 @@ default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ",
            "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "PRSH", "RUIN", "RLG", "STG", "SQR", "SYG", "VAL"]
 
 # If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
-feature_priority = {'PP1M':22, 'PP1K':19, 'ADM1': 20, 'PPLA': 20, 'PPL': 18, 'PPLA2': 19, 'PPLA3': 17, 'PPLA4': 16, 'PPLC': 20, 'PPLG': 15,
-'ADM2': 16, 'MILB': 13,'NVB': 12, 'PPLF': 11, 'DEFAULT': 3, 'ADM0': 10, 'PPLL': 6, 'PPLQ': 5, 'PPLR': 4, 'PPLS': 3, 'PPLW': 3, 'PPLX': 3, 'BTL': 3,
-                    'STLMT': 1, 'CMTY': 4, 'VAL': -6, 'CH': 4, 'MSQE': 4,  'HSP': -6}
+feature_priority = {'PP1M': 22, 'P1HK': 19, 'ADM1': 20, 'PPLA': 20, 'PPL': 18, 'PPLA2': 19, 'PPLA3': 17, 'PPLA4': 16, 'PPLC': 20, 'PPLG': 15,
+                    'ADM2': 16, 'MILB': 13, 'NVB': 12, 'PPLF': 11, 'DEFAULT': 3, 'ADM0': 10, 'PPLL': 6, 'PPLQ': 5, 'PPLR': 4, 'PPLS': 3, 'PPLW': 3,
+                    'PPLX': 3, 'BTL': 3,
+                    'STLMT': 1, 'CMTY': 4, 'VAL': -6, 'CH': 4, 'MSQE': 4, 'HSP': -6}
 
 result_text_list = {
     GeoKeys.Result.STRONG_MATCH: 'Matched! Click Save to accept:',
@@ -526,4 +553,3 @@ admin1_name_start_year = {
     'ca.13': 1700,
     'ca.14': 1700
 }
-

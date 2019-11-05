@@ -20,7 +20,6 @@
 import csv
 import logging
 import os
-import re
 import time
 from collections import namedtuple
 from tkinter import messagebox
@@ -153,7 +152,8 @@ class GeodataFiles:
                 # Correct Version.  Make sure DB is not stale
                 dir_time = os.path.getmtime(self.directory)
                 cache_time = os.path.getmtime(db_path)
-                if cache_time > dir_time:
+                #if cache_time > dir_time:
+                if True:
                     self.logger.info(f'DB is up to date')
                     # Ensure DB has reasonable number of records
                     count = self.geodb.get_row_count()
@@ -161,14 +161,18 @@ class GeodataFiles:
                     if count < 1000:
                         # Error if DB has under 1000 records
                         err_msg = f'Geoname Database is too small.\n\n {db_path}\n\nRebuilding DB '
-                else:
+                if False:
                     # DB is stale
                     err_msg = f'DB {db_path} is older than geonames.org files.  Rebuilding DB '
+                    if not messagebox.askyesno('Stale Database','Database is older than geonames.org files.\n\nRebuild database?'):
+                        err_msg = ''
         else:
             err_msg = f'Database not found at\n\n{db_path}.\n\nBuilding DB'
 
         if err_msg == '':
             # No DB errors detected
+            self.geodb.create_indices()
+            self.geodb.create_geoid_index()
             return False
 
         # DB error detected - rebuild database
@@ -248,10 +252,10 @@ class GeodataFiles:
                 # Map line from csv reader into GeonameData namedtuple
                 for line in reader:
                     self.line_num += 1
-                    if self.line_num % 80000 == 0:
+                    if self.line_num % 20000 == 0:
                         # Periodically update progress
                         prog = self.line_num * bytes_per_line * 100 / fsize
-                        self.progress(msg=f"1) Building Database from {file} {prog:.0f}%", val=prog)
+                        self.progress(msg=f"1) Building Database from {file}            {prog:.1f}%", val=prog)
                     try:
                         geoname_row = Geofile_row._make(line)
                     except TypeError:
@@ -265,7 +269,7 @@ class GeodataFiles:
                         self.insert_georow(geoname_row)
                         if geoname_row.name.lower() != GeoKeys.normalize(geoname_row.name):
                             self.geodb.insert_alternate_name(geoname_row.name,
-                                                                   geoname_row.id, 'en')
+                                                                   geoname_row.id, 'ut8')
 
                     if self.progress_bar is not None:
                         if self.progress_bar.shutdown_requested:
@@ -297,12 +301,12 @@ class GeodataFiles:
         if int(geoname_row.pop) > 1000000 and 'PP' in geoname_row.feat_code:
             geo_row[GeoDB.Entry.FEAT] = 'PP1M'
         elif int(geoname_row.pop) > 100000 and 'PP' in geoname_row.feat_code:
-            geo_row[GeoDB.Entry.FEAT] = 'PP1K'
+            geo_row[GeoDB.Entry.FEAT] = 'P1HK'
         elif int(geoname_row.pop) < 10000 and 'PP' in geoname_row.feat_code:
             geo_row[GeoDB.Entry.FEAT] = 'PPLL'
 
-        if geoname_row.feat_code == 'PPLQ':
-            geo_row[GeoDB.Entry.NAME] = re.sub(r' historical', '', geo_row[GeoDB.Entry.NAME])
+        #if geoname_row.feat_code == 'PPLQ':
+        #    geo_row[GeoDB.Entry.NAME] = re.sub(r' historical', '', geo_row[GeoDB.Entry.NAME])
 
         self.geodb.insert(geo_row=geo_row, feat_code=geoname_row.feat_code)
 

@@ -123,7 +123,7 @@ class GrampsCsv:
         :param place:
         :return: None
         """
-        if place.name == '':
+        if place.original_entry == '':
             return
 
         row = [''] * 11
@@ -137,7 +137,7 @@ class GrampsCsv:
         row[CSVEntry.ENCLOSED_BY] = place.enclosed_by
         place.id = row[CSVEntry.PLACE_ID]
 
-        row[CSVEntry.TITLE] = place.prefix + place.prefix_commas + place.name
+        row[CSVEntry.TITLE] = place.prefix + place.prefix_commas + place.original_entry
         row[CSVEntry.FEAT] = place.feature
         row[CSVEntry.LAT] = f'{float(place.lat):.4f}'
 
@@ -159,10 +159,10 @@ class GrampsCsv:
 
         if place.enclosed_by != '':
             if key.count('_') <= row[CSVEntry.ENCLOSED_BY].count('_') and key.count('_') > 0:
-                msg = f'Incorrect Enclosure for [{place.name}]. Key= [{key}] Enclosure= [{row[CSVEntry.ENCLOSED_BY]}]'
+                msg = f'Incorrect Enclosure for [{place.original_entry}]. Key= [{key}] Enclosure= [{row[CSVEntry.ENCLOSED_BY]}]'
                 self.logger.warning(msg)
             elif key.count('_') < row[CSVEntry.ENCLOSED_BY].count('_') and key.count('_') == 0:
-                msg = f'Incorrect Enclosure for [{place.name}]. Key= [{key}] Enclosure= [{row[CSVEntry.ENCLOSED_BY]}]'
+                msg = f'Incorrect Enclosure for [{place.original_entry}]. Key= [{key}] Enclosure= [{row[CSVEntry.ENCLOSED_BY]}]'
                 self.logger.warning(msg)
 
         if re.match(r'P\d\d\d\d', place.id):
@@ -231,7 +231,7 @@ class GrampsCsv:
         Create EnclosedBy elements in Dictionary for CSV file
         :return: None
         """
-        self.logger.debug(f'\nCREATE ENCLOSURE FOR {place.name}')
+        self.logger.debug(f'\nCREATE ENCLOSURE FOR {place.original_entry}')
         enclosure_place = copy.copy(place)
         enclosure_place.id = ''
 
@@ -268,7 +268,7 @@ class GrampsCsv:
             self.logger.debug(f'===TABLE {idx}===')
             for key in tbl:
                 self.retrieve_csv_place(self.admin_table, self.geodata, place, key, idx)
-                self.logger.debug(f'** CSV {key} {place.name}')
+                self.logger.debug(f'** CSV {key} {place.original_entry}')
 
                 # Create enclosure for each node at this level
                 self.create_enclosed_by(place)
@@ -316,7 +316,7 @@ class GrampsCsv:
         # self.logger.debug(f'{row}')
         place.feature = row[CSVEntry.FEAT]
 
-        place.name = row[CSVEntry.TITLE]
+        place.original_entry = row[CSVEntry.TITLE]
         place.country_iso = row[CSVEntry.ISO]
         place.country_name = geodata.geo_files.geodb.get_country_name(place.country_iso)
         place.enclosed_by = row[CSVEntry.ENCLOSED_BY]
@@ -333,7 +333,7 @@ class GrampsCsv:
         if place.admin1_name is None:
             place.admin1_name = ''
 
-        tokens = place.name.split(',')
+        tokens = place.original_entry.split(',')
         if len(tokens) > 3:
             place.city1 = tokens[-4]
         if len(tokens) > 4:

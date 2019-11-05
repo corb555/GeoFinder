@@ -19,11 +19,10 @@
 import logging
 import sqlite3
 import sys
+import time
 from tkinter import messagebox
 
 from geofinder.GeoKeys import Query, Result
-
-DB_CORRUPT_MSG = 'Database error'
 
 
 class DB:
@@ -34,10 +33,12 @@ class DB:
     def __init__(self, db_filename: str):
         self.logger = logging.getLogger(__name__)
 
-        #self.select_str = '*'
+        # self.select_str = '*'
         self.order_str = ''
         self.limit_str = ''
         self.cur = None
+        self.total_time = 0
+        self.use_wildcards = True
 
         # create a database connection
         self.conn = self.connect(db_filename=db_filename)
@@ -60,12 +61,12 @@ class DB:
             self.logger.info(f'DB {db_filename} connected')
             return conn
         except Exception as e:
-            messagebox.showwarning('Error', f'{DB_CORRUPT_MSG}\n {e}')
+            messagebox.showwarning('Error', f'Database Connection Error\n {e}')
             self.err = True
             self.logger.error(e)
             sys.exit()
 
-    def set_params(self,  order_str: str, limit_str: str):
+    def set_params(self, order_str: str, limit_str: str):
         # Set values for SELECT, ORDER BY, and LIMIT
         self.order_str = order_str
         self.limit_str = limit_str
@@ -92,6 +93,7 @@ class DB:
             sys.exit()
 
     def create_index(self, create_table_sql: str):
+        self.logger.debug(f'Create idx {create_table_sql}')
         try:
             c = self.conn.cursor()
             c.execute(create_table_sql)
@@ -108,7 +110,7 @@ class DB:
             # noinspection SqlWithoutWhere
             cur.execute(f'DELETE FROM {tbl}')
         except Exception as e:
-            messagebox.showwarning('Error', f'{DB_CORRUPT_MSG}\n {e}')
+            messagebox.showwarning('Error', f'Database delete table error\n {e}')
             self.err = True
             self.logger.error(e)
             sys.exit()
@@ -125,7 +127,7 @@ class DB:
         self.cur.execute('BEGIN')
 
     def execute(self, sql, args):
-        #try:
+        # try:
         if True:
             self.cur.execute(sql, args)
         """
@@ -142,17 +144,22 @@ class DB:
         self.cur.execute("commit")
 
     def select(self, select_str, where, from_tbl, args):
+        error = False
         cur = self.conn.cursor()
         sql = f"SELECT {select_str} FROM {from_tbl} WHERE {where} {self.order_str} {self.limit_str}"
-        res = [""]
         try:
             cur.execute(sql, args)
             res = cur.fetchall()
         except Exception as e:
-            messagebox.showwarning('Error', f'{DB_CORRUPT_MSG}\n {e}')
+            messagebox.showwarning('Error', f'Database select error\n\n'
+            f'SELECT\n {select_str}\n FROM {from_tbl} WHERE\n {where}\n'
+            f'{args}\n\n {e}')
             self.err = True
             self.logger.error(e)
-            sys.exit()
+            error = True
+            #sys.exit()
+        if error:
+            skdfjd = hghg
         return res
 
     def table_exists(self, table_name):
@@ -184,7 +191,7 @@ class DB:
 
     def db_test(self, from_tbl: str):
         where = 'name = ? AND country = ?'
-        args = ('ba','fr')
+        args = ('ba', 'fr')
 
         cur = self.conn.cursor()
         sql = f"SELECT {'name'} FROM {from_tbl} WHERE {where} {self.order_str} {self.limit_str}"
@@ -202,13 +209,26 @@ class DB:
     def process_query(self, select_string, from_tbl: str, query_list: [Query]):
         # Try each query in list until we find a match
         row_list = None
+        result = None
         res = Result.NO_MATCH
         for query in query_list:
-            row_list = self.select(select_string, query.where, from_tbl, query.args)
-            #self.logger.debug(f'select * from {from_tbl}  where {query.where} val={query.args} {self.order_str} {self.limit_str}')
-            if len(row_list) > 0:
+            # During shutdown, wildcards are turned off since there is no UI to verify results
+            if self.use_wildcards == False and (query.result == Result.WILDCARD_MATCH or query.result == Result.SOUNDEX_MATCH):
+                continue
+            start = time.time()
+            result = self.select(select_string, query.where, from_tbl, query.args)
+            if row_list:
+                row_list.extend(result)
+            else:
+                row_list = result
+            elapsed = time.time() - start
+            self.total_time += elapsed
+            if elapsed > 0.001:
+                self.logger.debug(f'[{elapsed:.4f}] [{self.total_time:.1f}] len {len(row_list)} from {from_tbl} '
+                                  f'where {query.where} val={query.args} ')
+            if len(row_list) > 6:
                 res = query.result  # Set specified success code
-                #self.logger.debug(row_list)
+                # self.logger.debug(row_list)
                 # Found match.  Break out of loop
                 break
         return row_list, res
@@ -216,14 +236,22 @@ class DB:
     def process_query_list(self, from_tbl: str, query_list: [Query]):
         # Try each query in list until we find a match
         select_str = 'name, country, admin1_id, admin2_id, lat, lon, f_code, geoid, sdx'
-        row_list, res = self.process_query(select_string=select_str, from_tbl=from_tbl, query_list=query_list)
+        row_list, res = self.process_query(select_string=select_str, from_tbl=from_tbl,
+                                           query_list=query_list)
         return row_list, res
 
     def set_speed_pragmas(self):
-        # Set DB pragmas for speed.  These can lead to corruption!
+        # Set DB pragmas for speed.  These can lead to corruption!   -900
         self.logger.info('Database pragmas set for speed')
         for txt in ['PRAGMA temp_store = memory',
                     'PRAGMA journal_mode = off',
-                    'PRAGMA cache_size = -500',
+                    'PRAGMA cache_size = 10000',
                     'PRAGMA synchronous = 0']:
+            self.set_pragma(txt)
+
+    def set_analyze_pragma(self):
+        # Set DB pragmas for speed.  These can lead to corruption!   -900
+        self.logger.info(' Database Analyze pragma')
+        for txt in ['PRAGMA analyze',
+                    ]:
             self.set_pragma(txt)

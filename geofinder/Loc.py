@@ -17,7 +17,6 @@
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 import argparse
-import copy
 import logging
 import re
 from typing import List, Tuple
@@ -60,7 +59,8 @@ class Loc:
 
     def clear(self):
         # Place geo info
-        self.name: str = ""
+        self.original_entry: str = ""
+        self.formatted_name : str =''
         self.lat: float = float('NaN')  # Latitude
         self.lon: float = float('NaN')  # Longitude
         self.country_iso: str = ""  # Country ISO code
@@ -71,6 +71,7 @@ class Loc:
         self.admin1_id: str = ""  # Admin1 Geoname ID
         self.admin2_id = ""  # Admin2 Geoname ID
         self.prefix: str = ""  # Prefix (entries before city)
+        self.extra : str = ''  # Extra tokens that dont get put in prefix
         self.feature: str = ''  # Geoname feature code
         self.place_type: int = PlaceType.COUNTRY  # Is this a Country , Admin1 ,admin2 or city?
         self.target: str = ''  # Target for lookup
@@ -78,6 +79,7 @@ class Loc:
         self.prefix_commas: str = ''
         self.id = ''
         self.enclosed_by = ''
+        self.standard_parse = True
 
         # Lookup result info
         self.status: str = ""
@@ -115,6 +117,7 @@ class Loc:
             self.place_type = PlaceType.ADVANCED_SEARCH
         except Exception as e:
             self.logger.debug(e)
+        self.logger.debug(f'ADV SEARCH: targ={self.city1} iso={self.country_iso} feat={self.feature} typ={self.place_type}')
 
     def parse_place(self, place_name: str, geo_files):
         """
@@ -123,7 +126,7 @@ class Loc:
         self.status has Result status code
         """
         self.clear()
-        self.name = place_name
+        self.original_entry = place_name
 
         # Convert open-brace and open-paren to comma.  close brace/paren will be stripped by normalize()
         res = re.sub('\[', ',', place_name)
@@ -147,9 +150,6 @@ class Loc:
             #  Format: Country
             self.place_type = PlaceType.COUNTRY
             self.country_name = GeoKeys.search_normalize(tokens[-1], "")
-            self.country_name = re.sub(r'\.', '', self.country_name)  # remove .
-            if self.country_name == 'USA':
-                self.country_name = 'United States'
             self.target = self.country_name
 
             # Validate country
@@ -159,10 +159,7 @@ class Loc:
                 pass
             else:
                 # Last token is not COUNTRY.
-                # self.logger.debug(f'last tkn [{self.admin1_name}] is not a country ')
-
                 # Append blank to token list so we now have xx,admin1, blank_country
-                # self.admin1_name = save_admin1  # Restore Admin1 field
                 tokens.append('')
                 token_count = len(tokens)
                 self.result_type = GeoKeys.Result.NO_COUNTRY
@@ -173,6 +170,8 @@ class Loc:
             #  Format: Admin1, Country.
             #  Admin1 is 2nd to last token
             self.admin1_name = GeoKeys.search_normalize(tokens[-2], self.country_iso)
+            self.admin1_name = GeoKeys.admin1_normalize(self.admin1_name, self.country_iso)
+
             if len(self.admin1_name) > 0:
                 self.place_type = PlaceType.ADMIN1
                 self.target = self.admin1_name
@@ -205,7 +204,7 @@ class Loc:
                 self.place_type = PlaceType.CITY
                 self.target = self.city1
 
-            # Assign remaining tokens (if any) to prefix
+            # Assign remaining tokens (if any) to prefix.  Zero'th token to 4th from end.
             for item in tokens[0:-4]:
                 if len(self.prefix) > 0:
                     self.prefix += ' '
@@ -216,7 +215,7 @@ class Loc:
             self.admin2_name = 'new york city'
             self.target = self.admin2_name
 
-        #self.name = self.format_full_nm(None)
+        self.prefix = self.prefix.strip(',')
 
         self.logger.debug(f"***** PARSE: {place_name} City [{self.city1}] Adm2 [{self.admin2_name}]"
                           f" Adm1 [{self.admin1_name}] adm1_id [{self.admin1_id}] Cntry [{self.country_name}] Pref=[{self.prefix}]"
@@ -227,7 +226,7 @@ class Loc:
         self.logger.debug(f'status=[{self.status}]')
         return self.status
 
-    def clean(self):
+    def safe_strings(self):
         self.city1 = str(self.city1)
         self.admin1_name = str(self.admin1_name)
         self.admin2_name = str(self.admin2_name)
@@ -236,7 +235,6 @@ class Loc:
     def format_full_nm(self, replace_dct):
         """ Take the parts of a Place and build fullname.  e.g. pref, city,adm2,adm1,country name """
         self.set_place_type()
-        self.prefix = self.prefix.strip(',')
 
         if self.admin1_name is None:
             self.admin1_name = ''
@@ -261,7 +259,6 @@ class Loc:
             self.prefix_commas = ''
 
         nm = GeoKeys.capwords(nm)
-        self.prefix = GeoKeys.capwords(self.prefix)
 
         # Perform any text replacements user entered into Output Tab
         if replace_dct:

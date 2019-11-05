@@ -84,11 +84,11 @@ class TestCSV(unittest.TestCase):
 
         for row in csv_data:
             place.clear()
-            place.name = row[RowEntry.NAME]
+            place.original_entry = row[RowEntry.NAME]
             place.feature = row[RowEntry.FEAT]
-            place.parse_place(place_name=place.name, geo_files=TestCSV.geodata.geo_files)
+            place.parse_place(place_name=place.original_entry, geo_files=TestCSV.geodata.geo_files)
             # Lookup record
-            TestCSV.geodata.find_first_match(place.name, place)
+            TestCSV.geodata.find_first_match(place.original_entry, place)
             place.id = row[RowEntry.PLACE_ID]
             TestCSV.csv.set_CSV_place_type(place)
             #TestCSV.geodata.set_place_type_text(place)
@@ -105,8 +105,8 @@ class TestCSV(unittest.TestCase):
         print("*****TEST: {}".format(title))
         place = Loc.Loc()
         place.parse_place(entry, TestCSV.geodata.geo_files )
-        self.geodata.find_first_match(place.name, place)
-        place.name = place.format_full_nm(None)
+        self.geodata.find_first_match(place.original_entry, place)
+        place.original_entry = place.format_full_nm(None)
         TestCSV.csv.set_CSV_place_type(place)
         place.id = TestCSV.csv.get_csv_key(place)
 
