@@ -171,14 +171,14 @@ class DB:
 
         cur = self.conn.cursor()
 
-        # See if Version Table exists.  If it does not, then the version is 1.0
+        # See if  Table exists.  If it does not, then the version is 1.0
         sql = f"SELECT {select_str} FROM {from_tbl} WHERE {where} {self.order_str} {self.limit_str}"
 
-        self.logger.debug(f'version sql={sql} args=[{args}]')
+        self.logger.debug(f'{table_name} sql={sql} args=[{args}]')
         try:
             cur.execute(sql, args)
             res = cur.fetchall()
-            self.logger.debug(f'DB version tbl: {res}')
+            self.logger.debug(f'DB {table_name} tbl: {res}')
             if len(res) > 0:
                 self.logger.debug(f'{table_name} table exists')
                 return True
@@ -245,13 +245,13 @@ class DB:
         self.logger.info('Database pragmas set for speed')
         for txt in ['PRAGMA temp_store = memory',
                     'PRAGMA journal_mode = off',
-                    'PRAGMA cache_size = 10000',
+                    'PRAGMA locking_mode = exclusive',
                     'PRAGMA synchronous = 0']:
             self.set_pragma(txt)
 
     def set_analyze_pragma(self):
         # Set DB pragmas for speed.  These can lead to corruption!   -900
         self.logger.info(' Database Analyze pragma')
-        for txt in ['PRAGMA analyze',
+        for txt in ['PRAGMA optimize',
                     ]:
             self.set_pragma(txt)

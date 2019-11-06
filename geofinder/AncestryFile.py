@@ -82,6 +82,15 @@ class AncestryFile:
         if os.path.exists(in_path):
             # gzip.open('file.gz', 'rt', encoding='utf-8')
             self.infile = gzip.open(in_path, 'rt', encoding='utf-8', errors='replace')
+            try:
+                # Test if we can read this with GZIP
+                line = self.infile.readline()
+                self.infile.close()
+                self.infile = gzip.open(in_path, 'rt', encoding='utf-8', errors='replace')
+            except OSError as e:
+                self.infile.close()
+                self.infile = open(in_path, 'rt', encoding='utf-8', errors='replace')
+
             self.filesize: int = int(os.path.getsize(in_path))  # Used for progress bar calculation
             self.logger.info(f'Opened  {in_path} Size={self.filesize}')
             self.error: bool = False

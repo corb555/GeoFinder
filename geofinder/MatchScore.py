@@ -132,7 +132,7 @@ class MatchScore:
         # Add up input score, weighted output score, prefix score, feature and parse penalty
         score = in_score + 0.2 * out_score + pref_score + feature_score + parse_penalty
 
-        self.logger.debug(f'SC {score:.1f} [{res_place.original_entry}]  out={out_score * 0.2:.1f} in={in_score:.1f} {pref_score} {score_text}')
+        #self.logger.debug(f'SC {score:.1f} [{res_place.original_entry}]  out={out_score * 0.2:.1f} in={in_score:.1f} {pref_score} {score_text}')
         inp_place.place_type = save_type
 
         return int(score)

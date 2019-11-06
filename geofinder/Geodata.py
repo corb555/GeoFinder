@@ -437,7 +437,7 @@ class Geodata:
 
             if score < min_score:
                 min_score = score
-            self.logger.debug(f'Score {score:.2f}  {geo_row[GeoKeys.Entry.NAME]}, {geo_row[GeoKeys.Entry.ADM2]}, {geo_row[GeoKeys.Entry.ADM1]}')
+            #self.logger.debug(f'Score {score:.2f}  {geo_row[GeoKeys.Entry.NAME]}, {geo_row[GeoKeys.Entry.ADM2]}, {geo_row[GeoKeys.Entry.ADM1]}')
             if score > min_score + 20 or score > 288:
                 break
             place.georow_list.append(geo_row)

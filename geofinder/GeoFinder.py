@@ -348,10 +348,10 @@ class GeoFinder:
                 elif self.place.result_type == GeoKeys.Result.DELETE:
                     continue
                 else:
-                    self.logger.warning(f'Error looking up GEOID=[{replacement_geoid}] for [{town_entry}] ')
+                    self.logger.warning(f'***ERROR looking up GEOID=[{replacement_geoid}] for [{town_entry}] ')
                     self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
-                    self.w.original_entry.set_text(f'Error looking up GEOID=[{replacement_geoid}] for [{town_entry}]' )
-                    self.w.user_entry.set_text(f'Error looking up GEOID=[{replacement_geoid}] for [{town_entry}]' )
+                    self.w.original_entry.set_text(f'** DATABASE ERROR FOR GEOID=[{replacement_geoid}] for [{town_entry}]' )
+                    self.w.user_entry.set_text(f'{town_entry}' )
                     self.geodata.find_location(town_entry, self.place, self.w.prog.shutdown_requested)
                     break
                 continue

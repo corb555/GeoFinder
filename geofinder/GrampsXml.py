@@ -191,7 +191,7 @@ class GrampsXml(AncestryFile):
                     self.tag = 'PLAC'
                     self.value = place_entry.text
                     self.title = self.value
-                    self.logger.debug(f'PTITLE <{place_entry.tag} VALUE="{self.value}"/>')
+                    #self.logger.debug(f'PTITLE <{place_entry.tag} VALUE="{self.value}"/>')
                     self.got_place = True
                     #return
                 elif place_entry.tag == 'pname' and self.got_pname is False:
@@ -199,7 +199,7 @@ class GrampsXml(AncestryFile):
                     self.tag = 'PLAC'
                     self.value = place_entry.get('value')
                     self.name = self.value
-                    self.logger.debug(f'PNAME <{place_entry.tag} VALUE="{self.value}"/>')
+                    #self.logger.debug(f'PNAME <{place_entry.tag} VALUE="{self.value}"/>')
                     self.got_pname = True
                     #return
                 elif place_entry.tag == 'coord':
@@ -246,7 +246,7 @@ class GrampsXml(AncestryFile):
         # It will be written out later when entire XML tree is written out
         # TODO implement CSV
         self.csv.write_asis(entry)
-        self.logger.debug(f'AS IS {self.id} {self.value}')
+        #self.logger.debug(f'AS IS {self.id} {self.value}')
         pass
 
     def write_lat_lon(self, lat: float, lon: float):

@@ -169,6 +169,7 @@ class GeodataFiles:
         else:
             err_msg = f'Database not found at\n\n{db_path}.\n\nBuilding DB'
 
+        self.logger.debug(f'{err_msg}')
         if err_msg == '':
             # No DB errors detected
             self.geodb.create_indices()
@@ -176,7 +177,9 @@ class GeodataFiles:
             return False
 
         # DB error detected - rebuild database
+        self.logger.debug('message box')
         messagebox.showinfo('Database Error', err_msg)
+        self.logger.debug('message box done')
 
         # DB  error.  Rebuild it from geoname files
         self.logger.debug(err_msg)
@@ -184,6 +187,7 @@ class GeodataFiles:
         if os.path.exists(db_path):
             self.geodb.close()
             os.remove(db_path)
+            self.logger.debug('Database deleted')
 
         self.geodb = GeoDB.GeoDB(db_path=db_path, version=self.required_db_version)
         self.country = Country.Country(self.progress_bar, geodb=self.geodb, lang_list=self.lang_list)
@@ -195,6 +199,9 @@ class GeodataFiles:
         self.country.read()
 
         start_time = time.time()
+
+        # Set DB version as -1 for incomplete
+        self.geodb.insert_version(-1)
 
         # Put in geonames file data
         for fname in ['allCountries.txt', 'ca.txt', 'gb.txt', 'de.txt', 'fr.txt', 'nl.txt']:
@@ -223,6 +230,7 @@ class GeodataFiles:
         self.geodb.create_geoid_index()
         self.geodb.create_indices()
         self.logger.debug(f'Indices done.  Elapsed ={time.time() - start_time}')
+        self.geodb.insert_version(self.required_db_version)
 
         return False
 
