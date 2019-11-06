@@ -64,7 +64,7 @@ class TestScoring(unittest.TestCase):
 
     def run_test2(self, title: str, inp, out):
         print("*****TEST: CHAR {}".format(title))
-        out, inp = TestScoring.scoring.remove_matching_characters(out, inp)
+        out, inp = TestScoring.scoring.remove_matching_seq(out, inp)
         return out, inp
 
     def run_test3(self, title: str, inp, out):
@@ -94,15 +94,37 @@ class TestScoring(unittest.TestCase):
         title = "score2"
         scr = self.run_test3(title, "London, England,", "London, England, United Kingdom")
         self.assertGreater(10, scr, title)
-    """
-
-
+    
+    def test_scr82(self):
+        title = "score82"
+        scr = self.run_test3(title, "Domfront, Normandy", "Domfront-En-Champagne, Sarthe, Pays De La Loire, France")
+        self.assertGreater(2, scr, title)
+        
     def test_scr83(self):
         title = "score83"
         scr = self.run_test3(title, "St Quentin, Aisne, Picardy, France", "St Quentin, Departement De L'Aisne, Hauts De France, France")
         self.assertGreater(2, scr, title)
-
+    
+    def test_scr84(self):
+        title = "score84"
+        scr = self.run_test3(title, "Domfront, Normandy", "Domfront, Department De L'Orne, Normandie, France")
+        self.assertGreater(2, scr, title)
     """
+
+    def test_scr85(self):
+        title = "score85"
+        scr = self.run_test3(title, "Old Bond Street, London, Middlesex, England",
+                             " , London, Greater London, England, United Kingdom")
+        self.assertGreater(2, scr, title)
+
+    def test_scr86(self):
+        title = "score86"
+        scr = self.run_test3(title, "Old Bond Street, London, Middlesex, England",
+                             " , Museum Of London, Greater London, England, United Kingdom")
+        self.assertGreater(2, scr, title)
+    """
+    Old Bond Street  , Museum Of London, Greater London, England, United Kingdom
+    
     def test_scr03(self):
         title = "score3"
         scr = self.run_test3(title, "St. Margaret, Westminster, London, England", "London,England,United Kingdom")

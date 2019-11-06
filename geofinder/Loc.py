@@ -187,7 +187,13 @@ class Loc:
                     tokens.append('')
                     token_count = len(tokens)
 
-        if token_count > 2:
+        if token_count == 3 and self.admin1_name == '' and self.country_name == '':
+            # Just one valid token, so take as city
+            self.city1 = GeoKeys.search_normalize(tokens[-3], self.country_iso)
+            if len(self.city1) > 0:
+                self.place_type = PlaceType.CITY
+                self.target = self.city1
+        elif token_count > 2:
             #  Format: Admin2, Admin1, Country
             #  Admin2 is 3rd to last.  Note -  if Admin2 isnt found, it will look it up as city
             self.admin2_name = GeoKeys.search_normalize(tokens[-3], self.country_iso)

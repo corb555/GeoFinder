@@ -165,7 +165,7 @@ class AppLayout:
         self.tree.bind("<Double-1>", self.main.doubleclick_handler)
 
         self.ged_event_info: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text=" ", width=GFStyle.TXT_WID, style='Light.TLabel')
-        self.footnote: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="Data is from GeoNames.org.  Hover for details",
+        self.footnote: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="Data is from GeoNames.org.",
                                                                              width=GFStyle.TXT_WID, style='Light.TLabel')
 
         self.prog: Progress.Progress = Progress.Progress(self.root, bar_color=GFStyle.HIGH_COLOR, trough_color=GFStyle.LT_GRAY, status=self.status)

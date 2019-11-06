@@ -213,7 +213,6 @@ class GeoFinder:
         error = self.geodata.read_geonames()
         if error:
             TKHelper.fatal_error(MISSING_FILES)
-        self.logger.info(f'Geoname dictionary has {self.geodata.geo_files.geodb.get_row_count()} entries')
         self.w.root.update()
         self.w.prog.update_progress(100, " ")
 

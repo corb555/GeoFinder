@@ -74,7 +74,7 @@ class GeoDB:
         self.geoid_admin_dict = {}  # Key is GEOID, Value is DB ID for entry
         self.place_type = ''
 
-    def delete_db(self):
+    def delete_dbZZZ(self):
         self.logger.info('Deleting geoname DB')
 
     def lookup_place(self, place: Loc.Loc) -> []:
@@ -148,42 +148,6 @@ class GeoDB:
         if place.result_type == Result.STRONG_MATCH and min_score > 10:
             place.result_type = Result.PARTIAL_MATCH
 
-
-
-
-    def advanced_search(self, place: Loc):
-        """
-        Advanced search - support parameters for ISO and Feature class
-        """
-        lookup_target = place.target
-        if len(lookup_target) == 0:
-            return
-        pattern = self.create_wildcard(lookup_target)
-        feature_pattern = self.create_wildcard(place.feature)
-        self.logger.debug(f'Advanced Search. Targ=[{pattern}] feature=[{feature_pattern}]'
-                          f'  iso=[{place.country_iso}] ')
-
-        if len(place.feature) > 0:
-            query_list = [
-                Query(where="name LIKE ? AND country LIKE ? AND f_code LIKE ?",
-                      args=(pattern, place.country_iso, feature_pattern),
-                      result=Result.PARTIAL_MATCH)]
-        else:
-            query_list = [
-                Query(where="name LIKE ? AND country LIKE ?",
-                      args=(pattern, place.country_iso),
-                      result=Result.PARTIAL_MATCH)]
-
-        # Search main DB
-        place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
-
-        # self.logger.debug(f'main Result {place.georow_list}')
-
-        # Search admin DB
-        admin_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
-        place.georow_list.extend(admin_list)
-        # self.logger.debug(f'admin Result {place.georow_list}')
-
     def select_city(self, place: Loc):
         """
         Search for  entry - try the most exact match first, then less exact matches
@@ -192,9 +156,11 @@ class GeoDB:
         if len(lookup_target) == 0:
             return
         pattern = self.create_wildcard(lookup_target)
+        quick_pattern = self.create_quick_wildcard(lookup_target)
+
         sdx = get_soundex(lookup_target)
-        self.logger.debug(f'CITY lkp targ=[{lookup_target}] adm1 id=[{place.admin1_id}]'
-                          f' adm2 id=[{place.admin2_id}] iso=[{place.country_iso}] patt =[{pattern}] sdx={sdx} pref={place.prefix}')
+        #self.logger.debug(f'CITY lkp targ=[{lookup_target}] adm1 id=[{place.admin1_id}]'
+        #                  f' adm2 id=[{place.admin2_id}] iso=[{place.country_iso}] patt =[{pattern}] sdx={sdx} pref={place.prefix}')
 
         query_list = []
 
@@ -205,7 +171,7 @@ class GeoDB:
                                     result=Result.PARTIAL_MATCH))
             # lookup by wildcard name
             query_list.append(Query(where="name LIKE ?",
-                                    args=(pattern,),
+                                    args=(quick_pattern,),
                                     result=Result.WILDCARD_MATCH))
             # lookup by soundex
             query_list.append(Query(where="sdx = ?",
@@ -218,38 +184,25 @@ class GeoDB:
         # Build query list - try each query in order until a match is found
         # Start with the most exact match depending on the data provided.
         if len(place.admin1_name) > 0:
-            #if len(place.admin2_name) > 0:
-                # lookup by name, admin1, admin2
-                #query_list.append(Query(where="name = ? AND country = ? AND admin1_id = ? AND admin2_id = ?",
-                #                        args=(lookup_target, place.country_iso, place.admin1_id, place.admin2_id),
-                #                        result=Result.STRONG_MATCH))
-
-            # lookup by country, name, admin1
+            # lookup by name, ADMIN1, country
             query_list.append(Query(where="name = ? AND country = ? AND admin1_id = ?",
                                     args=(lookup_target, place.country_iso, place.admin1_id),
                                     result=Result.STRONG_MATCH))
 
-            # lookup by wildcard country, name, admin1
+            # lookup by wildcard name, ADMIN1, country
             query_list.append(Query(where="name LIKE ? AND country = ? AND admin1_id = ?",
                                     args=(pattern, place.country_iso, place.admin1_id),
                                     result=Result.WILDCARD_MATCH))
+        else:
+            # lookup by wildcard  name, country
+            query_list.append(Query(where="name LIKE ? AND country = ?",
+                                    args=(pattern, place.country_iso),
+                                    result=Result.WILDCARD_MATCH))
 
-        #elif len(place.admin2_name) > 0:
-            # lookup by name
-            # admin1 wasnt entered, so a match here is an exact match
-            #query_list.append(Query(where="name = ? AND admin2_id=? AND country = ?",
-            #                        args=(lookup_target, place.admin2_id, place.country_iso),
-            #                        result=Result.STRONG_MATCH))
-
-        # Lookup by country and name
+        # Lookup by name, country
         query_list.append(Query(where="name = ? AND country = ?",
                                 args=(lookup_target, place.country_iso),
                                 result=Result.PARTIAL_MATCH))
-
-        # append lookup by wildcard country and name
-        query_list.append(Query(where="name LIKE ? AND country = ?",
-                                args=(pattern, place.country_iso),
-                                result=Result.WILDCARD_MATCH))
 
         if len(place.admin1_name) > 0:
             # lookup by Soundex name, country and admin1
@@ -265,7 +218,6 @@ class GeoDB:
         # Try each query in list until we find a match
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata',
                                                                           query_list=query_list)
-        # self.logger.debug(place.georow_list)
 
     def select_admin2(self, place: Loc):
         """Search for Admin2 entry"""
@@ -639,6 +591,40 @@ class GeoDB:
 
         return res
 
+
+    def advanced_search(self, place: Loc):
+        """
+        Advanced search - support parameters for ISO and Feature class
+        """
+        lookup_target = place.target
+        if len(lookup_target) == 0:
+            return
+        pattern = self.create_wildcard(lookup_target)
+        feature_pattern = self.create_wildcard(place.feature)
+        self.logger.debug(f'Advanced Search. Targ=[{pattern}] feature=[{feature_pattern}]'
+                          f'  iso=[{place.country_iso}] ')
+
+        if len(place.feature) > 0:
+            query_list = [
+                Query(where="name LIKE ? AND country LIKE ? AND f_code LIKE ?",
+                      args=(pattern, place.country_iso, feature_pattern),
+                      result=Result.PARTIAL_MATCH)]
+        else:
+            query_list = [
+                Query(where="name LIKE ? AND country LIKE ?",
+                      args=(pattern, place.country_iso),
+                      result=Result.PARTIAL_MATCH)]
+
+        # Search main DB
+        place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
+
+        # self.logger.debug(f'main Result {place.georow_list}')
+
+        # Search admin DB
+        admin_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
+        place.georow_list.extend(admin_list)
+        # self.logger.debug(f'admin Result {place.georow_list}')
+
     def copy_georow_to_place(self, row, place: Loc):
         # Copy data from DB row into Place
         # self.logger.debug(row)
@@ -724,6 +710,14 @@ class GeoDB:
             return f'%{pattern}%'
 
     @staticmethod
+    def create_quick_wildcard(pattern):
+        # Create SQL wildcard pattern (convert * to %).  Add % on end
+        if '*' in pattern:
+            return re.sub(r"\*", "%", pattern)
+        else:
+            return f'{pattern}%'
+
+    @staticmethod
     def create_county_wildcard(pattern):
         # Try pattern with 'shire' removed
         pattern = re.sub(r"shire", "", pattern)
@@ -806,7 +800,7 @@ class GeoDB:
             row_list, res = self.db.process_query(select_string=select_str, from_tbl='main.version', query_list=query_list)
             if len(row_list) > 0:
                 ver = int(row_list[0][1])
-                self.logger.debug(f'Version = {ver}')
+                self.logger.debug(f'Database Version = {ver}')
                 return ver
 
         # No version table, so this is V1

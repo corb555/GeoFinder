@@ -32,7 +32,6 @@ class Geodata:
     The data files must be downloaded from geonames.org
     First try a key lookup.  If that fails do a partial match
     """
-
     def __init__(self, directory_name: str, progress_bar):
         self.logger = logging.getLogger(__name__)
         self.status = "geoname file error"
@@ -40,106 +39,6 @@ class Geodata:
         self.progress_bar = progress_bar  # progress_bar
         self.geo_files = GeodataFiles.GeodataFiles(self.directory, progress_bar=self.progress_bar)  # , geo_district=self.geo_district)
         self.save_place = None
-
-    def update_rowlist_prefix(self, place: Loc.Loc):
-        """
-        Set all the prefix values in the georow_list
-        :param place:
-        """
-
-        temp_place = Loc.Loc()
-        tokens = place.original_entry.split(',')
-
-        for idx, rw in enumerate(place.georow_list):
-            update = list(rw)
-
-            # Put unused fields into prefix
-            self.geo_files.geodb.copy_georow_to_place(rw, temp_place)
-            temp_place.prefix = ''
-            nm = GeoKeys.search_normalize(temp_place.format_full_nm(self.geo_files.output_replace_dct), place.country_iso)
-            # self.logger.debug(f'NAME ={nm}')
-            place.prefix = ''
-
-            for num, fld in enumerate(tokens[:2]):
-                item = GeoKeys.search_normalize(fld, place.country_iso)
-                add_item = False
-                # self.logger.debug(f'item={item} ')
-                if num == 0 and item not in nm:
-                    add_item = True
-
-                if num == 1 and item not in nm and len(tokens) == 2:
-                    # We only add the second token if there are only 2 tokens
-                    add_item = True
-
-                if '*' in item:
-                    # Don't add as prefix if item is a wildcard search
-                    add_item = False
-
-                if add_item:
-                    if len(place.prefix) > 0:
-                        place.prefix += ' '
-                    place.prefix += item.title()
-
-            if len(place.prefix) > 0:
-                place.prefix_commas = ', '
-            update[GeoKeys.Entry.PREFIX] = place.prefix
-            # self.logger.debug(f'PREFIX={place.prefix} ')
-
-            place.georow_list[idx] = tuple(update)
-
-    def lookup_by_type(self, place, result_list, typ, save_place):
-        self.logger.debug(f'Lookup by Type.  pre[{place.prefix}] {place.city1}  {place.place_type}')
-
-        if typ == Loc.PlaceType.CITY:
-            # Try City as city (do as-is)
-            pass
-        elif typ == Loc.PlaceType.ADMIN2:
-            # Try ADMIN2 as city
-            place.prefix += place.city1
-            place.city1 = place.admin2_name
-            place.admin2_name = ''
-        elif typ == Loc.PlaceType.PREFIX:
-            # Try Prefix as City
-            place.city1 = place.prefix
-            place.prefix = place.city1
-        elif typ == Loc.PlaceType.ADVANCED_SEARCH:
-            # Advanced Search
-            self.geo_files.geodb.lookup_place(place=place)
-            result_list.extend(place.georow_list)
-            return
-        else:
-            self.logger.warning(f'Unknown TYPE {typ}')
-
-        place.target = place.city1
-        place.place_type = Loc.PlaceType.CITY
-
-        self.geo_files.geodb.lookup_place(place=place)
-        result_list.extend(place.georow_list)
-        self.update_rowlist_prefix(place=place)
-
-        # Restore items
-        place.city1 = save_place.city1
-        place.admin2_name = save_place.admin2_name
-        place.prefix = save_place.prefix
-        place.extra = save_place.extra
-
-    def lookup_as_admin2(self, place: Loc.Loc, result_list, save_place: Loc.Loc):
-        # Try City as ADMIN2
-        place.extra = place.admin2_name
-        place.target = place.city1
-        place.admin2_name = place.city1
-        place.city1 = ''
-        place.place_type = Loc.PlaceType.ADMIN2
-
-        self.geo_files.geodb.lookup_place(place=place)
-        result_list.extend(place.georow_list)
-        self.update_rowlist_prefix(place=place)
-
-        # Restore items
-        place.city1 = save_place.city1
-        place.admin2_name = save_place.admin2_name
-        place.admin1_name = save_place.admin1_name
-        place.prefix = save_place.prefix
 
     def find_location(self, location: str, place: Loc.Loc, shutdown):
         """
@@ -156,7 +55,7 @@ class Geodata:
         flags = ResultFlags(limited=False, filtered=False)
         result_list = []
 
-        self.logger.debug(f'Find LOCATION City=[{place.city1}] Adm2=[{place.admin2_name}]\
+        self.logger.debug(f'===== FIND LOCATION City=[{place.city1}] Adm2=[{place.admin2_name}]\
         Adm1=[{place.admin1_name}] Pref=[{place.prefix}] Cntry=[{place.country_name}] iso=[{place.country_iso}]  Type={place.place_type} ')
 
         # Save a shallow copy so we can restore fields
@@ -185,32 +84,33 @@ class Geodata:
 
         # 1) Try standard lookup based on parse:  city, county, state/province, country
         place.standard_parse = True
-        self.logger.debug(f'1) Standard Lookup pre[{place.prefix}] {place.city1}  {place.place_type}')
+        self.logger.debug(f'  1) Standard Lookup. Target={place.city1}  pref [{place.prefix}] type={place.place_type}')
+
         self.geo_files.geodb.lookup_place(place=place)
         result_list.extend(place.georow_list)
         self.update_rowlist_prefix(place=place)
 
-        # Try alternatives since parsing can be wrong
-        # 2) Try:  a) prefix as city, b) admin2 as city
-        place.standard_parse = False
+        # Restore items
+        place.city1 = self.save_place.city1
+        place.admin2_name = self.save_place.admin2_name
+        place.prefix = self.save_place.prefix
+        place.extra = self.save_place.extra
 
+        # 2) Try a) Prefix as city, b) Admin2 as city  (try alternatives since parsing can be wrong)
+        place.standard_parse = False
         for ty in [Loc.PlaceType.PREFIX, Loc.PlaceType.ADMIN2]:
             self.lookup_by_type(place, result_list, ty, self.save_place)
 
         # 3) Try city as Admin2
-        self.logger.debug(f'Try city as ADM2 pre[{place.prefix}] adm2={place.admin2_name}  {place.place_type}')
-
+        self.logger.debug(f'  3) Lkp w Cit as Adm2. Target={place.city1}  pref [{place.prefix}] ')
         self.lookup_as_admin2(place=place, result_list=result_list, save_place=self.save_place)
-
-        # self.logger.debug(result_list)
 
         #  Move result list into place georow list
         place.georow_list.clear()
         place.georow_list.extend(result_list)
 
         if len(place.georow_list) > 0:
-            # Build list - sort and remove duplicates
-            # self.logger.debug(f'Match {place.georow_list}')
+            # Sort and remove duplicates
             self.process_result(place=place, flags=flags)
             flags = self.build_result_list(place)
 
@@ -227,6 +127,49 @@ class Geodata:
         # Process the results
         self.process_result(place=place,  flags=flags)
         self.logger.debug(f'Status={place.status}')
+
+    def lookup_by_type(self, place, result_list, typ, save_place):
+        typ_name = ''
+        if typ == Loc.PlaceType.CITY:
+            # Try City as city (do as-is)
+            typ_name = 'City'
+            pass
+        elif typ == Loc.PlaceType.ADMIN2:
+            # Try ADMIN2 as city
+            if place.admin2_name != '':
+                place.prefix += place.city1
+                place.city1 = place.admin2_name
+                place.admin2_name = ''
+                typ_name = 'Admin2'
+        elif typ == Loc.PlaceType.PREFIX:
+            # Try Prefix as City
+            if place.prefix != '':
+                place.city1 = place.prefix
+                place.prefix = place.city1
+                typ_name = 'Prefix'
+        elif typ == Loc.PlaceType.ADVANCED_SEARCH:
+            # Advanced Search
+            self.geo_files.geodb.lookup_place(place=place)
+            result_list.extend(place.georow_list)
+            return
+        else:
+            self.logger.warning(f'Unknown TYPE {typ}')
+
+        if typ_name != '':
+            self.logger.debug(f'2) Lookup by {typ_name} Target={place.city1}  pref [{place.prefix}] ')
+
+            place.target = place.city1
+            place.place_type = Loc.PlaceType.CITY
+
+            self.geo_files.geodb.lookup_place(place=place)
+            result_list.extend(place.georow_list)
+            self.update_rowlist_prefix(place=place)
+
+            # Restore items
+            place.city1 = save_place.city1
+            place.admin2_name = save_place.admin2_name
+            place.prefix = save_place.prefix
+            place.extra = save_place.extra
 
     def lookup_geoid(self, place):
         flags = ResultFlags(limited=False, filtered=False)
@@ -254,6 +197,24 @@ class Geodata:
         self.logger.debug(f'  Try admin1  [{place.target}] as city')
         self.geo_files.geodb.lookup_place(place=place)
         self.update_rowlist_prefix(place=place)
+
+    def lookup_as_admin2(self, place: Loc.Loc, result_list, save_place: Loc.Loc):
+        # Try City as ADMIN2
+        place.extra = place.admin2_name
+        place.target = place.city1
+        place.admin2_name = place.city1
+        place.city1 = ''
+        place.place_type = Loc.PlaceType.ADMIN2
+
+        self.geo_files.geodb.lookup_place(place=place)
+        result_list.extend(place.georow_list)
+        self.update_rowlist_prefix(place=place)
+
+        # Restore items
+        place.city1 = save_place.city1
+        place.admin2_name = save_place.admin2_name
+        place.admin1_name = save_place.admin1_name
+        place.prefix = save_place.prefix
 
     def process_result(self, place: Loc.Loc, flags) -> None:
         # Copy geodata to place record and Put together status text
@@ -317,6 +278,52 @@ class Geodata:
             place.result_type = GeoKeys.Result.STRONG_MATCH
         else:
             place.result_type = GeoKeys.Result.NO_MATCH
+
+
+    def update_rowlist_prefix(self, place: Loc.Loc):
+        """
+        Set all the prefix values in the georow_list
+        :param place:
+        """
+        temp_place = Loc.Loc()
+        tokens = place.original_entry.split(',')
+
+        for idx, rw in enumerate(place.georow_list):
+            update = list(rw)
+
+            # Put unused fields into prefix
+            self.geo_files.geodb.copy_georow_to_place(rw, temp_place)
+            temp_place.prefix = ''
+            nm = GeoKeys.search_normalize(temp_place.format_full_nm(self.geo_files.output_replace_dct), place.country_iso)
+            # self.logger.debug(f'NAME ={nm}')
+            place.prefix = ''
+
+            for num, fld in enumerate(tokens[:2]):
+                item = GeoKeys.search_normalize(fld, place.country_iso)
+                add_item = False
+                # self.logger.debug(f'item={item} ')
+                if num == 0 and item not in nm:
+                    add_item = True
+
+                if num == 1 and item not in nm and len(tokens) == 2:
+                    # We only add the second token if there are only 2 tokens
+                    add_item = True
+
+                if '*' in item:
+                    # Don't add as prefix if item is a wildcard search
+                    add_item = False
+
+                if add_item:
+                    if len(place.prefix) > 0:
+                        place.prefix += ' '
+                    place.prefix += item.title()
+
+            if len(place.prefix) > 0:
+                place.prefix_commas = ', '
+            update[GeoKeys.Entry.PREFIX] = place.prefix
+            # self.logger.debug(f'PREFIX={place.prefix} ')
+
+            place.georow_list[idx] = tuple(update)
 
     def read(self) -> bool:
         """ Read in geo name files which contain place names and their lat/lon.

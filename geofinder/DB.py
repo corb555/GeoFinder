@@ -93,7 +93,7 @@ class DB:
             sys.exit()
 
     def create_index(self, create_table_sql: str):
-        self.logger.debug(f'Create idx {create_table_sql}')
+        #self.logger.debug(f'Create idx {create_table_sql}')
         try:
             c = self.conn.cursor()
             c.execute(create_table_sql)
@@ -174,13 +174,13 @@ class DB:
         # See if  Table exists.  If it does not, then the version is 1.0
         sql = f"SELECT {select_str} FROM {from_tbl} WHERE {where} {self.order_str} {self.limit_str}"
 
-        self.logger.debug(f'{table_name} sql={sql} args=[{args}]')
+        #self.logger.debug(f'{table_name} sql={sql} args=[{args}]')
         try:
             cur.execute(sql, args)
             res = cur.fetchall()
-            self.logger.debug(f'DB {table_name} tbl: {res}')
+            #self.logger.debug(f'DB {table_name} tbl: {res}')
             if len(res) > 0:
-                self.logger.debug(f'{table_name} table exists')
+                #self.logger.debug(f'{table_name} table exists')
                 return True
             else:
                 self.logger.debug(f'{table_name} table NOT FOUND')
@@ -223,7 +223,7 @@ class DB:
                 row_list = result
             elapsed = time.time() - start
             self.total_time += elapsed
-            if elapsed > 0.001:
+            if elapsed > 5:
                 self.logger.debug(f'[{elapsed:.4f}] [{self.total_time:.1f}] len {len(row_list)} from {from_tbl} '
                                   f'where {query.where} val={query.args} ')
             if len(row_list) > 6:
