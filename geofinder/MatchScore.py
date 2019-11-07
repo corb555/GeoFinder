@@ -27,7 +27,7 @@ class MatchScore:
     """
     Calculate how close the database result place name is to the users input place name.
     1) Recursively remove largest text sequence in both to end up with just mismatched text
-    2) Calculate the percent that didnt match in each token of user input
+    2) Calculate the percent that didnt match in each comma separated term of user input
     3) Score is based on percent mismatch weighted for each term (City is higher, county is lower)
 
     A standard text difference, such as Levenstein, was not used because those treat both strings as equal, whereas this
@@ -133,25 +133,39 @@ class MatchScore:
 
         return score
 
-    def remove_matching_seq(self, out: str, inp: str, depth: int) -> (str, str):
-        # Find largest matching sequence.  Remove it in inp and out.  Then call recursively
-        s = SequenceMatcher(None, out, inp)
-        match = s.find_longest_match(0, len(out), 0, len(inp))
+    def _remove_matching_seq(self, text1: str, text2: str, attempts: int) -> (str, str):
+        """
+        Find largest matching sequence.  Remove it in text1 and text2.
+        Call recursively until attempts hits zero or there are no matches longer than 1 char
+        :param text1:
+        :param text2:
+        :param attempts: Number of times to remove largest text sequence
+        :return:
+        """
+        s = SequenceMatcher(None, text1, text2)
+        match = s.find_longest_match(0, len(text1), 0, len(text2))
         if match.size > 1:
-            item = out[match.a:match.a + match.size]
-            inp = re.sub(item, '', inp)
-            out = re.sub(item, '', out)
-            if depth > 0:
+            # Remove matched sequence from inp and out
+            item = text1[match.a:match.a + match.size]
+            text2 = re.sub(item, '', text2)
+            text1 = re.sub(item, '', text1)
+            if attempts > 0:
                 # Call recursively to get next largest match and remove it
-                out, inp = self.remove_matching_seq(out, inp, depth - 1)
-        return out, inp
+                text1, text2 = self._remove_matching_seq(text1, text2, attempts - 1)
+        return text1, text2
 
-    def remove_matching_sequences(self, out: str, inp: str) -> (str, str):
+    def remove_matching_sequences(self, text1: str, text2: str) -> (str, str):
+        """
+        Find largest sequences that match between text1 and 2.  Remove them from text1 and text2.
+        :param text1:
+        :param text2:
+        :return:
+        """
         # Prepare strings for input to remove_matching_seq
-        # Swap all commas in inp string to '@'.  This way they will never match comma in Result string
+        # Swap all commas in text1 string to '@'.  This way they will never match comma in text2 string
         # Ensures we don;t remove commas and don't match across tokens
-        inp = re.sub(',', '@', inp)
-        out, inp = self.remove_matching_seq(out, inp, 15)
+        text2 = re.sub(',', '@', text2)
+        text1, text2 = self._remove_matching_seq(text1=text1, text2=text2, attempts=15)
         # Restore commas in inp
-        inp = re.sub('@', ',', inp)
-        return out.strip(' '), inp.strip(' ')
+        text2 = re.sub('@', ',', text2)
+        return text1.strip(' '), text2.strip(' ')
