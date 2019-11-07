@@ -73,8 +73,9 @@ def get_cache_directory(dirname):
 def remove_noise_words(res):
     # Calculate score with noise word removal
     # inp = re.sub('shire', '', inp)
-    res = re.sub(r"normandy american ", 'normandie american ', res)  # Odd case for Normandy American cemetery having only english spelling
 
+    # Clean up odd case for Normandy American cemetery having only English spelling
+    res = re.sub(r"normandy american ", 'normandie american ', res)
     """
     res = re.sub(r' county', ' ', res)
     res = re.sub(r' stadt', ' ', res)
@@ -93,7 +94,7 @@ def remove_noise_words(res):
     res = re.sub(r' of ', ' ', res)
     res = re.sub(r' city ', ' ', res)
 
-    res = re.sub(r"politischer bezirk ", ' ', res)  # Normalize
+    res = re.sub(r"politischer bezirk ", ' ', res)
     return res
 
 def lowercase_match_group(matchobj):
@@ -101,14 +102,21 @@ def lowercase_match_group(matchobj):
 
 def capwords(nm):
     if nm is not None:
-        # Use title(), then fix the apostrophe issue
+        # Use title(), then fix the title() apostrophe defect
         nm = nm.title()
 
-        # Special handling for contractions
+        # Fix handling for contractions not handled correctly by title()
         poss_regex = r"(?<=[a-z])[\']([A-Z])"
         nm = re.sub(poss_regex, lowercase_match_group, nm)
 
     return nm
+
+def normalize_match_title(full_title:str, iso:str)->str:
+    # Normalize the title we use to determine how close a match we got
+    full_title = search_normalize(full_title, iso)
+    full_title = remove_noise_words(full_title)
+    full_title = re.sub(', ', ',', full_title)
+    return full_title
 
 def search_normalize(res, iso)->str:
     res = semi_normalize(res)

@@ -27,7 +27,7 @@ from geofinder import Geodata, GeoKeys, Loc
 
 halifax_lat = 44.646
 bruce_cty_lat = 44.50009
-albanel_lat = 48.88324
+albanel_lat = 48.91492
 
 
 class TestGeodata(unittest.TestCase):
@@ -157,7 +157,7 @@ class TestGeodata(unittest.TestCase):
     def test_res_code_country02(self):
         title = "No Country - Natuashish"
         lat, name = self.run_test(title, "Natuashish,, ")
-        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, title)
 
     def test_res_code_country03(self):
         title = "No Country - Berlin"
@@ -188,7 +188,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_code04(self):
         title = "County  prioritize city.  verify place type "
         lat, name = self.run_test(title, "Halifax, Nova Scotia, Canada")
-        self.assertEqual(Loc.PlaceType.ADMIN2, self.place.place_type, title)
+        self.assertEqual(Loc.PlaceType.CITY, self.place.place_type, title)
 
     def test_place_code24(self):
         title = "County  prioritize city.  verify place type "
@@ -274,7 +274,7 @@ class TestGeodata(unittest.TestCase):
     def test_county04(self):
         title = "County - good.  prioritize Halifax city vs County"
         lat, name = self.run_test(title, "Halifax, Nova Scotia, Canada")
-        self.assertEqual(44.86685, lat, title)
+        self.assertEqual(44.646, lat, title)
 
     def test_county24(self):
         title = "County - good.  prioritize Halifax city vs County"
@@ -285,12 +285,12 @@ class TestGeodata(unittest.TestCase):
     def test_city01(self):
         title = "City - good. upper lowercase"
         lat, name = self.run_test(title, "AlbAnel,, Quebec, CanAda")
-        self.assertEqual(48.88324, lat, title)
+        self.assertEqual(48.91492, lat, title)
 
     def test_city02(self):
         title = "City - good, no county"
         lat, name = self.run_test(title, "Albanel,, Quebec, CanAda")
-        self.assertEqual(48.88324, lat, title)
+        self.assertEqual(48.91492, lat, title)
 
     def test_city03(self):
         title = "City - Good name, Saint"
@@ -350,7 +350,7 @@ class TestGeodata(unittest.TestCase):
     def test_city15(self):
         title = "City - Good - with prefix and wrong county"
         lat, name = self.run_test(title, "Oak Street, Halifax, aaa, Nova Scotia, Canada")
-        self.assertEqual(44.86685, lat, title)
+        self.assertEqual(44.646, lat, title)
 
     def test_city16(self):
         title = "City -  Good - no county"
@@ -415,7 +415,7 @@ class TestGeodata(unittest.TestCase):
     def test_city28(self):
         title = "City - Lower Grosvenor Street, London, England "
         lat, name = self.run_test(title, "Lower Grosvenor Street, London, England")
-        self.assertEqual(51.5585, lat, title)
+        self.assertEqual(51.50853, lat, title)
 
     def test_city29(self):
         title = "City - Lower Grosvenor Street, London, London, England"
@@ -440,7 +440,7 @@ class TestGeodata(unittest.TestCase):
     def test_city33(self):
         title = "City - Amsterdam, Spiegelplein 9"
         lat, name = self.run_test(title, "Amsterdam, Spiegelplein 9")
-        self.assertEqual(52.31926, lat, title)
+        self.assertEqual(52.37403, lat, title)
 
     def test_city34(self):
         title = "City - Rooms-Katholieke begraafplaats ‘Buitenveldert’, Amsterdam"
@@ -556,7 +556,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_name04(self):
         title = "555"
         lat, name = self.run_test(title, "Halifax, Nova Scotia, Canada")
-        self.assertEqual("Halifax County, Nova Scotia, Canada", name, title)
+        self.assertEqual("Halifax, , Nova Scotia, Canada", name, title)
 
     def test_place_name05(self):
         title = "County  verify place name with prefix. prioritize city "
@@ -591,7 +591,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_name11(self):
         title = "City - Lower Grosvenor Street, London, England "
         lat, name = self.run_test(title, "Lower Grosvenor Street, London, England")
-        self.assertEqual("Lower Grosvenor Street, North West London, Greater London, England, United Kingdom", name, title)
+        self.assertEqual("Lower Grosvenor Street, London, Greater London, England, United Kingdom", name, title)
 
     def test_place_name12(self):
         title = "City - Lower Grosvenor Street, London, London, England"
@@ -616,7 +616,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_name16(self):
         title = "City - Amsterdam, Spiegelplein 9"
         lat, name = self.run_test(title, "Amsterdam, Spiegelplein 9")
-        self.assertEqual("Spiegelplein 9, Amsterdam Duivendrecht,  Ouder Amstel,  Noord Holland, Netherlands", name, title)
+        self.assertEqual("Spiegelplein 9, Amsterdam,  Amsterdam,  Noord Holland, Netherlands", name, title)
 
     def test_place_name17(self):
         title = "City - Rooms-Katholieke begraafplaats ‘Buitenveldert’, Amsterdam"
@@ -625,9 +625,9 @@ class TestGeodata(unittest.TestCase):
                          name, title)
 
     def test_place_name18(self):
-        title = "City - Troyes, Aube, Champagne, France"
-        lat, name = self.run_test(title, "Troyes, Aube, Champagne, France")
-        self.assertEqual("Troyes, Logny Les Aubenton, Departement De L'Aisne, Hauts De France, France",
+        title = "City - Troyes, Aube,  , France"
+        lat, name = self.run_test(title, "Troyes, Aube,  , France")
+        self.assertEqual("Troyes, Departement De L'Aube, Grand Est, France",
                          name, title)
 
     def test_place_name19(self):
@@ -697,6 +697,11 @@ class TestGeodata(unittest.TestCase):
         title = "903"
         lat, name = self.run_test(title, "Germany")
         self.assertEqual("Germany", name, title)
+
+    def test_place_name129(self):
+        title = "County  verify not found "
+        lat, name = self.run_test(title, "Nova Scotia, Canada")
+        self.assertEqual("Nova Scotia, Canada", name, title)
 
     # al*,--country=ca, --f_code=CH
     # Blois, Loir-et-Cher, Orleanais/Centre, France

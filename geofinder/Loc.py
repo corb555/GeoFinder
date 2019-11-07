@@ -60,7 +60,7 @@ class Loc:
     def clear(self):
         # Place geo info
         self.original_entry: str = ""
-        self.formatted_name : str =''
+        self.formatted_name: str = ''
         self.lat: float = float('NaN')  # Latitude
         self.lon: float = float('NaN')  # Longitude
         self.country_iso: str = ""  # Country ISO code
@@ -71,7 +71,7 @@ class Loc:
         self.admin1_id: str = ""  # Admin1 Geoname ID
         self.admin2_id = ""  # Admin2 Geoname ID
         self.prefix: str = ""  # Prefix (entries before city)
-        self.extra : str = ''  # Extra tokens that dont get put in prefix
+        self.extra: str = ''  # Extra tokens that dont get put in prefix
         self.feature: str = ''  # Geoname feature code
         self.place_type: int = PlaceType.COUNTRY  # Is this a Country , Admin1 ,admin2 or city?
         self.target: str = ''  # Target for lookup
@@ -273,6 +273,29 @@ class Loc:
 
         return nm
 
+    def get_five_part_title(self):
+        # Returns a five part title string and tokenized version:
+        #     prefix,city,county,state,country
+
+        # Force type to City to generate four part title (then we add prefix for five parts)
+        save_type = self.place_type
+        self.place_type = PlaceType.CITY
+
+        # Normalize country name
+        save_country = self.country_name
+        self.country_name, modified = GeoKeys.country_normalize(self.country_name)
+
+        if len(self.extra) > 0:
+            full_title = self.prefix + ' ' + self.extra + ',' + self.format_full_nm(None)
+        else:
+            full_title = self.prefix + ',' + self.format_full_nm(None)
+
+        # Restore values to original
+        self.place_type = save_type
+        self.country_name = save_country
+
+        return full_title
+
     def feature_to_type(self):
         # Set place type based on DB response feature code
         if self.feature == 'ADM0':
@@ -332,7 +355,7 @@ class Loc:
     @staticmethod
     def get_district1_type(iso) -> str:
         # Return the local country term for Admin1 district
-        if iso in ["al","no"]:
+        if iso in ["al", "no"]:
             return "County"
         elif iso in ["us", "at", "bm", "br", "de"]:
             return "State"
