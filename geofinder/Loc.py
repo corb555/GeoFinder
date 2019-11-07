@@ -223,7 +223,7 @@ class Loc:
 
         self.prefix = self.prefix.strip(',')
 
-        self.logger.debug(f"***** PARSE: {place_name} City [{self.city1}] Adm2 [{self.admin2_name}]"
+        self.logger.debug(f"    ======= PARSE: {place_name} City [{self.city1}] Adm2 [{self.admin2_name}]"
                           f" Adm1 [{self.admin1_name}] adm1_id [{self.admin1_id}] Cntry [{self.country_name}] Pref=[{self.prefix}]"
                           f" type_id={self.place_type}")
         return

@@ -59,86 +59,130 @@ class TestScoring(unittest.TestCase):
 
     def run_test1(self, title: str, inp, out):
         print("*****TEST: WORD {}".format(title))
-        out, inp = TestScoring.scoring.remove_matching_words(out, inp)
+        out, inp = TestScoring.scoring.remove_matching_sequences(out, inp)
         return out, inp
 
     def run_test2(self, title: str, inp, out):
         print("*****TEST: CHAR {}".format(title))
-        out, inp = TestScoring.scoring.remove_matching_seq(out, inp)
+        out, inp = TestScoring.scoring.remove_matching_sequences(out, inp)
         return out, inp
 
-    def run_test3(self, title: str, inp, out):
+    def run_test3(self, title: str, inp, res, feat):
         print("*****TEST:SCORE {}".format(title))
         in_place = Loc.Loc()
         in_place.original_entry = inp
-        in_place.country_iso = 'gb'
         in_place.parse_place(inp,geo_files=TestScoring.geodata.geo_files)
+        if in_place.country_name == '' and in_place.country_iso != '':
+            in_place.country_name = TestScoring.geodata.geo_files.geodb.get_country_name(in_place.country_iso)
 
         res_place = Loc.Loc()
-        res_place.original_entry = out
-        res_place.parse_place(place_name=  out, geo_files=TestScoring.geodata.geo_files)
-        res_place.country_iso = 'gb'
+        res_place.original_entry = res
+        res_place.parse_place(place_name=  res, geo_files=TestScoring.geodata.geo_files)
+        res_place.feature = feat
+        if res_place.country_name == '' and res_place.country_iso != '':
+            res_place.country_name = TestScoring.geodata.geo_files.geodb.get_country_name(res_place.country_iso)
 
-        scr = TestScoring.scoring.match_score_calc(in_place, res_place)
+        scr = TestScoring.scoring.match_score(in_place, res_place)
         return scr
 
     # ===== TEST SCORING
-    """
+    VERY_STRONG = 5
+    STRONG = 13
+    GOOD = 23
+    POOR = 38
+    NO_MATCH = 100
+
+
+    def test_scr22(self):
+        title = "score1"
+        scr = self.run_test3(title, "chelsea,,england", "winchelsea, east sussex, england, united kingdom", 'PP1M')
+        self.assertGreater(69, scr, title)
+
+    def test_scr23(self):
+        title = "score1"
+        scr = self.run_test3(title, "chelsea,,england", "chelsea, greater london, england, united kingdom", 'PP1M')
+        self.assertGreater(64, scr, title)
+
+
+    def test_scr21(self):
+        title = "score1"
+        scr = self.run_test3(title, "sonderburg", "sonderburg,sonderborg kommune,region syddanmark, denmark", 'PP1M')
+        self.assertGreater(TestScoring.GOOD, scr, title)
 
     def test_scr01(self):
         title = "score1"
-        scr = self.run_test3(title, "Paris, France", "Paris, France")
-        self.assertGreater(10, scr, title)
+        scr = self.run_test3(title, "Paris, France", "Paris, France", 'PP1M')
+        self.assertGreater(TestScoring.STRONG, scr, title)
 
     def test_scr02(self):
         title = "score2"
-        scr = self.run_test3(title, "London, England,", "London, England, United Kingdom")
-        self.assertGreater(10, scr, title)
-    
+        scr = self.run_test3(title, "London, England", "London, England, United Kingdom", 'PP1M')
+        self.assertGreater(TestScoring.VERY_STRONG, scr, title)
+
+    def test_scr72(self):
+        title = "score72"
+        scr = self.run_test3(title, "London, England, United Kingdom", "London, England, United Kingdom", 'PP1M')
+        self.assertGreater(TestScoring.VERY_STRONG, scr, title)
+
+    def test_scr73(self):
+        title = "score72"
+        scr = self.run_test3(title, "London, England, United Kingdom", "London, England, United Kingdom", 'HSP')
+        self.assertGreater(TestScoring.GOOD, scr, title)
+
     def test_scr82(self):
         title = "score82"
-        scr = self.run_test3(title, "Domfront, Normandy", "Domfront-En-Champagne, Sarthe, Pays De La Loire, France")
-        self.assertGreater(2, scr, title)
+        scr = self.run_test3(title, "Domfront, Normandy", "Domfront-En-Champagne, Sarthe, Pays De La Loire, France", 'PP1M')
+        self.assertGreater(TestScoring.POOR, scr, title)
+
+    def test_scr84(self):
+        title = "score84"
+        scr = self.run_test3(title, "Domfront, Normandy", "Domfront, Department De L'Orne, Normandie, France", 'PP1M')
+        self.assertGreater(TestScoring.GOOD, scr, title)
         
     def test_scr83(self):
         title = "score83"
-        scr = self.run_test3(title, "St Quentin, Aisne, Picardy, France", "St Quentin, Departement De L'Aisne, Hauts De France, France")
-        self.assertGreater(2, scr, title)
-    
-    def test_scr84(self):
-        title = "score84"
-        scr = self.run_test3(title, "Domfront, Normandy", "Domfront, Department De L'Orne, Normandie, France")
-        self.assertGreater(2, scr, title)
-    """
+        scr = self.run_test3(title, "St Quentin, Aisne, Picardy, France", "St Quentin, Departement De L'Aisne, Hauts De France, France", 'PP1M')
+        self.assertGreater(TestScoring.STRONG, scr, title)
 
     def test_scr85(self):
         title = "score85"
         scr = self.run_test3(title, "Old Bond Street, London, Middlesex, England",
-                             " , London, Greater London, England, United Kingdom")
-        self.assertGreater(2, scr, title)
+                             " , London, Greater London, England, United Kingdom", 'PP1M')
+        self.assertGreater(TestScoring.GOOD, scr, title)
+
+
+    def test_scr61(self):
+        title = "score61"
+        scr = self.run_test3(title, "zxq, xyzzy",
+                             " , London, Greater London, England, United Kingdom", ' ')
+        self.assertGreater(TestScoring.NO_MATCH, scr, title)
+
+    def test_scr62(self):
+        title = "score62"
+        scr = self.run_test3(title, "France",
+                             "France", 'ADM0')
+        self.assertGreater(TestScoring.VERY_STRONG, scr, title)
 
     def test_scr86(self):
         title = "score86"
         scr = self.run_test3(title, "Old Bond Street, London, Middlesex, England",
-                             " , Museum Of London, Greater London, England, United Kingdom")
-        self.assertGreater(2, scr, title)
-    """
-    Old Bond Street  , Museum Of London, Greater London, England, United Kingdom
+                             " , Museum Of London, Greater London, England, United Kingdom", 'PPL')
+        self.assertGreater(TestScoring.GOOD, scr, title)
     
     def test_scr03(self):
         title = "score3"
-        scr = self.run_test3(title, "St. Margaret, Westminster, London, England", "London,England,United Kingdom")
-        self.assertGreater(2, scr, title)
+        scr = self.run_test3(title, "St. Margaret, Westminster, London, England", "London,England,United Kingdom", 'PPL')
+        self.assertGreater(TestScoring.POOR, scr, title)
 
     def test_scr04(self):
         title = "score4"
-        scr = self.run_test3(title, "St. Margaret, Westminster, London, England", "Westminster Cathedral, Greater London, England")
-        self.assertGreater(2, scr, title)
+        scr = self.run_test3(title, "St. Margaret, Westminster, London, England", "Westminster Cathedral, Greater London, England", 'PPL')
+        self.assertGreater(TestScoring.STRONG, scr, title)
 
     def test_scr05(self):
         title = "score5"
-        scr = self.run_test3(title, "Canada", "Canada")
-        self.assertEqual(2, scr, title)
+        scr = self.run_test3(title, "Canada", "Canada", 'ADM0')
+        self.assertGreater(TestScoring.VERY_STRONG, scr, title)
     
 
     # St Margaret, Westminster Cathedral, Greater London, England, United Kingdom
@@ -153,27 +197,27 @@ class TestScoring(unittest.TestCase):
     def test_in02(self):
         title = "Input word2"
         out, inp = self.run_test1(title, "Westchester County, New York, USA", "Westchester, New York, USA")
-        self.assertEqual('County,  ,', inp, title)
+        self.assertEqual('County,,', inp, title)
 
     def test_in03(self):
         title = "Input word1"
         out, inp = self.run_test1(title, "Frunce", "Paris, France")
-        self.assertEqual('Frunce', inp, title)
+        self.assertEqual('u', inp, title)
 
     def test_in04(self):
         title = "Input word1"
         out, inp = self.run_test1(title, "London,England,", "London,England,United Kingdom")
-        self.assertEqual(',', inp, title)
+        self.assertEqual(',,', inp, title)
 
     def test_in05(self):
         title = "Input word1"
         out, inp = self.run_test1(title, "St. Margaret, Westminster, London, England", "London,England,United Kingdom")
-        self.assertEqual('St. Margaret, Westminster, ,', inp, title)
+        self.assertEqual('St. Margaret, Westmsr, ,', inp, title)
 
     def test_in06(self):
         title = "Input word1"
         out, inp = self.run_test1(title, "St. Margaret, Westminster, London, England", "Westminster Cathedral, Greater London, England")
-        self.assertEqual('St. Margaret, , ,', inp, title)
+        self.assertEqual('St. Marg, ,,', inp, title)
 
     # ===== TEST OUTPUT WORD REMOVAL
 
@@ -185,12 +229,12 @@ class TestScoring(unittest.TestCase):
     def test_out02(self):
         title = "output word2"
         out, inp = self.run_test1(title, "Westchester County, New York, USA", "Westchester, New York, USA")
-        self.assertEqual(',  ,', out, title)
+        self.assertEqual(',,', out, title)
 
     def test_out03(self):
         title = "output word1"
         out, inp = self.run_test1(title, "Frunce", "Paris, France")
-        self.assertEqual('Paris, France', out, title)
+        self.assertEqual('Paris, a', out, title)
 
     # ===== TEST total REMOVAL
     def test_tot01(self):
@@ -226,7 +270,7 @@ class TestScoring(unittest.TestCase):
         title = "Input word3"
         out, inp = self.run_test2(title, "Frunce", "Paris, France")
         self.assertEqual('u', inp, title)
-
+    """
     """
 
 

@@ -177,6 +177,7 @@ class GeoDB:
             query_list.append(Query(where="sdx = ?",
                                     args=(sdx,),
                                     result=Result.SOUNDEX_MATCH))
+
             place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata', query_list=query_list)
             # self.logger.debug(place.georow_list)
             return
@@ -215,7 +216,7 @@ class GeoDB:
                                     args=(sdx, place.country_iso),
                                     result=Result.SOUNDEX_MATCH))
 
-        # Try each query in list until we find a match
+        # Try each query in list
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.geodata',
                                                                           query_list=query_list)
 
@@ -342,6 +343,7 @@ class GeoDB:
 
         if len(row_list) > 0:
             place.admin1_id = row_list[0][Entry.ADM1]
+            # Fill in Country ISO
             if place.country_iso == '':
                 place.country_iso = row_list[0][Entry.ISO]
 

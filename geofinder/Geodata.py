@@ -48,6 +48,12 @@ class Geodata:
         Update place with -- lat, lon, district, city, country_iso, result code
         """
         place.parse_place(place_name=location, geo_files=self.geo_files)
+
+        # Successful Admin1 will also fill in country_iso
+        # Use this to fill in country name if missing
+        if place.country_name == '' and place.country_iso != '':
+            place.country_name = self.geo_files.geodb.get_country_name(place.country_iso)
+
         if shutdown:
             # During shutdown there is no user verification and no reason to try wildcard searches
             self.geo_files.geodb.db.use_wildcards = False
@@ -55,8 +61,8 @@ class Geodata:
         flags = ResultFlags(limited=False, filtered=False)
         result_list = []
 
-        self.logger.debug(f'===== FIND LOCATION City=[{place.city1}] Adm2=[{place.admin2_name}]\
-        Adm1=[{place.admin1_name}] Pref=[{place.prefix}] Cntry=[{place.country_name}] iso=[{place.country_iso}]  Type={place.place_type} ')
+        #self.logger.debug(f'== FIND LOCATION City=[{place.city1}] Adm2=[{place.admin2_name}]\
+        #Adm1=[{place.admin1_name}] Pref=[{place.prefix}] Cntry=[{place.country_name}] iso=[{place.country_iso}]  Type={place.place_type} ')
 
         # Save a shallow copy so we can restore fields
         self.save_place = copy.copy(place)
@@ -84,7 +90,7 @@ class Geodata:
 
         # 1) Try standard lookup based on parse:  city, county, state/province, country
         place.standard_parse = True
-        self.logger.debug(f'  1) Standard Lookup. Target={place.city1}  pref [{place.prefix}] type={place.place_type}')
+        #self.logger.debug(f'  1) Standard Lookup. Target={place.city1}  pref [{place.prefix}] type={place.place_type}')
 
         self.geo_files.geodb.lookup_place(place=place)
         result_list.extend(place.georow_list)
@@ -102,7 +108,7 @@ class Geodata:
             self.lookup_by_type(place, result_list, ty, self.save_place)
 
         # 3) Try city as Admin2
-        self.logger.debug(f'  3) Lkp w Cit as Adm2. Target={place.city1}  pref [{place.prefix}] ')
+        #self.logger.debug(f'  3) Lkp w Cit as Adm2. Target={place.city1}  pref [{place.prefix}] ')
         self.lookup_as_admin2(place=place, result_list=result_list, save_place=self.save_place)
 
         #  Move result list into place georow list
@@ -126,7 +132,7 @@ class Geodata:
 
         # Process the results
         self.process_result(place=place,  flags=flags)
-        self.logger.debug(f'Status={place.status}')
+        #self.logger.debug(f'Status={place.status}')
 
     def lookup_by_type(self, place, result_list, typ, save_place):
         typ_name = ''
@@ -156,7 +162,7 @@ class Geodata:
             self.logger.warning(f'Unknown TYPE {typ}')
 
         if typ_name != '':
-            self.logger.debug(f'2) Lookup by {typ_name} Target={place.city1}  pref [{place.prefix}] ')
+            #self.logger.debug(f'2) Lookup by {typ_name} Target={place.city1}  pref [{place.prefix}] ')
 
             place.target = place.city1
             place.place_type = Loc.PlaceType.CITY
@@ -445,22 +451,27 @@ class Geodata:
             if score < min_score:
                 min_score = score
             #self.logger.debug(f'Score {score:.2f}  {geo_row[GeoKeys.Entry.NAME]}, {geo_row[GeoKeys.Entry.ADM2]}, {geo_row[GeoKeys.Entry.ADM1]}')
-            if score > min_score + 20 or score > 288:
+            if score > min_score + 15:
+                break
+            if min_score < 6 and score > min_score + 6:
                 break
             place.georow_list.append(geo_row)
+            prev_score = score
 
-        if min_score < 20 and len(place.georow_list) == 1:
+        if min_score < 9 and len(place.georow_list) == 1:
             place.result_type = GeoKeys.Result.STRONG_MATCH
 
         return ResultFlags(limited=limited_flag, filtered=date_filtered)
 
     @staticmethod
     def get_priority(feature):
+        # Returns 0-100 for feature priority.  Lowest is best
         f_prior = feature_priority.get(feature)
         if f_prior is None:
-            f_prior = 1
+            f_prior  = feature_priority.get('DEFAULT')
+        #print(f'Geodata Feat [{feature}] raw ={f_prior}')
 
-        return (22.0 - float(f_prior)) / 6.0
+        return 100.0 - float(f_prior)
 
 
 default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ", "HSP",
@@ -468,10 +479,11 @@ default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ",
            "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "PRSH", "RUIN", "RLG", "STG", "SQR", "SYG", "VAL"]
 
 # If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
-feature_priority = {'PP1M': 22, 'P1HK': 19, 'ADM1': 20, 'PPLA': 20, 'PPL': 18, 'PPLA2': 19, 'PPLA3': 17, 'PPLA4': 16, 'PPLC': 20, 'PPLG': 15,
-                    'ADM2': 16, 'MILB': 13, 'NVB': 12, 'PPLF': 11, 'DEFAULT': 3, 'ADM0': 10, 'PPLL': 6, 'PPLQ': 5, 'PPLR': 4, 'PPLS': 3, 'PPLW': 3,
-                    'PPLX': 3, 'BTL': 3,
-                    'STLMT': 1, 'CMTY': 4, 'VAL': -6, 'CH': 4, 'MSQE': 4, 'HSP': -6}
+feature_priority = {'PP1M': 100, 'ADM1': 95, 'PPLA': 95, 'PPLC': 95,'P1HK': 90, 'PPLA2': 90,
+                    'PPL': 75,'PPLA3': 70, 'PPLA4': 65, 'ADM3':60,
+                    'ADM2': 60, 'PPLG': 55, 'MILB': 50, 'NVB': 50, 'PPLF': 45, 'ADM0': 90, 'PPLL': 35, 'PPLQ': 30, 'PPLR': 25,
+                    'CH': 15, 'MSQE': 15, 'CMTY': 15,'DEFAULT': 15, 'PPLS': 20, 'PPLW': 20, 'PPLX': 70, 'BTL': 15,
+                    'HSP': 0, 'VAL': 0, 'MT': 0}
 
 result_text_list = {
     GeoKeys.Result.STRONG_MATCH: 'Matched! Click Save to accept:',
