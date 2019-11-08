@@ -82,7 +82,7 @@ class TestScoring(unittest.TestCase):
         if res_place.country_name == '' and res_place.country_iso != '':
             res_place.country_name = TestScoring.geodata.geo_files.geodb.get_country_name(res_place.country_iso)
 
-        scr = TestScoring.scoring.match_score(in_place, res_place)
+        score = TestScoring.scoring.match_score(in_place, res_place)
         return scr
 
     # ===== TEST SCORING
@@ -97,109 +97,109 @@ class TestScoring(unittest.TestCase):
 
     def test_scr22(self):
         title = "score1"
-        scr = self.run_test3(title, "chelsea,,england", "winchelsea, east sussex, england, united kingdom", 'PP1M')
-        self.assertLess(scr, TestScoring.STRONG, title)
-        self.assertGreater(scr, TestScoring.VERY_STRONG, title)
+        score = self.run_test3(title, "chelsea,,england", "winchelsea, east sussex, england, united kingdom", 'PP1M')
+        self.assertLess(score, TestScoring.STRONG, title)
+        self.assertGreater(score, TestScoring.VERY_STRONG, title)
 
     def test_scr23(self):
         title = "score1"
-        scr = self.run_test3(title, "chelsea,,england", "chelsea, greater london, england, united kingdom", 'PP1M')
-        self.assertLess(scr, TestScoring.VERY_STRONG, title)
-        self.assertGreater(scr, TestScoring.PERFECT, title)
+        score = self.run_test3(title, "chelsea,,england", "chelsea, greater london, england, united kingdom", 'PP1M')
+        self.assertLess(score, TestScoring.VERY_STRONG, title)
+        self.assertGreater(score, TestScoring.PERFECT, title)
 
     def test_scr21(self):
         title = "score1"
-        scr = self.run_test3(title, "sonderburg", "sonderburg,sonderborg kommune,region syddanmark, denmark", 'PP1M')
-        self.assertLess(scr, TestScoring.GOOD, title)
-        self.assertGreater(scr, TestScoring.STRONG, title)
+        score = self.run_test3(title, "sonderburg", "sonderburg,sonderborg kommune,region syddanmark, denmark", 'PP1M')
+        self.assertLess(score, TestScoring.GOOD, title)
+        self.assertGreater(score, TestScoring.STRONG, title)
 
     def test_scr01(self):
         title = "score1"
-        scr = self.run_test3(title, "Paris, France", "Paris, France", 'PP1M')
-        self.assertLess(scr, TestScoring.VERY_STRONG, title)
-        self.assertGreater(scr, TestScoring.PERFECT, title)
+        score = self.run_test3(title, "Paris, France", "Paris, France", 'PP1M')
+        self.assertLess(score, TestScoring.VERY_STRONG, title)
+        self.assertGreater(score, TestScoring.PERFECT, title)
 
     def test_scr02(self):
         title = "score2"
-        scr = self.run_test3(title, "London, England", "London, England, United Kingdom", 'PP1M')
-        self.assertLess(scr, TestScoring.VERY_STRONG, title)
-        self.assertGreater(scr, TestScoring.PERFECT, title)
+        score = self.run_test3(title, "London, England", "London, England, United Kingdom", 'PP1M')
+        self.assertLess(score, TestScoring.VERY_STRONG, title)
+        self.assertGreater(score, TestScoring.PERFECT, title)
 
     def test_scr72(self):
         title = "score72"
-        scr = self.run_test3(title, "London, England, United Kingdom", "London, England, United Kingdom", 'PP1M')
-        self.assertLess(scr, TestScoring.VERY_STRONG, title)
-        self.assertGreater(scr, TestScoring.PERFECT, title)
+        score = self.run_test3(title, "London, England, United Kingdom", "London, England, United Kingdom", 'PP1M')
+        self.assertLess(score, TestScoring.VERY_STRONG, title)
+        self.assertGreater(score, TestScoring.PERFECT, title)
 
     def test_scr73(self):
         title = "score72"
-        scr = self.run_test3(title, "London, England, United Kingdom", "London, England, United Kingdom", 'HSP')
-        self.assertLess(scr, TestScoring.VERY_STRONG, title)
-        self.assertGreater(scr, TestScoring.PERFECT, title)
+        score = self.run_test3(title, "London, England, United Kingdom", "London, England, United Kingdom", 'HSP')
+        self.assertLess(score, TestScoring.VERY_STRONG, title)
+        self.assertGreater(score, TestScoring.PERFECT, title)
 
     def test_scr82(self):
         title = "score82"
-        scr = self.run_test3(title, "Domfront, Normandy", "Domfront-En-Champagne, Sarthe, Pays De La Loire, France", 'PP1M')
-        self.assertLess(scr, TestScoring.POOR, title)
-        self.assertGreater(scr, TestScoring.GOOD, title)
+        score = self.run_test3(title, "Domfront, Normandy", "Domfront-En-Champagne, Sarthe, Pays De La Loire, France", 'PP1M')
+        self.assertLess(score, TestScoring.POOR, title)
+        self.assertGreater(score, TestScoring.GOOD, title)
 
     def test_scr84(self):
         title = "score84"
-        scr = self.run_test3(title, "Domfront, Normandy", "Domfront, Department De L'Orne, Normandie, France", 'PP1M')
-        self.assertLess(scr, TestScoring.STRONG, title)
-        self.assertGreater(scr, TestScoring.VERY_STRONG, title)
+        score = self.run_test3(title, "Domfront, Normandy", "Domfront, Department De L'Orne, Normandie, France", 'PP1M')
+        self.assertLess(score, TestScoring.STRONG, title)
+        self.assertGreater(score, TestScoring.VERY_STRONG, title)
         
     def test_scr83(self):
         title = "score83"
-        scr = self.run_test3(title, "St Quentin, Aisne, Picardy, France", "St Quentin, Departement De L'Aisne, Hauts De France, France", 'PP1M')
-        self.assertLess(scr, TestScoring.VERY_STRONG, title)
-        self.assertGreater(scr, TestScoring.PERFECT, title)
+        score = self.run_test3(title, "St Quentin, Aisne, Picardy, France", "St Quentin, Departement De L'Aisne, Hauts De France, France", 'PP1M')
+        self.assertLess(score, TestScoring.VERY_STRONG, title)
+        self.assertGreater(score, TestScoring.PERFECT, title)
 
     def test_scr85(self):
         title = "score85"
-        scr = self.run_test3(title, "Old Bond Street, London, Middlesex, England",
+        score = self.run_test3(title, "Old Bond Street, London, Middlesex, England",
                              " , London, Greater London, England, United Kingdom", 'PP1M')
-        self.assertLess(scr, TestScoring.STRONG, title)
-        self.assertGreater(scr, TestScoring.VERY_STRONG, title)
+        self.assertLess(score, TestScoring.STRONG, title)
+        self.assertGreater(score, TestScoring.VERY_STRONG, title)
 
     def test_scr86(self):
         title = "score86"
-        scr = self.run_test3(title, "Old Bond Street, London, Middlesex, England",
+        score = self.run_test3(title, "Old Bond Street, London, Middlesex, England",
                              " , Museum Of London, Greater London, England, United Kingdom", 'PPL')
-        self.assertLess(scr, TestScoring.GOOD, title)
-        self.assertGreater(scr, TestScoring.STRONG, title)
+        self.assertLess(score, TestScoring.GOOD, title)
+        self.assertGreater(score, TestScoring.STRONG, title)
 
     def test_scr61(self):
         title = "score61"
-        scr = self.run_test3(title, "zxq, xyzzy",
+        score = self.run_test3(title, "zxq, xyzzy",
                              " , London, Greater London, England, United Kingdom", ' ')
-        self.assertLess(scr, TestScoring.NO_MATCH, title)
-        self.assertGreater(scr, TestScoring.VERY_POOR, title)
+        self.assertLess(score, TestScoring.NO_MATCH, title)
+        self.assertGreater(score, TestScoring.VERY_POOR, title)
 
     def test_scr62(self):
         title = "score62"
-        scr = self.run_test3(title, "France",
+        score = self.run_test3(title, "France",
                              "France", 'ADM0')
-        self.assertLess(scr, TestScoring.VERY_STRONG, title)
-        self.assertGreater(scr, TestScoring.PERFECT, title)
+        self.assertLess(score, TestScoring.VERY_STRONG, title)
+        self.assertGreater(score, TestScoring.PERFECT, title)
     
     def test_scr03(self):
         title = "score3"
-        scr = self.run_test3(title, "St. Margaret, Westminster, London, England", "London,England,United Kingdom", 'PPL')
-        self.assertLess(scr, TestScoring.POOR, title)
-        self.assertGreater(scr, TestScoring.GOOD, title)
+        score = self.run_test3(title, "St. Margaret, Westminster, London, England", "London,England,United Kingdom", 'PPL')
+        self.assertLess(score, TestScoring.POOR, title)
+        self.assertGreater(score, TestScoring.GOOD, title)
 
     def test_scr04(self):
         title = "score4"
-        scr = self.run_test3(title, "St. Margaret, Westminster, London, England", "Westminster Cathedral, Greater London, England", 'PPL')
-        self.assertLess(scr, TestScoring.STRONG, title)
-        self.assertGreater(scr, TestScoring.VERY_STRONG, title)
+        score = self.run_test3(title, "St. Margaret, Westminster, London, England", "Westminster Cathedral, Greater London, England", 'PPL')
+        self.assertLess(score, TestScoring.STRONG, title)
+        self.assertGreater(score, TestScoring.VERY_STRONG, title)
 
     def test_scr05(self):
         title = "score5"
-        scr = self.run_test3(title, "Canada", "Canada", 'ADM0')
-        self.assertLess(scr, TestScoring.VERY_STRONG, title)
-        self.assertGreater(scr, TestScoring.PERFECT, title)
+        score = self.run_test3(title, "Canada", "Canada", 'ADM0')
+        self.assertLess(score, TestScoring.VERY_STRONG, title)
+        self.assertGreater(score, TestScoring.PERFECT, title)
 
     # St Margaret, Westminster Cathedral, Greater London, England, United Kingdom
 

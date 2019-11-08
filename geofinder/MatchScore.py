@@ -97,7 +97,8 @@ class MatchScore:
                 num_inp_tokens += 1.0 * weight[idx]
                 # self.logger.debug(f'{idx} [{inp_tokens2[idx]}:{inp_tokens[idx]}] rawscr={sc}% orig_len={inp_len[idx]} wgt={weight[idx]}')
                 if idx < 2:
-                    # If full first or second token of result is in input  then improve score
+                    # If the full first or second token of the result is in input then improve score
+                    # Bonus for a full match as against above partial matches
                     if res_tokens[idx] in inp_tokens[idx]:
                         in_score -= 10
 
@@ -118,7 +119,7 @@ class MatchScore:
         else:
             parse_penalty = 0.0
 
-        # Feature score is to ensure "important" places (large city, etc) get  higher rank.
+        # Feature score is to ensure "important" places  get  higher rank (large city, etc)
         feature_score = Geodata.Geodata.get_priority(res_place.feature)
 
         # Add up scores - Each item is 0-100 and weighed as below
@@ -136,6 +137,7 @@ class MatchScore:
     def _remove_matching_seq(self, text1: str, text2: str, attempts: int) -> (str, str):
         """
         Find largest matching sequence.  Remove it in text1 and text2.
+                Private - called by remove_matching_sequences which provides a wrapper
         Call recursively until attempts hits zero or there are no matches longer than 1 char
         :param text1:
         :param text2:
