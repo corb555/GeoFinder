@@ -33,16 +33,19 @@ class AncestryFile:
     Write out all other entries as-is if out_path is not None
     """
 
-    def __init__(self, in_path: str, out_suffix: str, cache_d, progress: Union[None, Progress.Progress], geodata):
+    def __init__(self, in_path: str, out_sufix: str, cache_d, progress: Union[None, Progress.Progress], geodata):
         self.build = False
         self.logger = logging.getLogger(__name__)
         self.progress_bar = progress
+        self.in_path = in_path
+        self.out_suffix = out_sufix
         self.output_latlon = True
         self.filesize = 0
         self.infile = None
         self.error = False
-        self.out_path = in_path + '.' + out_suffix
+        self.out_path = self.in_path + '.' + self.out_suffix
         self.geodata = geodata
+        self.temp_suffix = '.tmp'
 
         self.more_available = False
 
@@ -61,17 +64,18 @@ class AncestryFile:
         self.abt_flag = False
 
 
-        if out_suffix != '':
-            # Create an output file with same name with "out.ged" appended
+        if self.out_suffix != '':
+            # Create an output file with same name with suffix appended
             self.outfile = open(self.out_path, "w",
                                 encoding='utf-8')
+            self.logger.info(f'Opened Output file: {self.out_path}')
         else:
             self.outfile = None
 
         # Open Ancestry file in utf-8.  Replace any non-UTF-8 characters (e.g. Latin)
-        err = self.open(in_path)
+        err = self.open(self.in_path)
         if err:
-            self.logger.error(f'Cannot open {in_path}')
+            self.logger.error(f'Cannot open {self.in_path}')
             return
 
         if self.output_latlon is False:
@@ -88,11 +92,12 @@ class AncestryFile:
                 self.infile.close()
                 self.infile = gzip.open(in_path, 'rt', encoding='utf-8', errors='replace')
             except OSError as e:
+                # Not GZIP file.  Just do regular open
                 self.infile.close()
                 self.infile = open(in_path, 'rt', encoding='utf-8', errors='replace')
 
             self.filesize: int = int(os.path.getsize(in_path))  # Used for progress bar calculation
-            self.logger.info(f'Opened  {in_path} Size={self.filesize}')
+            self.logger.info(f'Opened Input:  {in_path} Size={self.filesize}')
             self.error: bool = False
         else:
             self.logger.error(f"File {in_path} not found")
@@ -159,6 +164,12 @@ class AncestryFile:
         self.infile.close()
         if self.outfile is not None:
             self.outfile.close()
+
+        #out_path = f"{self.in_path}.{self.out_suffix}"
+        #if len (out_path) > 10:
+            # Sanity check to make sure there is something in path
+            #os.remove(out_path)
+            #os.rename(f"{out_path}.{self.temp_suffix}", f"{out_path}.{self.out_suffix}")
 
     def progress(self, msg: str, percent: int):
         """ Display progress update """

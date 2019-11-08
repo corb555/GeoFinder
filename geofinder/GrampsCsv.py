@@ -284,7 +284,7 @@ class GrampsCsv:
             for key in tbl:
                 # TODO
                 row = tbl[key]
-                self.logger.debug(f'IDX={idx} {key} : {row}')
+                #self.logger.debug(f'IDX={idx} {key} : {row}')
                 self.output_row(row)
 
         if self.csv_path is not None:

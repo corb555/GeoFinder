@@ -139,7 +139,7 @@ class GrampsXml(AncestryFile):
     def write_out_tree(self):
         # Write out XML tree
         tmp_name = self.out_path + '.tmp'
-        self.logger.debug(f'Writing XML tree {tmp_name}')
+        self.logger.debug(f'Writing XML tree to tempfile: {tmp_name}')
         self.xml_tree.write(tmp_name)
 
         # Append XML tmp file to our output file
@@ -161,6 +161,7 @@ class GrampsXml(AncestryFile):
             else:
                 break
         tmp_file.close()
+        self.logger.debug(f'Removing temp file: {temp_path}')
         os.remove(temp_path)
         self.outfile.write('\n')
         self.outfile.flush()

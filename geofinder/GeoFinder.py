@@ -243,6 +243,7 @@ class GeoFinder:
                                                                  progress=None, geodata=self.geodata)  # Routines to open and parse Gramps file
         else:
             self.out_suffix = 'unk.new.ged'
+            messagebox.showwarning(f'UNKNOWN File type. Not .gramps and not .ged. \n\n{ged_path}')
 
         self.out_diag_file = open(ged_path + '.output.txt', 'w')
         self.in_diag_file = open(ged_path + '.input.txt', 'w')
@@ -781,7 +782,9 @@ class GeoFinder:
 
             self.ancestry_file_handler.write_updated(prefix + place.prefix_commas + place.original_entry, place)
             self.ancestry_file_handler.write_lat_lon(lat=place.lat, lon=place.lon)
-            self.out_diag_file.write(prefix + place.prefix_commas + place.original_entry + '\n')
+            text = prefix + place.prefix_commas + place.original_entry + '\n'
+            text = str(text.encode('utf-8', errors='replace'))
+            self.out_diag_file.write(text )
         else:
             # self.logger.debug('zero len, no output')
             if self.diagnostics:
@@ -838,15 +841,15 @@ class GeoFinder:
         self.w.original_entry.set_text(" ")
         path = self.cfg.get("gedcom_path")
         self.ancestry_file_handler.close()
-        if len (path) > 10:
-            os.remove(f"{path}.{self.out_suffix}")
-            os.rename(f"{path}.{temp_suffix}", f"{path}.{self.out_suffix}")
-        if 'ramp' in self.out_suffix:
-            self.out_suffix = 'csv'
+
         self.update_statistics()
         self.w.root.update_idletasks()  # Let GUI update
 
-        messagebox.showinfo("Info", f"Finished.  Created file for Import to Ancestry software:\n\n {path}.{self.out_suffix}")
+        if 'ramp' in self.out_suffix:
+            # Gramps file is .csv
+            messagebox.showinfo("Info", f"Finished.  Created file for Import to Ancestry software:\n\n {path}.csv")
+        else:
+            messagebox.showinfo("Info", f"Finished.  Created file for Import to Ancestry software:\n\n {path}.{self.out_suffix}")
         self.logger.info('End of  file')
         self.shutdown()
 
