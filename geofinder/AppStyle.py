@@ -40,6 +40,7 @@ ODD_ROW_COLOR = '#E8E8f8'
 # Font
 FNT_NAME = 'Helvetica'
 
+
 FNT_SIZE_SM = 10
 FNT_SIZE_MD = 12
 FNT_SIZE_LG = 14
