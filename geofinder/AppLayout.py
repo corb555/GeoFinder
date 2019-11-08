@@ -154,10 +154,10 @@ class AppLayout:
         self.tree.column("id", width=0, minwidth=0, stretch=tk.NO, anchor=tk.E)
         self.tree.heading("id", text="   ID", anchor=tk.E)
 
-        self.tree.column("score", width=60, minwidth=0, stretch=tk.NO, anchor=tk.E)
+        self.tree.column("score", width=70, minwidth=0, stretch=tk.NO, anchor=tk.E)
         self.tree.heading("score", text="   Score", anchor=tk.E)
 
-        self.tree.column("feat", width=50, minwidth=0, stretch=tk.NO, anchor=tk.E)
+        self.tree.column("feat", width=60, minwidth=0, stretch=tk.NO, anchor=tk.E)
         self.tree.heading("feat", text="   Type", anchor=tk.E)
 
         self.tree.config(yscrollcommand=self.tree_scrollbar.set)
