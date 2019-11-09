@@ -27,7 +27,7 @@ from geofinder import Geodata, GeoKeys, Loc
 
 halifax_lat = 44.646
 bruce_cty_lat = 44.50009
-albanel_lat = 48.91492
+albanel_lat = 48.88324
 
 
 class TestGeodata(unittest.TestCase):
@@ -101,12 +101,12 @@ class TestGeodata(unittest.TestCase):
     def test_res_code02(self):
         title = "City - multiple matches"
         lat, name = self.run_test(title, "Alberton,, Ontario, Canada")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code03(self):
         title = "County - Good.  wrong Province"
         lat, name = self.run_test(title, "Halifax County, Alberta, Canada")
-        self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code11(self):
         title = "City and county  Good."
@@ -157,12 +157,12 @@ class TestGeodata(unittest.TestCase):
     def test_res_code_country02(self):
         title = "No Country - Natuashish"
         lat, name = self.run_test(title, "Natuashish,, ")
-        self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code_country03(self):
         title = "No Country - Berlin"
         lat, name = self.run_test(title, "Berlin,,, ")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code_country04(self):
         title = "Country - not supported"
@@ -285,12 +285,12 @@ class TestGeodata(unittest.TestCase):
     def test_city01(self):
         title = "City - good. upper lowercase"
         lat, name = self.run_test(title, "AlbAnel,, Quebec, CanAda")
-        self.assertEqual(48.91492, lat, title)
+        self.assertEqual(48.88324, lat, title)
 
     def test_city02(self):
         title = "City - good, no county"
         lat, name = self.run_test(title, "Albanel,, Quebec, CanAda")
-        self.assertEqual(48.91492, lat, title)
+        self.assertEqual(48.88324, lat, title)
 
     def test_city03(self):
         title = "City - Good name, Saint"
@@ -425,7 +425,7 @@ class TestGeodata(unittest.TestCase):
     def test_city30(self):
         title = "City - Old Bond Street, London, Middlesex, England"
         lat, name = self.run_test(title, "Old Bond Street, London, Middlesex, England")
-        self.assertEqual(51.53174, lat, title)
+        self.assertEqual(51.50853, lat, title)
 
     def test_city31(self):
         title = "City - St. Margaret, Westminster, London, England"
@@ -442,10 +442,6 @@ class TestGeodata(unittest.TestCase):
         lat, name = self.run_test(title, "Amsterdam, Spiegelplein 9")
         self.assertEqual(52.37403, lat, title)
 
-    def test_city34(self):
-        title = "City - Rooms-Katholieke begraafplaats ‘Buitenveldert’, Amsterdam"
-        lat, name = self.run_test(title, "Rooms-Katholieke begraafplaats ‘Buitenveldert’, Amsterdam")
-        self.assertEqual(52.31926, lat, title)
 
     # ===== TEST WILDCARDS Verify lookup returns correct place (latitude)
     def test_wildcard02(self):
@@ -601,7 +597,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_name13(self):
         title = "City - Old Bond Street, London, Middlesex, England"
         lat, name = self.run_test(title, "Old Bond Street, London, Middlesex, England")
-        self.assertEqual("Old Bond Street, Middlesex, Greater London, England, United Kingdom", name, title)
+        self.assertEqual("Old Bond Street, London, Greater London, England, United Kingdom", name, title)
 
     def test_place_name14(self):
         title = "name" #""City - St. Margaret, Westminster, London, England"
@@ -621,7 +617,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_name17(self):
         title = "City - Rooms-Katholieke begraafplaats ‘Buitenveldert’, Amsterdam"
         lat, name = self.run_test(title, "Rooms-Katholieke begraafplaats ‘Buitenveldert’, Amsterdam, netherlands")
-        self.assertEqual("Rooms Katholieke Begraafplaats 'Buitenveldert', Amsterdam Duivendrecht,  Ouder Amstel,  Noord Holland, Netherlands",
+        self.assertEqual("Rooms Katholieke Begraafplaats 'Buitenveldert', Amsterdam,  Amsterdam,  Noord Holland, Netherlands",
                          name, title)
 
     def test_place_name18(self):

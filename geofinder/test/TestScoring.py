@@ -96,9 +96,9 @@ class TestScoring(unittest.TestCase):
         return score
 
     # ===== TEST SCORING
-    PERFECT = -10
-    VERY_STRONG = 5
-    STRONG = 13
+    PERFECT = -20
+    VERY_STRONG = -1
+    STRONG = 18
     GOOD = 23
     POOR = 38
     VERY_POOR = 70
@@ -109,12 +109,12 @@ class TestScoring(unittest.TestCase):
     def test_scr222(self):
         title = "score1"
         score = self.run_test3(title, "palo alto, santa clara, california, usa", "palo alto, santa clara, california, usa", 'PPL')
-        self.assertLess(score, -20, title)
+        self.assertLess(score, TestScoring.STRONG, title)
 
     def test_scr223(self):
         title = "score1"
         score = self.run_test3(title, "city of palo alto, santa clara, california, usa", "palo alto, santa clara, california, usa", 'ADM3')
-        self.assertLess(score, -20, title)
+        self.assertLess(score, TestScoring.STRONG, title)
 
     def test_scr22(self):
         title = "score1"
@@ -125,7 +125,7 @@ class TestScoring(unittest.TestCase):
     def test_scr23(self):
         title = "score1"
         score = self.run_test3(title, "chelsea,,england", "chelsea, greater london, england, united kingdom", 'PP1M')
-        self.assertLess(score, TestScoring.VERY_STRONG, title)
+        self.assertLess(score, TestScoring.STRONG, title)
         self.assertGreater(score, TestScoring.PERFECT, title)
 
     def test_scr21(self):
@@ -161,7 +161,7 @@ class TestScoring(unittest.TestCase):
     def test_scr73(self):
         title = "score72"
         score = self.run_test3(title, "London, England, United Kingdom", "London, England, United Kingdom", 'HSP')
-        self.assertLess(score, TestScoring.VERY_STRONG, title)
+        self.assertLess(score, TestScoring.STRONG, title)
         self.assertGreater(score, TestScoring.PERFECT, title)
 
     def test_scr82(self):
@@ -174,7 +174,7 @@ class TestScoring(unittest.TestCase):
         title = "score84"
         score = self.run_test3(title, "Domfront, Normandy", "Domfront, Department De L'Orne, Normandie, France", 'PP1M')
         self.assertLess(score, TestScoring.STRONG, title)
-        self.assertGreater(score, TestScoring.VERY_STRONG, title)
+        self.assertGreater(score, TestScoring.PERFECT, title)
 
     def test_scr83(self):
         title = "score83"
@@ -194,7 +194,7 @@ class TestScoring(unittest.TestCase):
         score = self.run_test3(title, "Old Bond Street, London, Middlesex, England",
                                " , Museum Of London, Greater London, England, United Kingdom", 'PPL')
         self.assertLess(score, TestScoring.GOOD, title)
-        self.assertGreater(score, TestScoring.STRONG, title)
+        self.assertGreater(score, TestScoring.VERY_STRONG, title)
 
     def test_scr61(self):
         title = "score61"
