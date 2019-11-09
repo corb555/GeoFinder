@@ -24,7 +24,7 @@ from typing import List, Tuple
 from geofinder import GeoKeys
 from geofinder.ArgumentParserNoExit import ArgumentParserNoExit
 
-default_country = 'nederland'
+#default_country = 'nederland'
 
 
 # What type of entity is this place?
@@ -190,6 +190,7 @@ class Loc:
         if token_count == 3 and self.admin1_name == '' and self.country_name == '':
             # Just one valid token, so take as city
             self.city1 = GeoKeys.search_normalize(tokens[-3], self.country_iso)
+
             if len(self.city1) > 0:
                 self.place_type = PlaceType.CITY
                 self.target = self.city1
@@ -197,6 +198,8 @@ class Loc:
             #  Format: Admin2, Admin1, Country
             #  Admin2 is 3rd to last.  Note -  if Admin2 isnt found, it will look it up as city
             self.admin2_name = GeoKeys.search_normalize(tokens[-3], self.country_iso)
+            self.admin2_name, modif = GeoKeys.admin2_normalize(self.admin2_name, self.country_iso)
+
             if len(self.admin2_name) > 0:
                 self.place_type = PlaceType.ADMIN2
                 self.target = self.admin2_name

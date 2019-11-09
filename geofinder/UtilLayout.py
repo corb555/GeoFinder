@@ -119,6 +119,12 @@ class UtilLayout:
         self.quit_button = ttk.Button(self.root, text="quit", command=self.quit_handler, width=10)
         self.quit_button.grid(row=1, column=1, sticky="E", pady=9, padx=8)
 
+        self.root.columnconfigure(0, weight=5)
+        self.root.columnconfigure(2, weight=2)
+
+        self.root.rowconfigure(0, weight=2)
+        self.root.rowconfigure(1, weight=2)
+
         #  write out all cache files
         for item in self.listbox_list:
             item.write()

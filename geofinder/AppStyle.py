@@ -77,7 +77,7 @@ class GFStyle:
         styl.configure('Preferred.TButton', foreground=GOOD_COLOR)
 
         # Treeview (listbox) colors
-        styl.configure("Plain.Treeview", highlightthickness=0, bd=0,rowheight=27, font=(FNT_NAME, FNT_SIZE_MD),
+        styl.configure("Plain.Treeview", highlightthickness=0, bd=0,rowheight=25, font=(FNT_NAME, FNT_SIZE_MD),
                        foreground=FG_COLOR)  # Modify the font of the body
         styl.configure("Plain.Treeview.Heading", font=(FNT_NAME, FNT_SIZE_MD, 'bold'),
                        foreground=FG_COLOR, background=LT_GRAY,rowheight=30, relief="flat")  # Modify the font of

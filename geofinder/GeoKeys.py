@@ -90,9 +90,11 @@ def remove_noise_words(res):
     res = re.sub(r'nouveau brunswick', ' ', res)
 
     res = re.sub(r' de ', ' ', res)
+    res = re.sub(r' di ', ' ', res)
+
     res = re.sub(r' du ', ' ', res)
     res = re.sub(r' of ', ' ', res)
-    res = re.sub(r' city ', ' ', res)
+    res = re.sub(r'city of ', ' ', res)
 
     res = re.sub(r"politischer bezirk ", ' ', res)
     return res
@@ -124,9 +126,9 @@ def search_normalize(res, iso)->str:
 
 def admin1_normalize(res, iso):
     #res = re.sub(r"'", '', res)  # Normalize hyphens
+    if iso == 'de':
+        res = re.sub(r'bayern', 'bavaria', res)
 
-    if iso == 'gb':
-        res = re.sub(r'middlesex', 'greater london', res)
     if iso == 'fr':
         res = re.sub(r'normandy', 'normandie', res)
         res = re.sub(r'brittany', 'bretagne', res)
@@ -148,7 +150,7 @@ def admin1_normalize(res, iso):
 
     return res
 
-def admin2_normalize(res)->(str, bool):
+def admin2_normalize(res, iso)->(str, bool):
     """
     Some English counties have had Shire removed from name, try doing that
     :param res:
@@ -156,11 +158,17 @@ def admin2_normalize(res)->(str, bool):
     result - new string
     modified - True if modified
     """
-    if 'shire' in res:
-        res = re.sub('shire', '', res)
-        return res, True
-    else:
-        return res, False
+    mod = False
+    #if 'shire' in res:
+    #    res = re.sub('shire', '', res)
+    #   mod = True
+
+    if iso == 'gb':
+        res = re.sub(r'middlesex', ' ', res)
+        res = re.sub(r'breconshire', 'sir powys', res)
+        mod = True
+
+    return res, mod
 
 def country_normalize(res)->(str,bool):
     """
@@ -201,6 +209,7 @@ def _phrase_normalize(res) -> str:
     res = re.sub('saints |sainte |sint |saint |sankt |st. ', 'st ', res)  # Normalize Saint
     res = re.sub(r' co\.', ' county', res)  # Normalize County
     res = re.sub(r'united states', 'usa', res)  # Normalize USA
+    res = re.sub(r'town of ', ' ', res)  # Normalize
 
     if 'amt' not in res:
         res = re.sub(r'^mt ', 'mount ', res)
@@ -236,7 +245,7 @@ def semi_normalize(res) -> str:
     res = str(res).lower()
 
     # remove all punctuation
-    res = re.sub(r"[^a-zA-Z0-9 $.*,']+", " ", res)
+    res = re.sub(r"[^a-zA-Z0-9 $*,']+", " ", res)
 
     res = _phrase_normalize(res)
     return res.strip(' ')

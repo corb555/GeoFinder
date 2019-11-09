@@ -84,7 +84,7 @@ class MatchScore:
 
         # Each token in place hierarchy gets a different weighting
         #      Prefix, city,county, state, country
-        weight = [0.5, 1.0, 0.2, 0.6, 0.9]
+        weight = [0.7, 1.0, 0.2, 0.6, 0.9]
         score_diags = ''
 
         # Calculate percent of USER INPUT text that was unmatched, then apply weighting
@@ -100,7 +100,7 @@ class MatchScore:
                     # If the full first or second token of the result is in input then improve score
                     # Bonus for a full match as against above partial matches
                     if res_tokens[idx] in inp_tokens[idx]:
-                        in_score -= 10
+                        in_score -= 27
 
         # Average over number of tokens (with fractional weight).  Gives 0-100% regardless of weighting and number of tokens
         in_score = in_score / num_inp_tokens

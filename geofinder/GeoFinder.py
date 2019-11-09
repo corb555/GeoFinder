@@ -163,7 +163,7 @@ class GeoFinder:
                 self.w.load_button.config(state="disabled")
             else:
                 # No config errors
-                # Read config settings (Ancetry file path)
+                # Read config settings (Ancestry file path)
                 err = self.cfg.read()
                 if err:
                     self.logger.warning('error reading {} config.pkl'.format(self.cache_dir))
@@ -320,6 +320,7 @@ class GeoFinder:
             # Process it and keep looping until we need user input
             self.place.clear()
             town_entry, eof, rec_id = self.ancestry_file_handler.get_next_place()
+            town_entry = GeoKeys.semi_normalize(town_entry)
             self.place.id = rec_id
 
             if eof:

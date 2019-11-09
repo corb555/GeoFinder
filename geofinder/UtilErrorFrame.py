@@ -62,6 +62,7 @@ class SetupErrorFrame:
         self.grd = {"title_label": [0, 0, 5, 5, "W"], "scrollbar": [1, 2, 0, 5, "WNS"], "status": [0, 1, 5, 5, "W"], "add_button": [2, 4, 5, 5, "W"],
                     "listbox": [0, 2, 5, 5, "E"], "unused": [2, 3, 5, 5, "W"], "add_entry": [0, 4, 5, 5, "W"], "load_button": [2, 1, 5, 5, "W"],
                     "geoname_button": [2, 1, 5, 5, "E"], "add_label": [0, 3, 5, 5, "EW"]}
+
         self.title_label = Widge.CLabel(frame, text=self.title, width=80, style='Info.TLabel')
         self.status = Widge.CLabel(frame, text=" ", width=80, style='Highlight.TLabel')
         self.scrollbar = Scrollbar(frame)
@@ -72,6 +73,12 @@ class SetupErrorFrame:
 
         # Configure buttons and widgets
         self.configure_widgets()
+
+        #self.frame.columnconfigure(0, weight=5)
+        #self.frame.columnconfigure(2, weight=2)
+
+        #self.frame.rowconfigure(0, weight=2)
+        #self.frame.rowconfigure(1, weight=2)
 
         # Display data
         self.load_handler()

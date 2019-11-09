@@ -50,7 +50,11 @@ class AppLayout:
         self.root["pady"] = 20
 
         # Set column/row weight for responsive resizing
-        self.root.columnconfigure(1, weight=1)
+        self.root.columnconfigure(1, weight=5)
+        self.root.columnconfigure(2, weight=2)
+        self.root.columnconfigure(3, weight=1)
+        self.root.columnconfigure(4, weight=1)
+
         for rw in range(0, 12):
             self.root.rowconfigure(rw, weight=1)
 

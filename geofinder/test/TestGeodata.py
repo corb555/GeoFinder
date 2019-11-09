@@ -698,6 +698,11 @@ class TestGeodata(unittest.TestCase):
         lat, name = self.run_test(title, "Germany")
         self.assertEqual("Germany", name, title)
 
+    def test_place_name292(self):
+        title = "903"
+        lat, name = self.run_test(title, "Germany.")
+        self.assertEqual("Germany", name, title)
+
     def test_place_name129(self):
         title = "County  verify not found "
         lat, name = self.run_test(title, "Nova Scotia, Canada")

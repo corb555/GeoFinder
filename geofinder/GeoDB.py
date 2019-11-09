@@ -86,6 +86,7 @@ class GeoDB:
         result_place: Loc = Loc.Loc()
         self.start = time.time()
         place.result_type = Result.STRONG_MATCH
+        #place.admin2_name, modified = GeoKeys.admin2_normalize(place.admin2_name, place.country_iso)
 
         if place.country_iso != '' and place.country_name == '':
             place.country_name = self.get_country_name(place.country_iso)
@@ -97,11 +98,11 @@ class GeoDB:
             if place.admin1_id == '':
                 self.get_admin1_id(place=place)
             self.select_admin2(place)
-            if len(place.georow_list) == 0:
+            #if len(place.georow_list) == 0:
                 # Try search with some text replacements
-                place.admin2_name, modified = GeoKeys.admin2_normalize(place.admin2_name)
-                if modified:
-                    self.select_admin2(place)
+                #place.admin2_name, modified = GeoKeys.admin2_normalize(place.admin2_name, place.country_iso)
+                #if modified:
+                #    self.select_admin2(place)
         elif place.place_type == Loc.PlaceType.COUNTRY:
             self.select_country(place)
         elif place.place_type == Loc.PlaceType.ADVANCED_SEARCH:

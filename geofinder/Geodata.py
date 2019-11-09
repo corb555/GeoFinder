@@ -88,9 +88,9 @@ class Geodata:
             self.process_result(place=place, flags=flags)
             return
 
-        # 1) Try standard lookup based on parse:  city, county, state/province, country
+        # 1) Try standard lookup:  city, county, state/province, country
         place.standard_parse = True
-        #self.logger.debug(f'  1) Standard Lookup. Target={place.city1}  pref [{place.prefix}] type={place.place_type}')
+        #self.logger.debug(f'  1) Standard based on parsing.  pref [{place.prefix}] type={place.place_type}')
 
         self.geo_files.geodb.lookup_place(place=place)
         result_list.extend(place.georow_list)
@@ -102,7 +102,8 @@ class Geodata:
         place.prefix = self.save_place.prefix
         place.extra = self.save_place.extra
 
-        # 2) Try a) Prefix as city, b) Admin2 as city  (try alternatives since parsing can be wrong)
+        # try alternatives since parsing can be wrong
+        # 2) Try a) Prefix  as city, b) Admin2  as city
         place.standard_parse = False
         for ty in [Loc.PlaceType.PREFIX, Loc.PlaceType.ADMIN2]:
             self.lookup_by_type(place, result_list, ty, self.save_place)
@@ -480,10 +481,10 @@ default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ",
 
 # If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
 feature_priority = {'PP1M': 100, 'ADM1': 95, 'PPLA': 95, 'PPLC': 95,'P1HK': 90, 'PPLA2': 90,
-                    'PPL': 75,'PPLA3': 70, 'PPLA4': 65, 'ADM3':60,
+                    'PPL': 75,'PPLA3': 70, 'PPLA4': 65, 'ADM3':-70, 'ADM4':-70,
                     'ADM2': 60, 'PPLG': 55, 'MILB': 50, 'NVB': 50, 'PPLF': 45, 'ADM0': 90, 'PPLL': 35, 'PPLQ': 30, 'PPLR': 25,
                     'CH': 15, 'MSQE': 15, 'CMTY': 15,'DEFAULT': 15, 'PPLS': 20, 'PPLW': 20, 'PPLX': 70, 'BTL': 15,
-                    'HSP': 0, 'VAL': 0, 'MT': 0}
+                    'HSP': -70, 'VAL': -70, 'MT': -70}
 
 result_text_list = {
     GeoKeys.Result.STRONG_MATCH: 'Matched! Click Save to accept:',
