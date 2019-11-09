@@ -37,6 +37,17 @@ class MatchScore:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+        self.weight = [0.7, 1.0, 0.2, 0.6, 0.9]
+
+        # Out weight + Feature weight must be less than 1.0.
+        self.out_weight = 0.17
+        self.feature_weight = 0.06
+        if self.out_weight + self.feature_weight > 1.0:
+            self.logger.error('Out weight + Feature weight must be less than 1.0')
+
+        self.wildcard_penalty = 20.0
+        self.first_token_match_bonus = 27.0
+        self.wrong_order_penalty = 2.0
 
     def match_score(self, inp_place: Loc.Loc, res_place: Loc.Loc) -> int:
         """
@@ -48,10 +59,6 @@ class MatchScore:
         inp_len = [0] * 5
         num_inp_tokens = 0.0
         in_score = 0
-
-        if '*' in inp_place.original_entry:
-            # if it was a wildcard search it's hard to rank.  just set to 40
-            return 40
 
         # Create full place title (prefix,city,county,state,country) from input place.
         inp_title = inp_place.get_five_part_title()
@@ -84,23 +91,22 @@ class MatchScore:
 
         # Each token in place hierarchy gets a different weighting
         #      Prefix, city,county, state, country
-        weight = [0.7, 1.0, 0.2, 0.6, 0.9]
         score_diags = ''
 
         # Calculate percent of USER INPUT text that was unmatched, then apply weighting
         for idx, tk in enumerate(inp_tokens):
             if inp_len[idx] > 0:
                 unmatched_percent = int(100.0 * len(unmatched_input_tokens[idx].strip(' ')) / inp_len[idx])
-                in_score += unmatched_percent * weight[idx]
-                score_diags += f'  {idx}) [{tk}]{inp_len[idx]} {unmatched_percent}% * {weight[idx]} '
-                # self.logger.debug(f'{idx}) Rem=[{unmatched_input_tokens[idx].strip(" " )}] wgtd={unmatched_percent * weight[idx]}')
-                num_inp_tokens += 1.0 * weight[idx]
-                # self.logger.debug(f'{idx} [{inp_tokens2[idx]}:{inp_tokens[idx]}] rawscr={sc}% orig_len={inp_len[idx]} wgt={weight[idx]}')
+                in_score += unmatched_percent * self.weight[idx]
+                score_diags += f'  {idx}) [{tk}]{inp_len[idx]} {unmatched_percent}% * {self.weight[idx]} '
+                # self.logger.debug(f'{idx}) Rem=[{unmatched_input_tokens[idx].strip(" " )}] wgtd={unmatched_percent * self.weight[idx]}')
+                num_inp_tokens += 1.0 * self.weight[idx]
+                # self.logger.debug(f'{idx} [{inp_tokens2[idx]}:{inp_tokens[idx]}] rawscr={sc}% orig_len={inp_len[idx]} wgt={self.weight[idx]}')
                 if idx < 2:
                     # If the full first or second token of the result is in input then improve score
                     # Bonus for a full match as against above partial matches
                     if res_tokens[idx] in inp_tokens[idx]:
-                        in_score -= 27
+                        in_score -= self.first_token_match_bonus
 
         # Average over number of tokens (with fractional weight).  Gives 0-100% regardless of weighting and number of tokens
         in_score = in_score / num_inp_tokens
@@ -115,19 +121,23 @@ class MatchScore:
 
         if not inp_place.standard_parse:
             # If Tokens were not in hierarchical order, give penalty
-            parse_penalty = 2.0
+            parse_penalty = self.wrong_order_penalty
         else:
             parse_penalty = 0.0
+
+        if '*' in inp_place.original_entry:
+            # if it was a wildcard search it's hard to rank - add a penalty
+            wildcard_penalty = self.wildcard_penalty
+        else:
+            wildcard_penalty = 0.0
 
         # Feature score is to ensure "important" places  get  higher rank (large city, etc)
         feature_score = Geodata.Geodata.get_priority(res_place.feature)
 
         # Add up scores - Each item is 0-100 and weighed as below
-        out_weight = 0.17
-        feature_weight = 0.06
-        in_weight = 1.0 - out_weight - feature_weight
+        in_weight = 1.0 - self.out_weight - self.feature_weight
 
-        score = in_score * in_weight + out_weight * out_score + feature_score * feature_weight + parse_penalty
+        score = in_score * in_weight +  out_score * self.out_weight  + feature_score * self.feature_weight + parse_penalty + wildcard_penalty
 
         # self.logger.debug(f'SCORE {score:.1f} [{res_title}]  out={out_score * out_weight:.1f} '
         #                  f'in={in_score:.1f} feat={feature_score * feature_weight:.1f} parse={parse_penalty}\n {score_diags}')

@@ -31,6 +31,22 @@ class TestScoring(unittest.TestCase):
     scoring = None
     logger = None
     geodata = None
+    test_idx = -1
+
+    # ===== TEST SCORING
+    PERFECT = -20
+    VERY_STRONG = -1
+    STRONG = 18
+    GOOD = 23
+    POOR = 38
+    VERY_POOR = 70
+    NO_MATCH = 100.1
+
+    test_values = [
+        # Target, Result, Feature, Expected Score
+        ("palo alto, santa clara, california, usa", "palo alto, santa clara, california, usa", 'PPL', STRONG),
+        ("city of palo alto, santa clara, california, usa", "palo alto, santa clara, california, usa", 'ADM3', STRONG)
+    ]
 
     @classmethod
     def setUpClass(cls):
@@ -56,6 +72,7 @@ class TestScoring(unittest.TestCase):
     def setUp(self) -> None:
         TestScoring.in_place: Loc.Loc = Loc.Loc()
         TestScoring.out_place: Loc.Loc = Loc.Loc()
+        TestScoring.test_idx += 1
 
     def run_test1(self, title: str, inp, out):
         print("*****TEST: WORD {}".format(title))
@@ -69,16 +86,19 @@ class TestScoring(unittest.TestCase):
         return out, inp
 
     @staticmethod
-    def run_test3(title: str, inp, res, feat):
+    def run_test3()->int:
         """
-
         :param title:
         :param inp:
         :param res:
         :param feat:
         :return:
         """
-        print("*****TEST:SCORE {}".format(title))
+        title = TestScoring.test_values[TestScoring.test_idx][0]
+        inp = TestScoring.test_values[TestScoring.test_idx][0]
+        res = TestScoring.test_values[TestScoring.test_idx][1]
+        feat = TestScoring.test_values[TestScoring.test_idx][2]
+
         in_place = Loc.Loc()
         in_place.original_entry = inp
         in_place.parse_place(inp, geo_files=TestScoring.geodata.geo_files)
@@ -93,29 +113,22 @@ class TestScoring(unittest.TestCase):
             res_place.country_name = TestScoring.geodata.geo_files.geodb.get_country_name(res_place.country_iso)
 
         score = TestScoring.scoring.match_score(in_place, res_place)
+        print(f'{score:.1f} [{in_place.original_entry.title()}] [{res_place.get_five_part_title()}]')
         return score
-
-    # ===== TEST SCORING
-    PERFECT = -20
-    VERY_STRONG = -1
-    STRONG = 18
-    GOOD = 23
-    POOR = 38
-    VERY_POOR = 70
-    NO_MATCH = 100
 
     # palo alto, santa clara, california, usa
 
     def test_scr222(self):
-        title = "score1"
-        score = self.run_test3(title, "palo alto, santa clara, california, usa", "palo alto, santa clara, california, usa", 'PPL')
-        self.assertLess(score, TestScoring.STRONG, title)
+        score = self.run_test3()
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
 
     def test_scr223(self):
-        title = "score1"
-        score = self.run_test3(title, "city of palo alto, santa clara, california, usa", "palo alto, santa clara, california, usa", 'ADM3')
-        self.assertLess(score, TestScoring.STRONG, title)
+        score = self.run_test3()
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
 
+"""
     def test_scr22(self):
         title = "score1"
         score = self.run_test3(title, "chelsea,,england", "winchelsea, east sussex, england, united kingdom", 'PP1M')
@@ -314,7 +327,7 @@ class TestScoring(unittest.TestCase):
         out, inp = self.run_test2(title, "Frunce", "Paris, France")
         self.assertEqual('u', inp, title)
 
-    """
+    
     """
 
 

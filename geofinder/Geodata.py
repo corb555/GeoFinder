@@ -482,8 +482,8 @@ default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ",
 # If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
 feature_priority = {'PP1M': 100, 'ADM1': 95, 'PPLA': 95, 'PPLC': 95,'P1HK': 90, 'PPLA2': 90,
                     'PPL': 75,'PPLA3': 70, 'PPLA4': 65, 'ADM3':-70, 'ADM4':-70,
-                    'ADM2': 60, 'PPLG': 55, 'MILB': 50, 'NVB': 50, 'PPLF': 45, 'ADM0': 90, 'PPLL': 35, 'PPLQ': 30, 'PPLR': 25,
-                    'CH': 15, 'MSQE': 15, 'CMTY': 15,'DEFAULT': 15, 'PPLS': 20, 'PPLW': 20, 'PPLX': 70, 'BTL': 15,
+                    'ADM2': 60, 'PPLG': 55, 'MILB': 0, 'NVB': 50, 'PPLF': 45, 'ADM0': 90, 'PPLL': 35, 'PPLQ': 30, 'PPLR': 25,
+                    'CH': 0, 'MSQE': 0, 'CMTY': 0,'DEFAULT': 0, 'PPLS': 20, 'PPLW': 20, 'PPLX': 70, 'BTL': 0,
                     'HSP': -70, 'VAL': -70, 'MT': -70}
 
 result_text_list = {
