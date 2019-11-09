@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-
+# See https://setuptools.readthedocs.io/en/latest/setuptools.html
 # To use the 'upload' functionality of this file:
 # This will create a PyPi package and publish it.  It will also tag the version in github
 #   python3 Setup.py upload   (increment __version__.py first)
@@ -116,7 +116,7 @@ setup(
     # py_modules=['mypackage'],
 
     entry_points={
-        'gui_scripts': [
+        'console_scripts': [
             'geofinder = geofinder.GeoFinder:entry'
         ],
     },
