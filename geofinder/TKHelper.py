@@ -126,11 +126,13 @@ class CEntry(ttk.Entry):
         if self.steps != 0:
             self.steps -= 1
             self.delete(0, END)
+            print(f'UNDO to {self.changes[self.steps]}')
             super().insert(END, self.changes[self.steps])
 
     def redo(self,  _):
         if self.steps < len(self.changes):
             self.delete(0, END)
+            print(f'REDO to {self.changes[self.steps]}')
             super().insert(END, self.changes[self.steps])
             self.steps += 1
 

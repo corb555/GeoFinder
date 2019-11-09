@@ -130,7 +130,8 @@ class AppLayout:
         self.title: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="GEO FINDER", width=40, style='Large.TLabel')
 
         self.original_entry: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="   ", width=GFStyle.TXT_WID, style='Light.TLabel')
-        self.user_entry: geofinder.TKHelper.CEntry = geofinder.TKHelper.CEntry(self.root, text="   ", width=GFStyle.TXT_WID, font=(GFStyle.FNT_NAME, 14))
+        self.user_entry: geofinder.TKHelper.CEntry = geofinder.TKHelper.CEntry(self.root, text="   ",
+                        width=GFStyle.TXT_WID, font=(GFStyle.FNT_NAME, 14))
         self.status: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
         self.prefix: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Highlight.TLabel')
 
