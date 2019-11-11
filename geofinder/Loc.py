@@ -133,6 +133,10 @@ class Loc:
         res = re.sub('\(', ',', res)
 
         tokens = res.split(",")
+        if len(tokens[-1]) == 0:
+            # Last item is blank, so remove it
+            tokens = tokens[:-2]
+
         token_count = len(tokens)
         self.place_type = PlaceType.CITY
 
@@ -226,9 +230,9 @@ class Loc:
 
         self.prefix = self.prefix.strip(',')
 
-        self.logger.debug(f"    ======= PARSE: {place_name} City [{self.city1}] Adm2 [{self.admin2_name}]"
-                          f" Adm1 [{self.admin1_name}] adm1_id [{self.admin1_id}] Cntry [{self.country_name}] Pref=[{self.prefix}]"
-                          f" type_id={self.place_type}")
+        #self.logger.debug(f"    ======= PARSE: {place_name} City [{self.city1}] Adm2 [{self.admin2_name}]"
+        #                  f" Adm1 [{self.admin1_name}] adm1_id [{self.admin1_id}] Cntry [{self.country_name}] Pref=[{self.prefix}]"
+        #                  f" type_id={self.place_type}")
         return
 
     def get_status(self) -> str:

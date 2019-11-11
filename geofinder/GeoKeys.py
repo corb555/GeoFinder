@@ -95,8 +95,23 @@ def remove_noise_words(res):
     res = re.sub(r' du ', ' ', res)
     res = re.sub(r' of ', ' ', res)
     res = re.sub(r'city of ', ' ', res)
+    res = re.sub(r'town of ', ' ', res)
 
     res = re.sub(r"politischer bezirk ", ' ', res)
+
+    res = re.sub(r'erry', 'ury', res)
+    res = re.sub(r'ery', 'ury', res)
+
+    res = re.sub(r'borg', 'burg', res)
+    res = re.sub(r'bourg', 'burg', res)
+    res = re.sub(r'urgh', 'urg', res)
+
+
+    res = re.sub(r'mound', 'mund', res)
+    res = re.sub(r'ourne', 'orn', res)
+    res = re.sub(r'ney', 'ny', res)
+
+
     return res
 
 def lowercase_match_group(matchobj):
@@ -164,7 +179,7 @@ def admin2_normalize(res, iso)->(str, bool):
     #   mod = True
 
     if iso == 'gb':
-        res = re.sub(r'middlesex', ' ', res)
+        #res = re.sub(r'middlesex', ' ', res)
         res = re.sub(r'breconshire', 'sir powys', res)
         mod = True
 
@@ -208,8 +223,11 @@ def _phrase_normalize(res) -> str:
     res = re.sub('r.k. |r k ', 'rooms katholieke ',res)
     res = re.sub('saints |sainte |sint |saint |sankt |st. ', 'st ', res)  # Normalize Saint
     res = re.sub(r' co\.', ' county', res)  # Normalize County
+    res = re.sub(r'united states of america', 'usa', res)  # Normalize USA
     res = re.sub(r'united states', 'usa', res)  # Normalize USA
-    res = re.sub(r'town of ', ' ', res)  # Normalize
+    res = re.sub(r'town of ', '', res)  # Normalize
+    res = re.sub(r'city of ', '', res)  # Normalize
+
 
     if 'amt' not in res:
         res = re.sub(r'^mt ', 'mount ', res)

@@ -199,6 +199,14 @@ class GeoFinder:
         # self.user_accepted = CachedDictionary(self.cache_dir, "accepted.pkl")  # List of items that have been accepted
         # self.user_accepted.read()
 
+        dict_copy = copy.copy(self.global_replace.dict)
+
+        # Convert all global_replace items to lowercase
+        for ky in dict_copy:
+            val = self.global_replace.dict.pop(ky)
+            new_key = GeoKeys.semi_normalize(ky)
+            self.global_replace.dict[new_key] = val
+
         # Initialize geodata
         self.geodata = Geodata.Geodata(directory_name=self.directory, progress_bar=self.w.prog)
         error = self.geodata.read()
@@ -386,7 +394,7 @@ class GeoFinder:
                         # Add to global replace list - Use '@' for tokenizing.  Save GEOID_TOKEN and PREFIX_TOKEN
                         res = '@' + self.place.geoid + '@' + self.place.prefix
 
-                        self.global_replace.set(town_entry, res)
+                        self.global_replace.set(   GeoKeys.semi_normalize(town_entry), res)
                         self.logger.debug(f'Found Strong Match for {town_entry} res= [{res}] Setting DICT')
                         # Periodically flush dictionary to disk.  (We flush on exit as well)
                         if self.err_count % 100 == 1:
@@ -614,7 +622,7 @@ class GeoFinder:
 
         res = '@' + self.place.geoid + '@' + self.place.prefix
         # self.logger.debug(f'Save [{ky}] :: [{res}]')
-        self.global_replace.set(ky, res)
+        self.global_replace.set(  GeoKeys.semi_normalize(ky), res)
 
         # Periodically flush dict to disk
         if self.err_count % 10 == 1:

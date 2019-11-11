@@ -21,7 +21,7 @@ import copy
 import logging
 from operator import itemgetter
 
-from geofinder import GeodataFiles, GeoKeys, Loc
+from geofinder import GeodataFiles, GeoKeys, Loc, MatchScore
 
 
 class Geodata:
@@ -39,6 +39,7 @@ class Geodata:
         self.progress_bar = progress_bar  # progress_bar
         self.geo_files = GeodataFiles.GeodataFiles(self.directory, progress_bar=self.progress_bar)  # , geo_district=self.geo_district)
         self.save_place = None
+        self.match = MatchScore.MatchScore()
 
     def find_location(self, location: str, place: Loc.Loc, shutdown):
         """
@@ -239,8 +240,8 @@ class Geodata:
         place.prefix = place.prefix.strip(' ')
         place.set_place_type_text()
         place.status = f'{place.result_type_text}  {result_text_list.get(place.result_type)} '
-        if flags.limited:
-            place.status = ' First 100 matches shown...'
+        #if flags.limited:
+        #    place.status = ' First 100 matches shown...'
 
         if flags.filtered:
             place.status = f'{place.result_type_text}  {result_text_list.get(place.result_type)} '
@@ -396,14 +397,14 @@ class Geodata:
             limited_flag = False
 
         # sort list by State/Province id, and County id
-        list_copy = sorted(place.georow_list, key=itemgetter(GeoKeys.Entry.ADM1, GeoKeys.Entry.LON))
+        list_copy = sorted(place.georow_list, key=itemgetter(GeoKeys.Entry.LON, GeoKeys.Entry.LAT,GeoKeys.Entry.SCORE))
         place.georow_list.clear()
         distance_cutoff = 0.5  # Value to determine if two lat/longs are similar
 
         # Create a dummy 'previous' row so first comparison works
         prev_geo_row = self.geo_files.geodb.make_georow(name='q', iso='q', adm1='q', adm2='q', lat=900, lon=900, feat='q', geoid='q', sdx='q')
         idx = 0
-        geoid_list = []
+        geoid_dict = {}
 
         # Create new list without dupes (adjacent items with same name and same lat/lon)
         # Find if two items with same name are similar lat/lon (within Box Distance of 0.5 degrees)
@@ -422,39 +423,55 @@ class Geodata:
             #self.logger.debug(f'{geo_row[GeoKeys.Entry.NAME]},{geo_row[GeoKeys.Entry.FEAT]} '
             #                  f'{geo_row[GeoKeys.Entry.SCORE]:.1f} {geo_row[GeoKeys.Entry.ADM2]}, '
             #                  f'{geo_row[GeoKeys.Entry.ADM1]} {geo_row[GeoKeys.Entry.ISO]}')
-            if geo_row[GeoKeys.Entry.ID] in geoid_list:
-                continue
-
-            geoid_list.append(geo_row[GeoKeys.Entry.ID])
-
-            if geo_row[GeoKeys.Entry.NAME] != prev_geo_row[GeoKeys.Entry.NAME]:
-                # Name is different.  Add previous item
+            if geoid_dict.get(geo_row[GeoKeys.Entry.ID]):
+                # We already have an entry for this geoid.  Replace if this one has better score
+                row_idx = geoid_dict.get(geo_row[GeoKeys.Entry.ID])
+                other_row = place.georow_list[row_idx]
+                if geo_row[GeoKeys.Entry.SCORE] < other_row[GeoKeys.Entry.SCORE]:
+                    # Same GEOID but this has better score so replace other entry.  Otherwise leave previous entry
+                    place.georow_list[row_idx] = geo_row
+                    self.logger.debug(f'Better score {geo_row[GeoKeys.Entry.SCORE]} < {other_row[GeoKeys.Entry.SCORE]} {geo_row[GeoKeys.Entry.NAME]}')
+            elif geo_row[GeoKeys.Entry.NAME] != prev_geo_row[GeoKeys.Entry.NAME]:
+                # Name is different.  Add this item
                 place.georow_list.append(geo_row)
+                geoid_dict[geo_row[GeoKeys.Entry.ID]] = idx
                 idx += 1
             elif abs(float(prev_geo_row[GeoKeys.Entry.LAT]) - float(geo_row[GeoKeys.Entry.LAT])) + \
                     abs(float(prev_geo_row[GeoKeys.Entry.LON]) - float(geo_row[GeoKeys.Entry.LON])) > distance_cutoff:
                 # Lat/lon is different from previous item. Add this one
                 place.georow_list.append(geo_row)
+                geoid_dict[geo_row[GeoKeys.Entry.ID]] = idx
                 idx += 1
-            elif self.get_priority(geo_row[GeoKeys.Entry.FEAT]) < self.get_priority(prev_geo_row[GeoKeys.Entry.FEAT]):
-                # Same Lat/lon but this has higher feature priority so replace previous entry
+            elif self.get_priority(geo_row[GeoKeys.Entry.SCORE]) < self.get_priority(prev_geo_row[GeoKeys.Entry.SCORE]):
+                # Same Lat/lon but this has better so replace previous entry.  Otherwise leave previous entry
                 place.georow_list[idx - 1] = geo_row
+                geoid_dict[geo_row[GeoKeys.Entry.ID]] = idx-1
+                self.logger.debug(f'Use. {geo_row[GeoKeys.Entry.SCORE]}  < {prev_geo_row[GeoKeys.Entry.SCORE]} {geo_row[GeoKeys.Entry.NAME]}')
+            else:
+                self.logger.debug(f'Ignore. {geo_row[GeoKeys.Entry.SCORE]} NOT < {prev_geo_row[GeoKeys.Entry.SCORE]} {geo_row[GeoKeys.Entry.NAME]}')
 
             prev_geo_row = geo_row
 
         min_score = 9999
-        new_list = sorted(place.georow_list, key=itemgetter(GeoKeys.Entry.SCORE, GeoKeys.Entry.ADM1, GeoKeys.Entry.ADM2))
+        new_list = sorted(place.georow_list, key=itemgetter(GeoKeys.Entry.SCORE, GeoKeys.Entry.ADM1))
         place.georow_list.clear()
 
         for rw, geo_row in enumerate(new_list):
+            # If first item, remove penalty for ADM entry
+            if rw == 0 and 'ADM' in geo_row[GeoKeys.Entry.FEAT]:
+                geo_row_update = list(geo_row)
+                geo_row_update[GeoKeys.Entry.SCORE] = self.match.adjust_adm_score(score=geo_row[GeoKeys.Entry.SCORE],
+                                                                           feat=geo_row[GeoKeys.Entry.FEAT])
+                geo_row = tuple(geo_row_update)
+
             score = geo_row[GeoKeys.Entry.SCORE]
 
             if score < min_score:
                 min_score = score
             #self.logger.debug(f'Score {score:.2f}  {geo_row[GeoKeys.Entry.NAME]}, {geo_row[GeoKeys.Entry.ADM2]}, {geo_row[GeoKeys.Entry.ADM1]}')
-            if score > min_score + 15:
+            if score > min_score + 10:
                 break
-            if min_score < 6 and score > min_score + 6:
+            if min_score < 7 and score > min_score + 6:
                 break
             place.georow_list.append(geo_row)
             prev_score = score
@@ -474,17 +491,19 @@ class Geodata:
 
         return 100.0 - float(f_prior)
 
-
+# Default geonames.org feature types to load
 default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ", "HSP",
            "HSTS", "ISL", "MSQE", "MSTY", "MT", "MUS", "PAL", "PPL", "PPLA", "PPLA2", "PPLA3", "PPLA4",
            "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "PRSH", "RUIN", "RLG", "STG", "SQR", "SYG", "VAL"]
 
 # If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
-feature_priority = {'PP1M': 100, 'ADM1': 95, 'PPLA': 95, 'PPLC': 95,'P1HK': 90, 'PPLA2': 90,
-                    'PPL': 75,'PPLA3': 70, 'PPLA4': 65, 'ADM3':-70, 'ADM4':-70,
+# These scores are also part of the match ranking score
+# Note: PP1M, P1HK, P10K do not exist in Geonames and are created by geofinder
+feature_priority = {'PP1M': 100, 'ADM1': 95, 'PPLA': 95, 'PPLC': 95,'P1HK': 90, 'PPLA2': 90,'P10K': 80,
+                    'PPL': 75,  'PPLA3': 70, 'PPLA4': 65, 'ADM3':-80, 'ADM4':-80, 'ADMX' : 60,
                     'ADM2': 60, 'PPLG': 55, 'MILB': 0, 'NVB': 50, 'PPLF': 45, 'ADM0': 90, 'PPLL': 35, 'PPLQ': 30, 'PPLR': 25,
-                    'CH': 0, 'MSQE': 0, 'CMTY': 0,'DEFAULT': 0, 'PPLS': 20, 'PPLW': 20, 'PPLX': 70, 'BTL': 0,
-                    'HSP': -70, 'VAL': -70, 'MT': -70}
+                    'CH': 0, 'MSQE': 0, 'CMTY': 0,'DEFAULT': -80, 'PPLS': 20, 'PPLW': 20, 'PPLX': 70, 'BTL': -40,
+                    'HSP': -80, 'VAL': -80, 'MT': -80}
 
 result_text_list = {
     GeoKeys.Result.STRONG_MATCH: 'Matched! Click Save to accept:',

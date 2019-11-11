@@ -157,9 +157,7 @@ class DB:
             self.err = True
             self.logger.error(e)
             error = True
-            #sys.exit()
-        if error:
-            skdfjd = hghg
+            sys.exit()
         return res
 
     def table_exists(self, table_name):
@@ -231,7 +229,7 @@ class DB:
             if elapsed > 5:
                 self.logger.debug(f'[{elapsed:.4f}] [{self.total_time:.1f}] len {len(row_list)} from {from_tbl} '
                                   f'where {query.where} val={query.args} ')
-            if len(row_list) > 6:
+            if len(row_list) > 50:
                 res = query.result  # Set specified success code
                 # self.logger.debug(row_list)
                 # Found match.  Break out of loop

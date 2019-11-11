@@ -311,8 +311,8 @@ class GeodataFiles:
             geo_row[GeoDB.Entry.FEAT] = 'PP1M'
         elif int(geoname_row.pop) > 100000 and 'PP' in geoname_row.feat_code:
             geo_row[GeoDB.Entry.FEAT] = 'P1HK'
-        elif int(geoname_row.pop) < 10000 and 'PP' in geoname_row.feat_code:
-            geo_row[GeoDB.Entry.FEAT] = 'PPLL'
+        elif int(geoname_row.pop) > 10000 and 'PP' in geoname_row.feat_code:
+            geo_row[GeoDB.Entry.FEAT] = 'P10K'
 
         #if geoname_row.feat_code == 'PPLQ':
         #    geo_row[GeoDB.Entry.NAME] = re.sub(r' historical', '', geo_row[GeoDB.Entry.NAME])

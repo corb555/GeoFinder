@@ -90,8 +90,50 @@ class TestGeodata(unittest.TestCase):
             return float(lat), 'NO MATCH'
 
 
-    # ===== TEST RESULT CODES
 
+    
+    # ======= TEST Event Year handling
+    def test_eventyear01(self):
+        title = "City - good - and after city start"
+        self.place.event_year = 1541
+        lat, name = self.run_test(title, "Albanel,, Quebec, Canada")
+        self.assertEqual(albanel_lat, lat, title)
+
+    def test_eventyear02(self):
+        title = "City - good - but before city start"
+        self.place.event_year = 1540
+        lat, name = self.run_test(title, "Albanel,, Quebec, Canada")
+        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
+
+    def test_eventyear03(self):
+        title = "name"
+        self.place.event_year = 1541
+        lat, name = self.run_test(title, "Stuttgart,,,Germany")
+        self.assertEqual(48.78232, lat, title)
+    
+
+    # ====== TEST find first match, find geoid
+    def test_findfirst01(self):
+        title = "City - find first"
+        entry = "Berlin,,,Germany"
+
+        print("*****TEST: {}".format(title))
+        TestGeodata.geodata.find_first_match(entry, self.place)
+        lat = float(self.place.lat)
+
+        self.assertEqual(47.73834, lat, title)
+
+    def test_findgeoid01(self):
+        title = "City - find first"
+        entry = "Berlin,,,Germany"
+
+        print("*****TEST: {}".format(title))
+        TestGeodata.geodata.find_geoid('8133394', self.place)
+        lat = float(self.place.lat)
+
+        self.assertEqual(43.69655, lat, title)
+
+    # ===== TEST RESULT CODES
 
     def test_res_code01(self):
         title = "City.  Good.  upper lowercase"
@@ -597,7 +639,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_name13(self):
         title = "City - Old Bond Street, London, Middlesex, England"
         lat, name = self.run_test(title, "Old Bond Street, London, Middlesex, England")
-        self.assertEqual("Old Bond Street, London, Greater London, England, United Kingdom", name, title)
+        self.assertEqual("Old Bond Street, Middlesex, Greater London, England, United Kingdom", name, title)
 
     def test_place_name14(self):
         title = "name" #""City - St. Margaret, Westminster, London, England"
@@ -635,7 +677,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_name20(self):
         title = "City - Paris, France"
         lat, name = self.run_test(title, "Paris, France")
-        self.assertEqual("Paris, Paris, Ile De France, France",
+        self.assertEqual("Paris, Ile De France, France",
                          name, title)
 
     def test_place_name21(self):
@@ -698,56 +740,27 @@ class TestGeodata(unittest.TestCase):
         title = "903"
         lat, name = self.run_test(title, "Germany.")
         self.assertEqual("Germany", name, title)
+    
 
     def test_place_name129(self):
         title = "County  verify not found "
         lat, name = self.run_test(title, "Nova Scotia, Canada")
         self.assertEqual("Nova Scotia, Canada", name, title)
-
-    # al*,--country=ca, --f_code=CH
-    # Blois, Loir-et-Cher, Orleanais/Centre, France
-
-    # ======= TEST Event Year handling
-    def test_eventyear01(self):
-        title = "City - good - and after city start"
-        self.place.event_year = 1541
-        lat, name = self.run_test(title, "Albanel,, Quebec, Canada")
-        self.assertEqual(albanel_lat, lat, title)
-
-    def test_eventyear02(self):
-        title = "City - good - but before city start"
-        self.place.event_year = 1540
-        lat, name = self.run_test(title, "Albanel,, Quebec, Canada")
-        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
-
-    def test_eventyear03(self):
-        title = "name"
-        self.place.event_year = 1541
-        lat, name = self.run_test(title, "Stuttgart,,,Germany")
-        self.assertEqual(48.78232, lat, title)
     
 
-    # ====== TEST find first match, find geoid
-    def test_findfirst01(self):
-        title = "City - find first"
-        entry = "Berlin,,,Germany"
+    def test_place_name130(self):
+        title = "County  verify not found "
+        lat, name = self.run_test(title, "newberry, wiltshire, england")
+        self.assertEqual("Newberry, Newbury, Wiltshire, England, United Kingdom", name, title)
 
-        print("*****TEST: {}".format(title))
-        TestGeodata.geodata.find_first_match(entry, self.place)
-        lat = float(self.place.lat)
+    def test_place_name131(self):
+        title = "County  verify not found "
+        lat, name = self.run_test(title, "tretwr, llnfhngl cwm du, breconshire, england,")
+        self.assertEqual("Tretwr, Tretower, Sir Powys, Wales, United Kingdom", name, title)
 
-        self.assertEqual(47.73834, lat, title)
+    # tretwr, llnfhngl cwm du, breconshire, england,
+"""
 
-    def test_findgeoid01(self):
-        title = "City - find first"
-        entry = "Berlin,,,Germany"
-
-        print("*****TEST: {}".format(title))
-        TestGeodata.geodata.find_geoid('8133394', self.place)
-        lat = float(self.place.lat)
-
-        self.assertEqual(43.69655, lat, title)
-
-
+"""
 if __name__ == '__main__':
     unittest.main()

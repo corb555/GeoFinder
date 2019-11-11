@@ -16,6 +16,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+import copy
 import logging
 import os
 import re
@@ -74,9 +75,6 @@ class GeoDB:
         self.geoid_admin_dict = {}  # Key is GEOID, Value is DB ID for entry
         self.place_type = ''
 
-    def delete_dbZZZ(self):
-        self.logger.info('Deleting geoname DB')
-
     def lookup_place(self, place: Loc.Loc) -> []:
         """
         Lookup a place in our geoname.org dictionary and update place with Geo_result with lat, long, District, etc
@@ -93,28 +91,28 @@ class GeoDB:
 
         # Lookup Place based on Place Type
         if place.place_type == Loc.PlaceType.ADMIN1:
+            lookup_type = 'ADMIN1'
             self.select_admin1(place)
         elif place.place_type == Loc.PlaceType.ADMIN2:
+            lookup_type = 'ADMIN1'
             if place.admin1_id == '':
                 self.get_admin1_id(place=place)
             self.select_admin2(place)
-            #if len(place.georow_list) == 0:
-                # Try search with some text replacements
-                #place.admin2_name, modified = GeoKeys.admin2_normalize(place.admin2_name, place.country_iso)
-                #if modified:
-                #    self.select_admin2(place)
         elif place.place_type == Loc.PlaceType.COUNTRY:
+            lookup_type = 'COUNTRY'
             self.select_country(place)
         elif place.place_type == Loc.PlaceType.ADVANCED_SEARCH:
             self.advanced_search(place)
+            lookup_type = 'ADVANCED'
         else:
             # Lookup as City
+            lookup_type = 'CITY'
             if place.admin2_id == '':
                 self.get_admin2_id(place=place)
             self.select_city(place)
 
         # nm = place.original_entry
-        # self.logger.debug(f'Search results for {place.target} pref[{place.prefix}]')
+        self.logger.debug(f'Search results for {lookup_type} {place.target}, {place.admin2_name}, {place.admin1_name}, {place.country_name}:')
         min_score = 9999
 
         # Add search quality score to each entry
@@ -140,8 +138,15 @@ class GeoDB:
             # Remove items in prefix that are in result
             tk_list = result_place.original_entry.split(",")
             if place.place_type != Loc.PlaceType.ADVANCED_SEARCH:
-                for item in tk_list:
-                    place.prefix = re.sub(item.strip(' ').lower(), '', place.prefix)
+                #
+                prfx = copy.copy(place.prefix)
+                tmp = ','.join(tk_list)
+                tmp, prfx = self.match.remove_matching_sequences(text1=tmp,text2=prfx)
+                if len(prfx) < 4:
+                    place.prefix = ''
+                else:
+                    for item in tk_list:
+                        place.prefix = re.sub(item.strip(' ').lower(), '', place.prefix)
 
         if place.result_type == Result.STRONG_MATCH and len(place.prefix) > 0:
             place.result_type = Result.PARTIAL_MATCH

@@ -32,20 +32,59 @@ class TestScoring(unittest.TestCase):
     logger = None
     geodata = None
     test_idx = -1
+    delta = 22
 
     # ===== TEST SCORING
-    PERFECT = -20
-    VERY_STRONG = -1
-    STRONG = 18
-    GOOD = 23
-    POOR = 38
-    VERY_POOR = 70
+    EXCELLENT = 8
+    GOOD = 28
+    POOR = 48
+    VERY_POOR = 68
+    TERRIBLE = 88
     NO_MATCH = 100.1
 
     test_values = [
         # Target, Result, Feature, Expected Score
-        ("palo alto, santa clara, california, usa", "palo alto, santa clara, california, usa", 'PPL', STRONG),
-        ("city of palo alto, santa clara, california, usa", "palo alto, santa clara, california, usa", 'ADM3', STRONG)
+        ("toronto,nova scotia, canada", "toronto,ontario,canada", 'PPL', GOOD),   #0
+        ("toronto,ontario,canada", "toronto,ontario,canada", 'PP1M', EXCELLENT), #1
+
+        ("palo alto, santa clara, california, usa", "palo alto, santa clara, california, usa", 'PPL', GOOD), #2
+
+        ("chelsea,,england", "winchelsea, east sussex, england, united kingdom", 'PP1M', GOOD), #3
+        ("chelsea,,england", "chelsea, greater london, england, united kingdom", 'PP1M', EXCELLENT), #4
+
+        ("sonderburg", "sonderborg kommune,region syddanmark, denmark", 'PP1M', GOOD), #5
+
+        ("Paris, France", "Paris,, France", 'PP1M', EXCELLENT), #6
+        ("Paris, France.", "Paris,, France", 'PP1M', EXCELLENT), #7
+
+        ("London, England", "London, England, United Kingdom", 'PP1M', EXCELLENT), #8
+        ("London, England, United Kingdom", "London, England, United Kingdom", 'PP1M', EXCELLENT), #9
+        ("London, England, United Kingdom", "London, England, United Kingdom", 'HSP', GOOD), #10
+
+        ("Domfront, Normandy", "Domfront-En-Champagne, Sarthe, Pays De La Loire, France", 'PP1M', POOR), #11
+        ("Domfront, Normandy", "Domfront, Department De L'Orne, Normandie, France", 'PP1M', EXCELLENT), #12
+
+        ("St Quentin, Aisne, Picardy, France", "St Quentin, Departement De L'Aisne, Hauts De France, France", 'PP1M', EXCELLENT), #13
+
+        ("Old Bond Street, London, Middlesex, England"," , London, Greater London, England, United Kingdom", 'PP1M', GOOD), #14
+        ("Old Bond Street, London, Middlesex, England", " , Museum Of London, Greater London, England, United Kingdom", 'PPL', GOOD),#15
+
+        ("zxq, xyzzy", " , London, Greater London, England, United Kingdom", ' ', NO_MATCH),#16
+
+        ("St. Margaret, Westminster, London, England", "London,England,United Kingdom", 'PPL', POOR),#17
+        ("St. Margaret, Westminster, London, England", "Westminster Cathedral, Greater London, England", 'PPL', GOOD), #18
+
+        ("Canada", "Canada", 'ADM0', EXCELLENT),#19
+        ("France", ",France", 'ADM0', EXCELLENT),  # 20
+
+        ("barton, lancashire, england, united kingdom", "barton, lancashire, england, united kingdom", 'PPLL', EXCELLENT), #21
+        ("barton, lancashire, england, united kingdom", "barton, cambridgeshire, england, united kingdom", 'PPLL', GOOD), #22
+
+        ("testerton, norfolk, , england", "norfolk,england, united kingdom","ADM2", GOOD), #23
+        ("testerton, norfolk, , england", "testerton, norfolk, england,united kingdom", "PPLL", EXCELLENT), #24
+
+        ("Holborn, Middlesex, England", "Holborn, Greater London, England, United Kingdom", 'PP1M', EXCELLENT),  # 25
+
     ]
 
     @classmethod
@@ -72,7 +111,6 @@ class TestScoring(unittest.TestCase):
     def setUp(self) -> None:
         TestScoring.in_place: Loc.Loc = Loc.Loc()
         TestScoring.out_place: Loc.Loc = Loc.Loc()
-        TestScoring.test_idx += 1
 
     def run_test1(self, title: str, inp, out):
         print("*****TEST: WORD {}".format(title))
@@ -86,18 +124,12 @@ class TestScoring(unittest.TestCase):
         return out, inp
 
     @staticmethod
-    def run_test3()->int:
-        """
-        :param title:
-        :param inp:
-        :param res:
-        :param feat:
-        :return:
-        """
-        title = TestScoring.test_values[TestScoring.test_idx][0]
-        inp = TestScoring.test_values[TestScoring.test_idx][0]
-        res = TestScoring.test_values[TestScoring.test_idx][1]
-        feat = TestScoring.test_values[TestScoring.test_idx][2]
+    def run_test3(idx)->int:
+        TestScoring.test_idx = idx
+        title = TestScoring.test_values[idx][0]
+        inp = TestScoring.test_values[idx][0]
+        res = TestScoring.test_values[idx][1]
+        feat = TestScoring.test_values[idx][2]
 
         in_place = Loc.Loc()
         in_place.original_entry = inp
@@ -113,135 +145,177 @@ class TestScoring(unittest.TestCase):
             res_place.country_name = TestScoring.geodata.geo_files.geodb.get_country_name(res_place.country_iso)
 
         score = TestScoring.scoring.match_score(in_place, res_place)
-        print(f'{score:.1f} [{in_place.original_entry.title()}] [{res_place.get_five_part_title()}]')
+        print(f'#{idx} {score:.1f} [{in_place.original_entry.title()}] [{res_place.get_five_part_title()}]')
         return score
 
-    # palo alto, santa clara, california, usa
-
-    def test_scr222(self):
-        score = self.run_test3()
+    def test_score_00(self):
+        score = self.run_test3(0)
         self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
                         TestScoring.test_values[TestScoring.test_idx][0])
-
-    def test_scr223(self):
-        score = self.run_test3()
-        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
                         TestScoring.test_values[TestScoring.test_idx][0])
 
-"""
-    def test_scr22(self):
-        title = "score1"
-        score = self.run_test3(title, "chelsea,,england", "winchelsea, east sussex, england, united kingdom", 'PP1M')
-        self.assertLess(score, TestScoring.STRONG, title)
-        self.assertGreater(score, TestScoring.VERY_STRONG, title)
+    def test_score_01(self):
+        score = self.run_test3(1)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
 
-    def test_scr23(self):
-        title = "score1"
-        score = self.run_test3(title, "chelsea,,england", "chelsea, greater london, england, united kingdom", 'PP1M')
-        self.assertLess(score, TestScoring.STRONG, title)
-        self.assertGreater(score, TestScoring.PERFECT, title)
+    def test_score_02(self):
+        score = self.run_test3(2)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
 
-    def test_scr21(self):
-        title = "score1"
-        score = self.run_test3(title, "sonderburg", "sonderburg,sonderborg kommune,region syddanmark, denmark", 'PP1M')
-        self.assertLess(score, TestScoring.GOOD, title)
-        self.assertGreater(score, TestScoring.STRONG, title)
+    def test_score_03(self):
+        score = self.run_test3(3)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+    def test_score_04(self):
+        score = self.run_test3(4)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+    def test_score_05(self):
+        score = self.run_test3(5)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+    def test_score_06(self):
+        score = self.run_test3(6)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+    def test_score_07(self):
+        score = self.run_test3(7)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
 
-    def test_scr01(self):
-        title = "score1"
-        score = self.run_test3(title, "Paris, France", "Paris, France", 'PP1M')
-        self.assertLess(score, TestScoring.VERY_STRONG, title)
-        self.assertGreater(score, TestScoring.PERFECT, title)
+    def test_score_08(self):
+        score = self.run_test3(8)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3] - TestScoring.delta,
+                           TestScoring.test_values[TestScoring.test_idx][0])
 
-    def test_scr00(self):
-        title = "score0"
-        score = self.run_test3(title, "Paris, France.", "Paris, France", 'PP1M')
-        self.assertLess(score, TestScoring.VERY_STRONG, title)
-        self.assertGreater(score, TestScoring.PERFECT, title)
+    def test_score_09(self):
+        score = self.run_test3(9)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3] - TestScoring.delta,
+                           TestScoring.test_values[TestScoring.test_idx][0])
+    def test_score_10(self):
+        score = self.run_test3(10)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
 
-    def test_scr02(self):
-        title = "score2"
-        score = self.run_test3(title, "London, England", "London, England, United Kingdom", 'PP1M')
-        self.assertLess(score, TestScoring.VERY_STRONG, title)
-        self.assertGreater(score, TestScoring.PERFECT, title)
+    def test_score_11(self):
+        score = self.run_test3(11)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+    def test_score_12(self):
+        score = self.run_test3(12)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+    def test_score_13(self):
+        score = self.run_test3(13)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+    def test_score_14(self):
+        score = self.run_test3(14)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+    def test_score_15(self):
+        score = self.run_test3(15)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+    def test_score_16(self):
+        score = self.run_test3(16)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+    def test_score_17(self):
+        score = self.run_test3(17)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+    def test_score_18(self):
+        score = self.run_test3(18)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+    def test_score_19(self):
+        score = self.run_test3(19)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+    def test_score_20(self):
+        score = self.run_test3(20)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
 
-    def test_scr72(self):
-        title = "score72"
-        score = self.run_test3(title, "London, England, United Kingdom", "London, England, United Kingdom", 'PP1M')
-        self.assertLess(score, TestScoring.VERY_STRONG, title)
-        self.assertGreater(score, TestScoring.PERFECT, title)
+    def test_score_21(self):
+        score = self.run_test3(21)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
 
-    def test_scr73(self):
-        title = "score72"
-        score = self.run_test3(title, "London, England, United Kingdom", "London, England, United Kingdom", 'HSP')
-        self.assertLess(score, TestScoring.STRONG, title)
-        self.assertGreater(score, TestScoring.PERFECT, title)
+    def test_score_22(self):
+        score = self.run_test3(22)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
 
-    def test_scr82(self):
-        title = "score82"
-        score = self.run_test3(title, "Domfront, Normandy", "Domfront-En-Champagne, Sarthe, Pays De La Loire, France", 'PP1M')
-        self.assertLess(score, TestScoring.POOR, title)
-        self.assertGreater(score, TestScoring.GOOD, title)
 
-    def test_scr84(self):
-        title = "score84"
-        score = self.run_test3(title, "Domfront, Normandy", "Domfront, Department De L'Orne, Normandie, France", 'PP1M')
-        self.assertLess(score, TestScoring.STRONG, title)
-        self.assertGreater(score, TestScoring.PERFECT, title)
+    def test_score_23(self):
+        score = self.run_test3(23)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
 
-    def test_scr83(self):
-        title = "score83"
-        score = self.run_test3(title, "St Quentin, Aisne, Picardy, France", "St Quentin, Departement De L'Aisne, Hauts De France, France", 'PP1M')
-        self.assertLess(score, TestScoring.VERY_STRONG, title)
-        self.assertGreater(score, TestScoring.PERFECT, title)
+    def test_score_24(self):
+        score = self.run_test3(24)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
 
-    def test_scr85(self):
-        title = "score85"
-        score = self.run_test3(title, "Old Bond Street, London, Middlesex, England",
-                               " , London, Greater London, England, United Kingdom", 'PP1M')
-        self.assertLess(score, TestScoring.STRONG, title)
-        self.assertGreater(score, TestScoring.VERY_STRONG, title)
-
-    def test_scr86(self):
-        title = "score86"
-        score = self.run_test3(title, "Old Bond Street, London, Middlesex, England",
-                               " , Museum Of London, Greater London, England, United Kingdom", 'PPL')
-        self.assertLess(score, TestScoring.GOOD, title)
-        self.assertGreater(score, TestScoring.VERY_STRONG, title)
-
-    def test_scr61(self):
-        title = "score61"
-        score = self.run_test3(title, "zxq, xyzzy",
-                               " , London, Greater London, England, United Kingdom", ' ')
-        self.assertLess(score, TestScoring.NO_MATCH, title)
-        self.assertGreater(score, TestScoring.VERY_POOR, title)
-
-    def test_scr62(self):
-        title = "score62"
-        score = self.run_test3(title, "France",
-                               "France", 'ADM0')
-        self.assertLess(score, TestScoring.VERY_STRONG, title)
-        self.assertGreater(score, TestScoring.PERFECT, title)
-
-    def test_scr03(self):
-        title = "score3"
-        score = self.run_test3(title, "St. Margaret, Westminster, London, England", "London,England,United Kingdom", 'PPL')
-        self.assertLess(score, TestScoring.POOR, title)
-        self.assertGreater(score, TestScoring.GOOD, title)
-
-    def test_scr04(self):
-        title = "score4"
-        score = self.run_test3(title, "St. Margaret, Westminster, London, England", "Westminster Cathedral, Greater London, England", 'PPL')
-        self.assertLess(score, TestScoring.STRONG, title)
-        self.assertGreater(score, TestScoring.VERY_STRONG, title)
-
-    def test_scr05(self):
-        title = "score5"
-        score = self.run_test3(title, "Canada", "Canada", 'ADM0')
-        self.assertLess(score, TestScoring.VERY_STRONG, title)
-        self.assertGreater(score, TestScoring.PERFECT, title)
-
-    # St Margaret, Westminster Cathedral, Greater London, England, United Kingdom
+    def test_score_25(self):
+        score = self.run_test3(25)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
 
     # ===== TEST INPUT WORD REMOVAL
 
@@ -329,6 +403,8 @@ class TestScoring(unittest.TestCase):
 
     
     """
+    """
+
 
 
 if __name__ == '__main__':

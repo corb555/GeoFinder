@@ -37,7 +37,7 @@ class MatchScore:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.weight = [0.7, 1.0, 0.2, 0.6, 0.9]
+        self.weight = [0.8, 1.0, 0.3, 0.6, 0.9]
 
         # Out weight + Feature weight must be less than 1.0.
         self.out_weight = 0.17
@@ -45,9 +45,9 @@ class MatchScore:
         if self.out_weight + self.feature_weight > 1.0:
             self.logger.error('Out weight + Feature weight must be less than 1.0')
 
-        self.wildcard_penalty = 20.0
-        self.first_token_match_bonus = 27.0
-        self.wrong_order_penalty = 2.0
+        self.wildcard_penalty = 10.0
+        self.first_token_match_bonus = 10.0
+        self.wrong_order_penalty = 1.0
 
     def match_score(self, inp_place: Loc.Loc, res_place: Loc.Loc) -> int:
         """
@@ -74,6 +74,8 @@ class MatchScore:
         # Store length of original input tokens.  This is used for percent unmatched calculation
         for it, tk in enumerate(inp_tokens):
             inp_tokens[it] = inp_tokens[it].strip(' ')
+            if 'middlesex' in tk and 'london' in res_tokens[it]:
+                inp_tokens[it] = 'greater london'
             inp_len[it] = len(inp_tokens[it])
 
         # Create a list of all the words in result and save result len for percent calc
@@ -137,12 +139,14 @@ class MatchScore:
         # Add up scores - Each item is 0-100 and weighed as below
         in_weight = 1.0 - self.out_weight - self.feature_weight
 
-        score = in_score * in_weight +  out_score * self.out_weight  + feature_score * self.feature_weight + parse_penalty + wildcard_penalty
+        score:float = in_score * in_weight +  out_score * self.out_weight  + \
+                      feature_score * self.feature_weight  + wildcard_penalty
 
-        # self.logger.debug(f'SCORE {score:.1f} [{res_title}]  out={out_score * out_weight:.1f} '
-        #                  f'in={in_score:.1f} feat={feature_score * feature_weight:.1f} parse={parse_penalty}\n {score_diags}')
+        self.logger.debug(f'SCORE {score:.1f} [{res_title}]\n{inp_title}  out={out_score * self.out_weight:.1f} '
+                          f'in={in_score * in_weight:.1f} feat={feature_score * self.feature_weight:.1f} {res_place.feature}  '
+                          f'wild={wildcard_penalty}')
 
-        return score
+        return round(score)
 
     def _remove_matching_seq(self, text1: str, text2: str, attempts: int) -> (str, str):
         """
@@ -181,3 +185,15 @@ class MatchScore:
         # Restore commas in inp
         text2 = re.sub('@', ',', text2)
         return text1.strip(' '), text2.strip(' ')
+
+    def adjust_adm_score(self, score, feat):
+        if 'ADM3' in feat or 'ADM4' in feat:
+            # Back out original feature score
+            score -= Geodata.Geodata.get_priority(feat) * self.feature_weight
+            # Add in default ADM score
+            score += Geodata.Geodata.get_priority('ADMX') * self.feature_weight
+        return score
+
+
+
+
