@@ -22,7 +22,7 @@ import sys
 import time
 from tkinter import messagebox
 
-from geofinder.GeoKeys import Query, Result
+from geofinder.GeoKeys import Query, Result, Entry
 
 
 class DB:
@@ -216,7 +216,12 @@ class DB:
             if self.use_wildcards == False and (query.result == Result.WILDCARD_MATCH or query.result == Result.SOUNDEX_MATCH):
                 continue
             start = time.time()
-            result = self.select(select_string, query.where, from_tbl, query.args)
+            if query.result == Result.WILDCARD_MATCH:
+                result = self.word_match(select_string, query.where, from_tbl,
+                                         query.args)
+            else:
+                result = self.select(select_string, query.where, from_tbl,
+                                     query.args)
             if row_list:
                 row_list.extend(result)
             else:
@@ -239,6 +244,48 @@ class DB:
         row_list, res = self.process_query(select_string=select_str, from_tbl=from_tbl,
                                            query_list=query_list)
         return row_list, res
+
+    def word_match(self, select_string, where, from_tbl, args):
+        """
+        args[0] contains the place string to search for, and may contain
+        several words.  This performs a wildcard match on each word, and then
+        merges the results into a single result.  During the merge, we note if
+        a duplicate occurs, and mark that as a higher priority result.  We
+        also note if an individualt word has too many results, as we will drop
+        those results from the final list after doing the priority checks.
+        This should kill off common words from the results, while still
+        preserving combinations.
+
+        For example, searching for "Village of Bay", will find all three words
+        to have very many results, but the combinations of "Village" and "Bay"
+        or "Village" and "of" or "Bay" and "of" will show up in the results.
+
+        The order of the words will also not matter, so results should contain
+        "City of Bay Village", "Bay Village" etc.
+        """
+        words = args[0].split()
+        results = []    # the entire merged list of result rows
+        res_flags = []  # list of flags, matching results list, 'True' to keep
+        for word in words:
+            # redo tuple for each word; select_string still has LIKE
+            n_args = (f'%{word.strip()}%', *args[1:])
+            result = self.select(select_string, where, from_tbl, n_args)
+            for row in result:
+                # check if already in overall list
+                for indx, r_row in enumerate(results):
+                    if row[Entry.ID] == r_row[Entry.ID]:
+                        # if has same ID as in overall list, mark to keep
+                        res_flags[indx] = True
+                        break
+                else:  # this result row did not match anything
+                    results.append(row)  # add it to overall list
+                    # if reasonable number of results for this word, flag to
+                    # keep the result
+                    res_flags.append(len(result) < 20)
+        # strip out any results not flagged (too many to be interesting)
+        result = [results[indx] for indx in range(len(results)) if
+                  res_flags[indx]]
+        return result
 
     def set_speed_pragmas(self):
         # Set DB pragmas for speed.  These can lead to corruption!   -900
