@@ -156,8 +156,8 @@ class GeoDB:
         lookup_target = place.target
         if len(lookup_target) == 0:
             return
-        pattern = self.create_wildcard(lookup_target)
-        quick_pattern = self.create_quick_wildcard(lookup_target)
+        #pattern = self.create_wildcard(lookup_target)
+        #quick_pattern = self.create_quick_wildcard(lookup_target)
 
         sdx = get_soundex(lookup_target)
         #self.logger.debug(f'CITY lkp targ=[{lookup_target}] adm1 id=[{place.admin1_id}]'
@@ -172,7 +172,7 @@ class GeoDB:
                                     result=Result.PARTIAL_MATCH))
             # lookup by wildcard name
             query_list.append(Query(where="name LIKE ?",
-                                    args=(quick_pattern,),
+                                    args=(lookup_target,),  # quick_pattern,),
                                     result=Result.WILDCARD_MATCH))
             # lookup by soundex
             query_list.append(Query(where="sdx = ?",
@@ -187,18 +187,20 @@ class GeoDB:
         # Start with the most exact match depending on the data provided.
         if len(place.admin1_name) > 0:
             # lookup by name, ADMIN1, country
-            query_list.append(Query(where="name = ? AND country = ? AND admin1_id = ?",
-                                    args=(lookup_target, place.country_iso, place.admin1_id),
-                                    result=Result.STRONG_MATCH))
+            query_list.append(Query(
+                where="name = ? AND country = ? AND admin1_id = ?",
+                args=(lookup_target, place.country_iso, place.admin1_id),
+                result=Result.STRONG_MATCH))
 
             # lookup by wildcard name, ADMIN1, country
-            query_list.append(Query(where="name LIKE ? AND country = ? AND admin1_id = ?",
-                                    args=(pattern, place.country_iso, place.admin1_id),
-                                    result=Result.WILDCARD_MATCH))
+            query_list.append(Query(
+                where="name LIKE ? AND country = ? AND admin1_id = ?",
+                args=(lookup_target, place.country_iso, place.admin1_id),
+                result=Result.WILDCARD_MATCH))
         else:
             # lookup by wildcard  name, country
             query_list.append(Query(where="name LIKE ? AND country = ?",
-                                    args=(pattern, place.country_iso),
+                                    args=(lookup_target, place.country_iso),
                                     result=Result.WILDCARD_MATCH))
 
         # Lookup by name, country
@@ -244,7 +246,7 @@ class GeoDB:
                   args=(lookup_target, 'ADM2'),
                   result=Result.PARTIAL_MATCH),
             Query(where="name LIKE ? AND country = ? AND f_code=?",
-                  args=(self.create_county_wildcard(lookup_target), place.country_iso, 'ADM2'),
+                  args=(lookup_target, place.country_iso, 'ADM2'),
                   result=Result.WILDCARD_MATCH)
         ]
 
@@ -281,7 +283,7 @@ class GeoDB:
         """Search for Admin1 entry"""
         lookup_target = place.admin1_name
 
-        pattern = self.create_wildcard(lookup_target)
+        #pattern = self.create_wildcard(lookup_target)
         if len(lookup_target) == 0:
             return
         sdx = get_soundex(lookup_target)
@@ -294,7 +296,7 @@ class GeoDB:
                   args=(lookup_target, place.country_iso, 'ADM1'),
                   result=Result.STRONG_MATCH),
             Query(where="name LIKE ? AND country = ?  AND f_code = ?",
-                  args=(pattern, place.country_iso, 'ADM1'),
+                  args=(lookup_target, place.country_iso, 'ADM1'),
                   result=Result.WILDCARD_MATCH),
             Query(where="sdx = ? AND country = ? AND f_code=?",
                   args=(sdx, place.country_iso, 'ADM1'),
@@ -334,7 +336,7 @@ class GeoDB:
                   args=(lookup_target, place.country_iso, 'ADM1'),
                   result=Result.STRONG_MATCH),
             Query(where="name LIKE ? AND country = ?  AND f_code = ?",
-                  args=(self.create_wildcard(lookup_target), place.country_iso, 'ADM1'),
+                  args=(lookup_target, place.country_iso, 'ADM1'),
                   result=Result.WILDCARD_MATCH),
             Query(where="name = ?  AND f_code = ?",
                   args=(lookup_target, 'ADM1'),
@@ -361,7 +363,7 @@ class GeoDB:
                                     args=(lookup_target, place.country_iso, place.admin1_id, 'ADM2'),
                                     result=Result.STRONG_MATCH))
             query_list.append(Query(where="name LIKE ? AND country = ? and admin1_id = ? AND f_code=?",
-                                    args=(self.create_wildcard(lookup_target), place.country_iso, place.admin1_id, 'ADM2'),
+                                    args=(lookup_target, place.country_iso, place.admin1_id, 'ADM2'),
                                     result=Result.WILDCARD_MATCH))
             query_list.append(Query(where="name LIKE ? AND country = ? and admin1_id = ? AND f_code=?",
                                     args=(self.create_county_wildcard(lookup_target), place.country_iso, place.admin1_id, 'ADM2'),
@@ -371,7 +373,7 @@ class GeoDB:
                                     args=(lookup_target, place.country_iso, 'ADM2'),
                                     result=Result.STRONG_MATCH))
             query_list.append(Query(where="name LIKE ? AND country = ? AND f_code=?",
-                                    args=(self.create_wildcard(lookup_target), place.country_iso, 'ADM2'),
+                                    args=(lookup_target, place.country_iso, 'ADM2'),
                                     result=Result.WILDCARD_MATCH))
             query_list.append(Query(where="name LIKE ? AND country = ? AND f_code=?",
                                     args=(self.create_county_wildcard(lookup_target), place.country_iso, 'ADM2'),

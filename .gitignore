@@ -1,0 +1,14 @@
+# Python
+*.py[cod]
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# IDE
+.idea/
+
+# Glade temp files
+*~
+
+.github/
