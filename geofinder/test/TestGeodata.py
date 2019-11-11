@@ -27,7 +27,7 @@ from geofinder import Geodata, GeoKeys, Loc
 
 halifax_lat = 44.646
 bruce_cty_lat = 44.50009
-albanel_lat = 48.88324
+albanel_lat = 48.91492
 
 
 class TestGeodata(unittest.TestCase):
@@ -313,26 +313,16 @@ class TestGeodata(unittest.TestCase):
         lat, name = self.run_test(title, "Bruce Co., Ontario, Canada")
         self.assertEqual(bruce_cty_lat, lat, title)
 
-    def test_county04(self):
-        title = "County - good.  prioritize Halifax city vs County"
-        lat, name = self.run_test(title, "Halifax, Nova Scotia, Canada")
-        self.assertEqual(44.646, lat, title)
-
-    def test_county24(self):
-        title = "County - good.  prioritize Halifax city vs County"
-        lat, name = self.run_test(title, "Halifax County, Nova Scotia, Canada")
-        self.assertEqual(44.86685, lat, title)
-
     # City - Verify lookup returns correct place (latitude) -------------------
     def test_city01(self):
         title = "City - good. upper lowercase"
         lat, name = self.run_test(title, "AlbAnel,, Quebec, CanAda")
-        self.assertEqual(48.88324, lat, title)
+        self.assertEqual(albanel_lat, lat, title)
 
     def test_city02(self):
         title = "City - good, no county"
         lat, name = self.run_test(title, "Albanel,, Quebec, CanAda")
-        self.assertEqual(48.88324, lat, title)
+        self.assertEqual(albanel_lat, lat, title)
 
     def test_city03(self):
         title = "City - Good name, Saint"
@@ -347,7 +337,7 @@ class TestGeodata(unittest.TestCase):
     def test_city05(self):
         title = "City - Good name, edberg "
         lat, name = self.run_test(title, "Edberg,,Alberta,Canada")
-        self.assertEqual(52.78565, lat, title)
+        self.assertEqual(52.78343, lat, title)
 
     def test_city07(self):
         title = "City - Good name, gray gull island "
@@ -378,21 +368,6 @@ class TestGeodata(unittest.TestCase):
         title = "City - Good , Alberton Ontario vs Alberton PEI"
         lat, name = self.run_test(title, "Alberton,Rainy River District,Ontario, Canada")
         self.assertEqual(48.58318, lat, title)
-
-    def test_city13(self):
-        title = "City - Good , Halifax, Nova Scotia"
-        lat, name = self.run_test(title, "Halifax,, Nova Scotia, Canada")
-        self.assertEqual(halifax_lat, lat, title)
-
-    def test_city14(self):
-        title = "City - Good - with prefix"
-        lat, name = self.run_test(title, "Oak Street, Halifax, ,Nova Scotia, Canada")
-        self.assertEqual(halifax_lat, lat, title)
-
-    def test_city15(self):
-        title = "City - Good - with prefix and wrong county"
-        lat, name = self.run_test(title, "Oak Street, Halifax, aaa, Nova Scotia, Canada")
-        self.assertEqual(44.646, lat, title)
 
     def test_city16(self):
         title = "City -  Good - no county"
@@ -467,7 +442,7 @@ class TestGeodata(unittest.TestCase):
     def test_city30(self):
         title = "City - Old Bond Street, London, Middlesex, England"
         lat, name = self.run_test(title, "Old Bond Street, London, Middlesex, England")
-        self.assertEqual(51.50853, lat, title)
+        self.assertEqual(51.53174, lat, title)
 
     def test_city31(self):
         title = "City - St. Margaret, Westminster, London, England"
@@ -478,11 +453,6 @@ class TestGeodata(unittest.TestCase):
         title = "City - Amsterdam, Zuiderkerk"
         lat, name = self.run_test(title, "Amsterdam, Zuiderkerk")
         self.assertEqual(52.37027, lat, title)
-
-    def test_city33(self):
-        title = "City - Amsterdam, Spiegelplein 9"
-        lat, name = self.run_test(title, "Amsterdam, Spiegelplein 9")
-        self.assertEqual(52.37403, lat, title)
 
 
     # ===== TEST WILDCARDS Verify lookup returns correct place (latitude)
