@@ -320,12 +320,12 @@ class Geodata:
             # Put unused fields into prefix
             self.geo_files.geodb.copy_georow_to_place(rw, temp_place)
             temp_place.prefix = ''
-            nm = Normalize.search_normalize(temp_place.format_full_nm(self.geo_files.output_replace_dct), place.country_iso)
+            nm = Normalize.normalize_for_search(temp_place.format_full_nm(self.geo_files.output_replace_dct), place.country_iso)
             # self.logger.debug(f'NAME ={nm}')
             place.prefix = ''
 
             for num, fld in enumerate(tokens[:2]):
-                item = Normalize.search_normalize(fld, place.country_iso)
+                item = Normalize.normalize_for_search(fld, place.country_iso)
                 add_item = False
                 # self.logger.debug(f'item={item} ')
                 if num == 0 and item not in nm:

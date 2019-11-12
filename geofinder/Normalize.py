@@ -20,14 +20,14 @@ import re
 import unidecode
 
 
-def normalize_title_for_match_scoring(full_title:str, iso:str)->str:
+def normalize_for_scoring(full_title:str, iso:str)->str:
     # Normalize the title we use to determine how close a match we got
-    full_title = search_normalize(full_title, iso)
+    full_title = normalize_for_search(full_title, iso)
     full_title = _remove_noise_words(full_title)
     full_title = re.sub(', ', ',', full_title)
     return full_title
 
-def search_normalize(res, iso)->str:
+def normalize_for_search(res, iso)->str:
     res = normalize(res=res, remove_commas=False)
     return res
 
@@ -51,12 +51,12 @@ def _phrase_normalize(res) -> str:
     """ Strip spaces and normalize spelling for items such as Saint and County """
     # Replacement patterns to clean up entries
     res = re.sub('r.k. |r k ', 'rooms katholieke ',res)
-    res = re.sub('saints |sainte |sint |saint |sankt |st. ', 'st ', res)  # Normalize Saint
+    res = re.sub('saints |sainte |sint |saint |sankt |st. ', 'st ', res)  # Normalize Saint to St
     res = re.sub(r' co\.', ' county', res)  # Normalize County
-    res = re.sub(r'united states of america', 'usa', res)  # Normalize USA
-    res = re.sub(r'united states', 'usa', res)  # Normalize USA
-    res = re.sub(r'town of ', '', res)  # Normalize
-    res = re.sub(r'city of ', '', res)  # Normalize
+    res = re.sub(r'united states of america', 'usa', res)  # Normalize to USA
+    res = re.sub(r'united states', 'usa', res)  # Normalize to USA
+    res = re.sub(r'town of ', '', res)  # Normalize - remove town of
+    res = re.sub(r'city of ', '', res)  # Normalize - remove city of
 
     if 'amt' not in res:
         res = re.sub(r'^mt ', 'mount ', res)
@@ -71,18 +71,8 @@ def _remove_noise_words(res):
     # Calculate score with noise word removal (or normalization)
     # inp = re.sub('shire', '', inp)
 
-    # Clean up odd case for Normandy American cemetery having only English spelling
+    # Clean up odd case for Normandy American cemetery having only English spelling of Normandy in France
     res = re.sub(r"normandy american ", 'normandie american ', res)
-    """
-    res = re.sub(r' county', ' ', res)
-    res = re.sub(r' stadt', ' ', res)
-    res = re.sub(r' departement', ' ', res)
-    res = re.sub(r'regierungsbezirk ', ' ', res)
-    res = re.sub(r' departement', ' ', res)
-    res = re.sub(r'gemeente ', ' ', res)
-    res = re.sub(r'provincia ', ' ', res)
-    res = re.sub(r'provincie ', ' ', res)
-    """
 
     res = re.sub(r'nouveau brunswick', ' ', res)
 
@@ -106,6 +96,17 @@ def _remove_noise_words(res):
     res = re.sub(r'mound', 'mund', res)
     res = re.sub(r'ourne', 'orn', res)
     res = re.sub(r'ney', 'ny', res)
+
+    """
+    res = re.sub(r' county', ' ', res)
+    res = re.sub(r' stadt', ' ', res)
+    res = re.sub(r' departement', ' ', res)
+    res = re.sub(r'regierungsbezirk ', ' ', res)
+    res = re.sub(r' departement', ' ', res)
+    res = re.sub(r'gemeente ', ' ', res)
+    res = re.sub(r'provincia ', ' ', res)
+    res = re.sub(r'provincie ', ' ', res)
+    """
 
     return res
 

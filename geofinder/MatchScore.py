@@ -70,7 +70,7 @@ class MatchScore:
 
         # Create full place title (prefix,city,county,state,country) from input place.
         inp_title = inp_place.get_five_part_title()
-        inp_title = Normalize.normalize_title_for_match_scoring(inp_title, inp_place.country_iso)
+        inp_title = Normalize.normalize_for_scoring(inp_title, inp_place.country_iso)
         inp_tokens = inp_title.split(',')
         # Create a list of all the words in input
         input_words = ', '.join(map(str, inp_tokens))
@@ -82,7 +82,7 @@ class MatchScore:
 
         # Create full place title (prefix,city,county,state,country) from result place
         res_title = res_place.get_five_part_title()
-        res_title = Normalize.normalize_title_for_match_scoring(res_title, res_place.country_iso)
+        res_title = Normalize.normalize_for_scoring(res_title, res_place.country_iso)
         res_tokens = res_title.split(',')
         # Create a list of all the words in result
         res_words = ', '.join(map(str, res_tokens))
