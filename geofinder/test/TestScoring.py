@@ -35,19 +35,19 @@ class TestScoring(unittest.TestCase):
     delta = 22
 
     # ===== TEST SCORING
-    EXCELLENT = 8
-    GOOD = 28
-    POOR = 48
-    VERY_POOR = 68
-    TERRIBLE = 88
-    NO_MATCH = 110
+    EXCELLENT = 10
+    GOOD = 29
+    POOR = 49
+    VERY_POOR = 69
+    TERRIBLE = 89
+    NO_MATCH = 109
 
     test_values = [
         # Target, Result, Feature, Expected Score
         ("toronto,nova scotia, canada", "toronto,ontario,canada", 'PPL', GOOD),   #0
         ("toronto,ontario,canada", "toronto,ontario,canada", 'PP1M', EXCELLENT), #1
 
-        ("palo alto, santa clara, california, usa", "palo alto, santa clara, california, usa", 'PPL', GOOD), #2
+        ("toronto, canada", "toronto, canada", 'PPL', EXCELLENT), #2
 
         ("chelsea,,england", "winchelsea, east sussex, england, united kingdom", 'PP1M', GOOD), #3
         ("chelsea,,england", "chelsea, greater london, england, united kingdom", 'PP1M', EXCELLENT), #4
@@ -83,7 +83,7 @@ class TestScoring(unittest.TestCase):
         ("testerton, norfolk, , england", "norfolk,england, united kingdom","ADM2", GOOD), #23
         ("testerton, norfolk, , england", "testerton, norfolk, england,united kingdom", "PPLL", EXCELLENT), #24
 
-        ("Holborn, Middlesex, England", "Holborn, Greater London, England, United Kingdom", 'PP1M', EXCELLENT),  # 25
+        ("Holborn, Middlesex, England", "Holborn, Greater London, England, United Kingdom", 'PP1M', GOOD),  # 25
 
     ]
 
@@ -133,7 +133,7 @@ class TestScoring(unittest.TestCase):
 
         in_place = Loc.Loc()
         in_place.original_entry = inp
-        in_place.parse_place(inp, geo_files=TestScoring.geodata.geo_files)
+        in_place.parse_place(place_name=inp, geo_files=TestScoring.geodata.geo_files)
         if in_place.country_name == '' and in_place.country_iso != '':
             in_place.country_name = TestScoring.geodata.geo_files.geodb.get_country_name(in_place.country_iso)
 
