@@ -55,7 +55,7 @@ class GeoFinder:
         
     Uses gazetteer files from geoname.org as the reference source.
 
-    Main classes:
+    Main classes for Application:
 
     GeoFinder - The main GUI
     GeoData - The geonames data model routines
@@ -319,8 +319,8 @@ class GeoFinder:
                 else:
                     self.logger.warning(f'***ERROR looking up GEOID=[{replacement_geoid}] for [{town_entry}] ')
                     self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
-                    self.w.original_entry.set_text(f'** DATABASE ERROR FOR GEOID=[{replacement_geoid}] for [{town_entry}]' )
-                    self.w.user_entry.set_text(f'{town_entry}' )
+                    self.w.original_entry.set_text(f'** DATABASE ERROR FOR GEOID=[{replacement_geoid}] for [{town_entry}]')
+                    self.w.user_entry.set_text(f'{town_entry}')
                     self.geodata.find_location(town_entry, self.place, self.w.prog.shutdown_requested)
                     break
                 continue
@@ -351,7 +351,7 @@ class GeoFinder:
                         # Add to global replace list - Use '@' for tokenizing.  Save GEOID_TOKEN and PREFIX_TOKEN
                         res = '@' + self.place.geoid + '@' + self.place.prefix
 
-                        self.global_replace.set(   GeoKeys.semi_normalize(town_entry), res)
+                        self.global_replace.set(GeoKeys.semi_normalize(town_entry), res)
                         self.logger.debug(f'Found Strong Match for {town_entry} res= [{res}] Setting DICT')
                         # Periodically flush dictionary to disk.  (We flush on exit as well)
                         if self.err_count % 200 == 1:
@@ -580,7 +580,7 @@ class GeoFinder:
 
         res = '@' + self.place.geoid + '@' + self.place.prefix
         # self.logger.debug(f'Save [{ky}] :: [{res}]')
-        self.global_replace.set(  GeoKeys.semi_normalize(ky), res)
+        self.global_replace.set(GeoKeys.semi_normalize(ky), res)
 
         # Periodically flush dict to disk
         if self.err_count % 10 == 1:
@@ -751,7 +751,7 @@ class GeoFinder:
             self.ancestry_file_handler.write_lat_lon(lat=place.lat, lon=place.lon)
             text = prefix + place.prefix_commas + place.original_entry + '\n'
             text = str(text.encode('utf-8', errors='replace'))
-            self.out_diag_file.write(text )
+            self.out_diag_file.write(text)
         else:
             # self.logger.debug('zero len, no output')
             if self.diagnostics:
@@ -803,7 +803,7 @@ class GeoFinder:
         # End of file reached
         TKHelper.disable_buttons(button_list=self.w.review_buttons)
         # self.start_time = time.time()
-        #self.logger.debug(f'COMPLETED time={int((time.time() - self.start_time) / 60)} minutes')
+        # self.logger.debug(f'COMPLETED time={int((time.time() - self.start_time) / 60)} minutes')
         self.w.status.set_text("Done.  Shutting Down...")
         self.w.original_entry.set_text(" ")
         path = self.cfg.get("gedcom_path")
