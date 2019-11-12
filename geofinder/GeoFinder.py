@@ -208,6 +208,7 @@ class GeoFinder:
             new_key = Normalize.semi_normalize(ky)
             self.global_replace.dict[new_key] = val
 
+
         # Initialize geo data
         self.geodata = Geodata.Geodata(directory_name=self.directory, progress_bar=self.w.prog)
         error = self.geodata.read()
