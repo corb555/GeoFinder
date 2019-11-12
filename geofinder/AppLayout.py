@@ -221,7 +221,7 @@ class AppLayout:
         self.quit_button.grid(column=BTN_COL, row=12, padx=GFStyle.BTN_PADX, pady=6, sticky="SE")
 
         # Set accelerator keys for Verify, listbox, and Save
-        self.user_entry.bind("<Return>", self.main.return_key_event_handler)
+        self.user_entry.bind("<Return>", self.main.event_handler_for_return_key)
         self.user_entry.bind("<Control-s>", self.main.ctl_s_event_handler)
 
         # Track whether user is in Edit box or list box

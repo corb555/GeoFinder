@@ -47,15 +47,13 @@ class GeoFinder:
     """
     Read in a GEDCOM or Gramps genealogy file and verify that the spelling of each place is correct.
     If place is found, add the latitude and longitude to the output  file.
-    If place can't be found, allow the user to correct it.  If it is corrected, apply the change to
+    If place can't be found, allow the user to correct it.  If match is found, apply the change to
     all matching entries.
     Also allow the user to mark an item to skip if a resolution cant be found.
     Skiplist is a list of locations the user has flagged to skip.  These items will be ignored
-    Global replace list is list of fixes the user has found.  Apply these to any new similar matches.
-    Accepted list is a list of matches that the user has accepted.
+    Global replace list is list of fixes that have been found.  These are applied to any new similar matches.
         
-    Uses gazetteer files from geoname.org as the reference source.  Uses English modern place names,
-    plus some county aliases.
+    Uses gazetteer files from geoname.org as the reference source.
 
     Main classes:
 
@@ -191,13 +189,11 @@ class GeoFinder:
         self.w.root.mainloop()  # ENTER MAIN LOOP and Wait for user to click on load button
 
     def load_data(self):
-        # Read in Skiplist, Replace list  list
+        # Read in Skiplist, Replace list
         self.skiplist = CachedDictionary(self.cache_dir, "skiplist.pkl")
         self.skiplist.read()
         self.global_replace = CachedDictionary(self.cache_dir, "global_replace.pkl")
         self.global_replace.read()
-        # self.user_accepted = CachedDictionary(self.cache_dir, "accepted.pkl")  # List of items that have been accepted
-        # self.user_accepted.read()
 
         dict_copy = copy.copy(self.global_replace.dict)
 
@@ -207,7 +203,7 @@ class GeoFinder:
             new_key = GeoKeys.semi_normalize(ky)
             self.global_replace.dict[new_key] = val
 
-        # Initialize geodata
+        # Initialize geo data
         self.geodata = Geodata.Geodata(directory_name=self.directory, progress_bar=self.w.prog)
         error = self.geodata.read()
         if error:
@@ -241,10 +237,12 @@ class GeoFinder:
         # Load appropriate handler based on file type
         if ged_path is not None:
             if '.ged' in ged_path:
+                # GEDCOM
                 self.out_suffix = "import.ged"
                 self.ancestry_file_handler = Gedcom.Gedcom(in_path=ged_path, out_suffix=temp_suffix, cache_d=self.cache_dir,
                                                            progress=None, geodata=self.geodata)  # Routines to open and parse GEDCOM file
             elif '.gramps' in ged_path:
+                # GRAMPS
                 self.out_suffix = "import.gramps"
                 # self.out_suffix = "csv"
                 self.ancestry_file_handler = GrampsXml.GrampsXml(in_path=ged_path, out_suffix=temp_suffix, cache_d=self.cache_dir,
@@ -265,47 +263,14 @@ class GeoFinder:
 
         # Add  filename to Title
         path_parts = os.path.split(ged_path)  # Extract filename from full path
-        self.w.title.set_text(f'GEO FINDER - {path_parts[1]}')
+        self.w.title.set_text(f'GEO FINDER v{__version__.__version__} - {path_parts[1]}')
 
         # Read  file, find each place entry and handle it.
         self.w.user_entry.set_text("Scanning to previous position...")
         self.handle_place_entry()
 
-    def get_replacement(self, dct, town_entry: str, place):
-        geoid = None
-        replacement = dct.get(town_entry)
-
-        if replacement is not None:
-            if len(replacement) > 0:
-                # parse replacement entry
-                rep_tokens = replacement.split('@')
-                geoid = rep_tokens[GEOID_TOKEN]
-                if len(geoid) > 0:
-                    self.geodata.find_geoid(geoid, place)
-                else:
-                    place.result_type = GeoKeys.Result.DELETE
-
-                # Get prefix if there was one
-                if len(rep_tokens) > 2:
-                    place.prefix = rep_tokens[PREFIX_TOKEN]
-                    place.prefix_commas = ','
-                    # place.name = place.prefix + ',' + place.name
-                # self.logger.debug(f'Found Replace.  Pref=[{place.prefix}] place={place.name} Res={place.result_type}')
-
-        return geoid
-
-    def update_statistics(self):
-        done = self.matched_count + self.skip_count + self.review_count
-        if self.ancestry_file_handler.place_total is not None:
-            remaining = self.ancestry_file_handler.place_total - done
-        else:
-            remaining = 0
-        self.w.statistics_text.set_text(f'Matched={self.matched_count}   Skipped={self.skip_count}  Needed Review={self.review_count}  '
-                                        f'Remaining={remaining} Total={self.ancestry_file_handler.place_total}')
-        return done
-
     def handle_place_entry(self):
-        """ Get next PLACE  in users  File.  Replace it, skip it, or have user correct it. """
+        """ Get next PLACE in users  File.  Replace it, skip it, or have user correct it. """
         self.w.original_entry.set_text("")
 
         if self.w.prog.shutdown_requested:
@@ -317,12 +282,7 @@ class GeoFinder:
         while True:
             self.err_count += 1  # Counter is used to periodically update
             # Update statistics
-            done = self.update_statistics()
-
-            if self.ancestry_file_handler.place_total > 0:
-                self.w.prog.update_progress(100 * done / self.ancestry_file_handler.place_total, " ")
-            else:
-                self.w.prog.update_progress(0, " ")
+            self.update_statistics()
 
             # Find the next PLACE entry in  file
             # Process it and keep looping until we need user input
@@ -339,7 +299,7 @@ class GeoFinder:
             replacement_geoid = self.get_replacement(self.global_replace, town_entry, self.place)
 
             if replacement_geoid is not None:
-                # IN GLOBAL REPLACE LIST - There is a global change that we can apply to this line.
+                # In GLOBAL REPLACE LIST - There is a already a global change that we can apply to this line.
                 self.matched_count += 1
 
                 if self.place.result_type == GeoKeys.Result.STRONG_MATCH:
@@ -365,7 +325,7 @@ class GeoFinder:
                     break
                 continue
             elif self.skiplist.get(town_entry) is not None:
-                # IN SKIPLIST - Write out as-is and go to next error
+                # IN SKIPLIST - User marked as SKIP - Write out as-is and go to next error
                 self.skip_count += 1
                 self.periodic_update("Skipping")
                 self.ancestry_file_handler.write_asis(town_entry)
@@ -375,14 +335,11 @@ class GeoFinder:
                 # See if it is in our place database
                 self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
                 self.geodata.find_location(town_entry, self.place, self.w.prog.shutdown_requested)
-                # if self.place.result_type not in GeoKeys.successful_match:
-                #    self.geodata.set_last_iso('')
-                #    self.geodata.find_location(town_entry, self.place)
 
                 if self.place.result_type in GeoKeys.successful_match:
-                    # FOUND A MATCH
+                    # FOUND A MATCH in database
                     if self.place.result_type == GeoKeys.Result.STRONG_MATCH:
-                        # Strong match
+                        # FOUND STRONG MATCH
                         self.matched_count += 1
 
                         # Write out line without user verification
@@ -397,13 +354,13 @@ class GeoFinder:
                         self.global_replace.set(   GeoKeys.semi_normalize(town_entry), res)
                         self.logger.debug(f'Found Strong Match for {town_entry} res= [{res}] Setting DICT')
                         # Periodically flush dictionary to disk.  (We flush on exit as well)
-                        if self.err_count % 100 == 1:
+                        if self.err_count % 200 == 1:
                             self.global_replace.write()
 
                         self.write_updated_place(self.place, town_entry)
                         continue
                     else:
-                        # Found match, but not a Strong Match
+                        # FOUND A WEAK MATCH OR MULTIPLE MATCHES
                         if self.w.prog.shutdown_requested:
                             # User requested shutdown.  Write this item out as-is
                             self.review_count += 1
@@ -418,9 +375,10 @@ class GeoFinder:
                             self.w.status.configure(style="Good.TLabel")
                             self.w.original_entry.set_text(self.place.original_entry)  # Display place
                             self.w.user_entry.set_text(self.place.original_entry)  # Display place
+                            # Break out of loop and have user review the match
                             break
                 else:
-                    # No match
+                    # NO MATCH FOUND
                     if self.w.prog.shutdown_requested:
                         # User requested shutdown.  Write this item out as-is
                         self.review_count += 1
@@ -429,13 +387,13 @@ class GeoFinder:
                         self.ancestry_file_handler.write_asis(town_entry)
                         continue
                     else:
-                        # Have user review match
+                        # Have user review entry
                         # self.logger.debug(f'User2 review for {town_entry}. status ={self.place.status}')
 
                         self.w.status.configure(style="Good.TLabel")
                         self.w.original_entry.set_text(self.place.original_entry)  # Display place
                         self.w.user_entry.set_text(self.place.original_entry)  # Display place
-                        # Have user review the match
+                        # Break out of loop and have user review the item
                         break
 
         # Have user review the result
@@ -595,7 +553,7 @@ class GeoFinder:
         self.w.root.update_idletasks()
 
     def skip_handler(self):
-        """ Write out original entry as-is and skip any matches in future  """
+        """ User clicked SKIP.  Write out original entry as-is and skip any matches in future  """
         self.skip_count += 1
 
         # self.logger.debug(f'Skip for {self.w.original_entry.get_text()}  Updating SKIP dict')
@@ -717,7 +675,7 @@ class GeoFinder:
             self.w.original_entry.set_text(self.cfg.get("gedcom_path"))
             TKHelper.set_preferred_button(self.w.load_button, self.w.initialization_buttons, "Preferred.TButton")
 
-    def return_key_event_handler(self, _):
+    def event_handler_for_return_key(self, _):
         """ User pressed Return accelerator key.  Call Verify data entry """
         self.verify_handler()
         return "break"
@@ -914,6 +872,48 @@ class GeoFinder:
             file_error = True
 
         return file_error
+
+    def update_statistics(self):
+        """
+        Display completion statistics to user
+        """
+        done = self.matched_count + self.skip_count + self.review_count
+        if self.ancestry_file_handler.place_total is not None:
+            remaining = self.ancestry_file_handler.place_total - done
+        else:
+            remaining = 0
+        self.w.statistics_text.set_text(f'Matched={self.matched_count}   Skipped={self.skip_count}  Needed Review={self.review_count}  '
+                                        f'Remaining={remaining} Total={self.ancestry_file_handler.place_total}')
+
+        if self.ancestry_file_handler.place_total > 0:
+            self.w.prog.update_progress(100 * done / self.ancestry_file_handler.place_total, " ")
+        else:
+            self.w.prog.update_progress(0, " ")
+
+        return done
+
+    def get_replacement(self, dct, town_entry: str, place):
+        geoid = None
+        replacement = dct.get(town_entry)
+
+        if replacement is not None:
+            if len(replacement) > 0:
+                # parse replacement entry
+                rep_tokens = replacement.split('@')
+                geoid = rep_tokens[GEOID_TOKEN]
+                if len(geoid) > 0:
+                    self.geodata.find_geoid(geoid, place)
+                else:
+                    place.result_type = GeoKeys.Result.DELETE
+
+                # Get prefix if there was one
+                if len(rep_tokens) > 2:
+                    place.prefix = rep_tokens[PREFIX_TOKEN]
+                    place.prefix_commas = ','
+                    # place.name = place.prefix + ',' + place.name
+                # self.logger.debug(f'Found Replace.  Pref=[{place.prefix}] place={place.name} Res={place.result_type}')
+
+        return geoid
 
 
 def entry():
