@@ -509,11 +509,11 @@ default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ",
 # If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
 # These scores are also part of the match ranking score
 # Note: PP1M, P1HK, P10K do not exist in Geonames and are created by geofinder
-feature_priority = {'PP1M': 100, 'ADM1': 95, 'PPLA': 95, 'PPLC': 95, 'P1HK': 90, 'PPLA2': 90, 'P10K': 80,
-                    'PPL': 75, 'PPLA3': 70, 'PPLA4': 65, 'ADM3': -80, 'ADM4': -80, 'ADMX': 60,
-                    'ADM2': 60, 'PPLG': 55, 'MILB': 0, 'NVB': 50, 'PPLF': 45, 'ADM0': 90, 'PPLL': 35, 'PPLQ': 30, 'PPLR': 25,
-                    'CH': 0, 'MSQE': 0, 'CMTY': 0, 'DEFAULT': -80, 'PPLS': 20, 'PPLW': 20, 'PPLX': 70, 'BTL': -40,
-                    'HSP': -80, 'VAL': -80, 'MT': -80}
+feature_priority = {'PP1M': 90, 'ADM1': 88, 'PPLA': 88, 'PPLC': 88, 'P1HK': 85, 'PPLA2': 85, 'P10K': 80,
+                    'PPL': 78, 'PPLA3': 75, 'PPLA4': 73,  'ADMX': 70,
+                    'ADM2': 73, 'PPLG': 68, 'MILB': 40, 'NVB': 65, 'PPLF': 63, 'ADM0': 85, 'PPLL': 60, 'PPLQ': 55, 'PPLR': 55,
+                    'CH': 40, 'MSQE': 40, 'CMTY': 40,  'PPLS': 50, 'PPLW': 50, 'PPLX': 75, 'BTL': 20,
+                    'HSP': 0, 'VAL': 0, 'MT': 0, 'ADM3': 0, 'ADM4': 0,'DEFAULT': 0,}
 
 result_text_list = {
     GeoUtil.Result.STRONG_MATCH: 'Matched! Click Save to accept:',

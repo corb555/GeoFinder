@@ -62,7 +62,7 @@ class TestScoring(unittest.TestCase):
         ("London, England, United Kingdom", "London, England, United Kingdom", 'HSP', GOOD), #10
 
         ("Domfront, Normandy", "Domfront-En-Champagne, Sarthe, Pays De La Loire, France", 'PP1M', POOR), #11
-        ("Domfront, Normandy", "Domfront, Department De L'Orne, Normandie, France", 'PP1M', EXCELLENT), #12
+        ("Domfront, Normandy", "Domfront, Department De L'Orne, Normandie, France", 'PP1M', GOOD), #12
 
         ("St Quentin, Aisne, Picardy, France", "St Quentin, Departement De L'Aisne, Hauts De France, France", 'PP1M', EXCELLENT), #13
 

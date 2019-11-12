@@ -37,17 +37,25 @@ class MatchScore:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+
+        # Weighting for each token - prefix, city, adm2, adm1, country
         self.weight = [0.8, 1.0, 0.3, 0.6, 0.9]
-
-        # Out weight + Feature weight must be less than 1.0.
-        self.out_weight = 0.17
-        self.feature_weight = 0.06
-        if self.out_weight + self.feature_weight > 1.0:
-            self.logger.error('Out weight + Feature weight must be less than 1.0')
-
         self.wildcard_penalty = 10.0
         self.first_token_match_bonus = 10.0
         self.wrong_order_penalty = 1.0
+
+        # weight for match score of Result name
+        self.out_weight = 0.17
+
+        # Weight for feature type
+        self.feature_weight = 0.12
+
+        # Weight for match score of user input name
+        self.in_weight = 1.0 - self.out_weight - self.feature_weight
+
+        # Out weight + Feature weight must be less than 1.0.
+        if self.out_weight + self.feature_weight > 1.0:
+            self.logger.error('Out weight + Feature weight must be less than 1.0')
 
     def match_score(self, inp_place: Loc.Loc, res_place: Loc.Loc) -> int:
         """
@@ -136,14 +144,12 @@ class MatchScore:
         # Feature score is to ensure "important" places  get  higher rank (large city, etc)
         feature_score = Geodata.Geodata.get_priority(res_place.feature)
 
-        # Add up scores - Each item is 0-100 and weighed as below
-        in_weight = 1.0 - self.out_weight - self.feature_weight
-
-        score:float = in_score * in_weight +  out_score * self.out_weight  + \
+        # Add up scores - Each item is appx 0-100 and weighted
+        score:float = in_score * self.in_weight +  out_score * self.out_weight  + \
                       feature_score * self.feature_weight  + wildcard_penalty
 
         self.logger.debug(f'SCORE {score:.1f} [{res_title}]\n{inp_title}  out={out_score * self.out_weight:.1f} '
-                          f'in={in_score * in_weight:.1f} feat={feature_score * self.feature_weight:.1f} {res_place.feature}  '
+                          f'in={in_score * self.in_weight:.1f} feat={feature_score * self.feature_weight:.1f} {res_place.feature}  '
                           f'wild={wildcard_penalty}')
 
         return round(score)
