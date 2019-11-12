@@ -205,7 +205,7 @@ class GeoFinder:
         # Convert all global_replace items to lowercase
         for ky in dict_copy:
             val = self.global_replace.dict.pop(ky)
-            new_key = Normalize.semi_normalize(ky)
+            new_key = Normalize.normalize(res=ky,remove_commas=False)
             self.global_replace.dict[new_key] = val
 
         # Initialize geo data
@@ -293,7 +293,7 @@ class GeoFinder:
             # Process it and keep looping until we need user input
             self.place.clear()
             town_entry, eof, rec_id = self.ancestry_file_handler.get_next_place()
-            town_entry = Normalize.semi_normalize(town_entry)
+            town_entry = Normalize.normalize(res=town_entry, remove_commas=False)
             self.place.id = rec_id
 
             if eof:
@@ -356,7 +356,7 @@ class GeoFinder:
                         # Add to global replace list - Use '@' for tokenizing.  Save GEOID_TOKEN and PREFIX_TOKEN
                         res = '@' + self.place.geoid + '@' + self.place.prefix
 
-                        self.global_replace.set(Normalize.semi_normalize(town_entry), res)
+                        self.global_replace.set(Normalize.normalize(res=town_entry,remove_commas=False), res)
                         self.logger.debug(f'Found Strong Match for {town_entry} res= [{res}] Setting DICT')
                         # Periodically flush dictionary to disk.  (We flush on exit as well)
                         if self.err_count % 200 == 1:
@@ -585,7 +585,7 @@ class GeoFinder:
 
         res = '@' + self.place.geoid + '@' + self.place.prefix
         # self.logger.debug(f'Save [{ky}] :: [{res}]')
-        self.global_replace.set(Normalize.semi_normalize(ky), res)
+        self.global_replace.set(Normalize.normalize(res=ky,remove_commas=False), res)
 
         # Periodically flush dict to disk
         if self.err_count % 10 == 1:

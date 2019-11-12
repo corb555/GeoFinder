@@ -21,7 +21,7 @@ import logging
 import re
 from typing import List, Tuple
 
-from geofinder import GeoUtil, Normalize
+from geofinder import GeoUtil , Normalize
 from geofinder.ArgumentParserNoExit import ArgumentParserNoExit
 
 #default_country = 'nederland'

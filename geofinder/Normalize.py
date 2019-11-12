@@ -28,10 +28,10 @@ def normalize_title_for_match_scoring(full_title:str, iso:str)->str:
     return full_title
 
 def search_normalize(res, iso)->str:
-    res = semi_normalize(res)
+    res = normalize(res=res, remove_commas=False)
     return res
 
-def normalize(res) -> str:
+def normalize(res:str, remove_commas:bool) -> str:
     """ Strip commas.   strip spaces and normalize spelling for items such as Saint and County and chars: ø ß """
 
     # Convert UT8 to ascii
@@ -39,20 +39,10 @@ def normalize(res) -> str:
     res = str(res).lower()
 
     # remove most punctuation
-    res = re.sub(r"[^a-zA-Z0-9 $.*']+", " ", res)
-
-    res = _phrase_normalize(res)
-    return res.strip(' ')
-
-def semi_normalize(res) -> str:
-    """ Do NOT Strip commas.  strip spaces and normalize spelling for items such as Saint and County and chars:  ø ß """
-
-    # Convert UT8 to ascii
-    res = unidecode.unidecode(res)
-    res = str(res).lower()
-
-    # remove most punctuation EXCEPT commas
-    res = re.sub(r"[^a-zA-Z0-9 $.*,']+", " ", res)
+    if remove_commas:
+        res = re.sub(r"[^a-zA-Z0-9 $.*']+", " ", res)
+    else:
+        res = re.sub(r"[^a-zA-Z0-9 $.*,']+", " ", res)
 
     res = _phrase_normalize(res)
     return res.strip(' ')
