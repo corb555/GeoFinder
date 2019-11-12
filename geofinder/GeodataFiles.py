@@ -25,7 +25,7 @@ from collections import namedtuple
 from tkinter import messagebox
 from typing import Dict
 
-from geofinder import CachedDictionary, Country, GeoDB, GeoUtil, Loc, AlternateNames, UtilFeatureFrame
+from geofinder import CachedDictionary, Country, GeoDB, GeoUtil, Loc, AlternateNames, UtilFeatureFrame, Normalize
 
 
 class GeodataFiles:
@@ -276,7 +276,7 @@ class GeodataFiles:
                     if geoname_row.iso.lower() in self.supported_countries_dct and \
                             geoname_row.feat_code in self.feature_code_list_dct:
                         self.insert_georow(geoname_row)
-                        if geoname_row.name.lower() != GeoUtil.normalize(geoname_row.name):
+                        if geoname_row.name.lower() != Normalize.normalize(geoname_row.name,remove_commas=True):
                             self.geodb.insert_alternate_name(geoname_row.name,
                                                                    geoname_row.id, 'ut8')
 
@@ -296,7 +296,7 @@ class GeodataFiles:
         # Create Geo_row and inses
         # ('paris', 'fr', '07', '012', 12.345, 45.123, 'PPL', '34124')
         geo_row = [None] * GeoDB.Entry.MAX
-        geo_row[GeoDB.Entry.NAME] = GeoUtil.normalize(geoname_row.name)
+        geo_row[GeoDB.Entry.NAME] = Normalize.normalize(geoname_row.name, remove_commas=True)
         geo_row[GeoDB.Entry.SDX] = GeoUtil.get_soundex(geo_row[GeoDB.Entry.NAME])
 
         geo_row[GeoDB.Entry.ISO] = geoname_row.iso.lower()
