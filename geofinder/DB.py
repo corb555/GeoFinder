@@ -22,7 +22,7 @@ import sys
 import time
 from tkinter import messagebox
 
-from geofinder.GeoKeys import Query, Result, Entry
+from geofinder.GeoUtil import Query, Result, Entry
 
 
 class DB:

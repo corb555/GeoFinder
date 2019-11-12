@@ -23,7 +23,7 @@ import pickle
 from pathlib import Path
 from tkinter import messagebox
 
-from geofinder import CachedDictionary, GeoKeys
+from geofinder import CachedDictionary, GeoUtil
 from geofinder.TKHelper import TKHelper
 
 
@@ -35,7 +35,7 @@ class Config:
         self.config_cd = None
 
         self.directory: str = directory
-        self.cache_dir = GeoKeys.get_cache_directory(self.directory)
+        self.cache_dir = GeoUtil.get_cache_directory(self.directory)
 
     def get(self, param) -> str:
         res = self.config_cd.dict.get(param)

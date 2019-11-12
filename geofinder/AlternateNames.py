@@ -19,7 +19,7 @@
 
 # The tab separated columns in geoname.org file rows are as follows
 
-from geofinder import GeodataFiles, GeoKeys, GeoDB
+from geofinder import GeodataFiles, GeoUtil, GeoDB
 from geofinder.FileReader import FileReader
 from geofinder.Loc import Loc
 
@@ -38,7 +38,7 @@ class AlternateNames(FileReader):
 
     def __init__(self, directory_name: str, filename: str, progress_bar, geo_files: GeodataFiles, lang_list):
         super().__init__(directory_name, filename, progress_bar)
-        self.sub_dir = GeoKeys.get_cache_directory(directory_name)
+        self.sub_dir = GeoUtil.get_cache_directory(directory_name)
         self.geo_files: GeodataFiles.GeodataFiles = geo_files
         self.lang_list = lang_list
         self.loc = Loc()
@@ -84,8 +84,8 @@ class AlternateNames(FileReader):
                 # convert to list  and modify name and add to DB and its soundex
                 lst = list(self.loc.georow_list[0])
                 del lst[-1]
-                lst[GeoDB.Entry.NAME] = GeoKeys.normalize(alt_tokens[ALT_NAME])
-                lst.append(GeoKeys.get_soundex(alt_tokens[ALT_NAME]))
+                lst[GeoDB.Entry.NAME] = GeoUtil.normalize(alt_tokens[ALT_NAME])
+                lst.append(GeoUtil.get_soundex(alt_tokens[ALT_NAME]))
                 new_row = tuple(lst)   # Convert back to tuple
                 if alt_tokens[ALT_LANG] != 'en' or 'ADM' not in lst[GeoDB.Entry.FEAT]:
                     # Only add if not English or not ADM1/ADM2

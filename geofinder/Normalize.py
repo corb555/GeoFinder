@@ -16,62 +16,69 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-import collections
-import os
 import re
-
-import phonetics
 import unidecode
 
 
-class Entry:
-    NAME = 0
-    ISO = 1
-    ADM1 = 2
-    ADM2 = 3
-    LAT = 4
-    LON = 5
-    FEAT = 6
-    ID = 7
-    SDX = 8
-    PREFIX = 8  # Note - item 8 is overloaded with Soundex in DB and Prefix for result
-    SCORE = 9
-    MAX = 9
-    POP = 14
+def normalize_title_for_match_scoring(full_title:str, iso:str)->str:
+    # Normalize the title we use to determine how close a match we got
+    full_title = search_normalize(full_title, iso)
+    full_title = _remove_noise_words(full_title)
+    full_title = re.sub(', ', ',', full_title)
+    return full_title
 
+def search_normalize(res, iso)->str:
+    res = semi_normalize(res)
+    return res
 
-class Result:
-    # Result codes for lookup
-    STRONG_MATCH = 8
-    MULTIPLE_MATCHES = 7
-    PARTIAL_MATCH = 6
-    WILDCARD_MATCH = 5
-    SOUNDEX_MATCH = 4
-    DELETE = 3
-    NO_COUNTRY = 2
-    NO_MATCH = 1
-    NOT_SUPPORTED = 0
+def normalize(res) -> str:
+    """ Strip commas.   strip spaces and normalize spelling for items such as Saint and County and chars: ø ß """
 
+    # Convert UT8 to ascii
+    res = unidecode.unidecode(res)
+    res = str(res).lower()
 
-# Result types that are successful matches
-successful_match = [Result.STRONG_MATCH, Result.PARTIAL_MATCH, Result.WILDCARD_MATCH, Result.SOUNDEX_MATCH, Result.MULTIPLE_MATCHES]
+    # remove most punctuation
+    res = re.sub(r"[^a-zA-Z0-9 $.*']+", " ", res)
 
-Query = collections.namedtuple('Query', 'where args result')
+    res = _phrase_normalize(res)
+    return res.strip(' ')
 
+def semi_normalize(res) -> str:
+    """ Do NOT Strip commas.  strip spaces and normalize spelling for items such as Saint and County and chars:  ø ß """
 
-def get_soundex(txt):
-    res = phonetics.dmetaphone(txt)
-    return res[0]
+    # Convert UT8 to ascii
+    res = unidecode.unidecode(res)
+    res = str(res).lower()
 
-def get_directory_name() -> str:
-    return "geoname_data"
+    # remove most punctuation EXCEPT commas
+    res = re.sub(r"[^a-zA-Z0-9 $.*,']+", " ", res)
 
-def get_cache_directory(dirname):
-    """ Return the directory for cache files """
-    return os.path.join(dirname, "cache")
+    res = _phrase_normalize(res)
+    return res.strip(' ')
 
-def remove_noise_words(res):
-    # Calculate score with noise word removal
+def _phrase_normalize(res) -> str:
+    """ Strip spaces and normalize spelling for items such as Saint and County """
+    # Replacement patterns to clean up entries
+    res = re.sub('r.k. |r k ', 'rooms katholieke ',res)
+    res = re.sub('saints |sainte |sint |saint |sankt |st. ', 'st ', res)  # Normalize Saint
+    res = re.sub(r' co\.', ' county', res)  # Normalize County
+    res = re.sub(r'united states of america', 'usa', res)  # Normalize USA
+    res = re.sub(r'united states', 'usa', res)  # Normalize USA
+    res = re.sub(r'town of ', '', res)  # Normalize
+    res = re.sub(r'city of ', '', res)  # Normalize
+
+    if 'amt' not in res:
+        res = re.sub(r'^mt ', 'mount ', res)
+
+    res = re.sub('  +', ' ', res)  # Strip multiple space
+    res = re.sub('county of ([^,]+)', r'\g<1> county', res)  # Normalize 'Township of X' to 'X Township'
+    res = re.sub('township of ([^,]+)', r'\g<1> township', res)  # Normalize 'Township of X' to 'X Township'
+    res = re.sub('cathedral of ([^,]+)', r'\g<1> cathedral', res)  # Normalize 'Township of X' to 'X Township'
+    return res
+
+def _remove_noise_words(res):
+    # Calculate score with noise word removal (or normalization)
     # inp = re.sub('shire', '', inp)
 
     # Clean up odd case for Normandy American cemetery having only English spelling
@@ -106,37 +113,10 @@ def remove_noise_words(res):
     res = re.sub(r'bourg', 'burg', res)
     res = re.sub(r'urgh', 'urg', res)
 
-
     res = re.sub(r'mound', 'mund', res)
     res = re.sub(r'ourne', 'orn', res)
     res = re.sub(r'ney', 'ny', res)
 
-
-    return res
-
-def lowercase_match_group(matchobj):
-        return matchobj.group().lower()
-
-def capwords(nm):
-    if nm is not None:
-        # Use title(), then fix the title() apostrophe defect
-        nm = nm.title()
-
-        # Fix handling for contractions not handled correctly by title()
-        poss_regex = r"(?<=[a-z])[\']([A-Z])"
-        nm = re.sub(poss_regex, lowercase_match_group, nm)
-
-    return nm
-
-def normalize_match_title(full_title:str, iso:str)->str:
-    # Normalize the title we use to determine how close a match we got
-    full_title = search_normalize(full_title, iso)
-    full_title = remove_noise_words(full_title)
-    full_title = re.sub(', ', ',', full_title)
-    return full_title
-
-def search_normalize(res, iso)->str:
-    res = semi_normalize(res)
     return res
 
 def admin1_normalize(res, iso):
@@ -216,88 +196,3 @@ def country_normalize(res)->(str,bool):
         return res, True
     else:
         return res, False
-
-def _phrase_normalize(res) -> str:
-    """ Strip spaces and normalize spelling for items such as Saint and County """
-    # Replacement patterns to clean up entries
-    res = re.sub('r.k. |r k ', 'rooms katholieke ',res)
-    res = re.sub('saints |sainte |sint |saint |sankt |st. ', 'st ', res)  # Normalize Saint
-    res = re.sub(r' co\.', ' county', res)  # Normalize County
-    res = re.sub(r'united states of america', 'usa', res)  # Normalize USA
-    res = re.sub(r'united states', 'usa', res)  # Normalize USA
-    res = re.sub(r'town of ', '', res)  # Normalize
-    res = re.sub(r'city of ', '', res)  # Normalize
-
-
-    if 'amt' not in res:
-        res = re.sub(r'^mt ', 'mount ', res)
-
-    res = re.sub('  +', ' ', res)  # Strip multiple space
-    res = re.sub('county of ([^,]+)', r'\g<1> county', res)  # Normalize 'Township of X' to 'X Township'
-    res = re.sub('township of ([^,]+)', r'\g<1> township', res)  # Normalize 'Township of X' to 'X Township'
-    res = re.sub('cathedral of ([^,]+)', r'\g<1> cathedral', res)  # Normalize 'Township of X' to 'X Township'
-    return res
-
-
-def normalize(res) -> str:
-    """ Strip commas. Also strip spaces and normalize spelling for items such as Saint and County and chars   ø ß """
-
-    # Convert UT8 to ascii
-    res = unidecode.unidecode(res)
-
-    res = str(res).lower()
-
-    # remove all punctuation
-    res = re.sub(r"[^a-zA-Z0-9 $.*']+", " ", res)
-
-    res = _phrase_normalize(res)
-    return res.strip(' ')
-
-
-def semi_normalize(res) -> str:
-    """ Do NOT Strip commas.  strip spaces and normalize spelling for items such as Saint and County and chars   ø ß """
-
-    # Convert UT8 to ascii
-    res = unidecode.unidecode(res)
-
-    res = str(res).lower()
-
-    # remove all punctuation
-    res = re.sub(r"[^a-zA-Z0-9 $*,']+", " ", res)
-
-    res = _phrase_normalize(res)
-    return res.strip(' ')
-
-
-type_names = {
-    "CH": 'Church',
-    "CSTL": 'Castle',
-    "CMTY": 'Cemetery',
-    "EST": 'Estate',
-    "HSP": 'Hospital',
-    "HSTS": 'Historical',
-    "ISL": 'Island',
-    "MT": 'Mountain',
-    "MUS": 'Museum',
-    "PAL": 'Palace',
-    "PRK": 'Park',
-    "PRN": 'Prison',
-    "RUIN": 'Ruin',
-    "SQR": 'Square',
-    "VAL": 'Valley',
-    "ADM1": 'State',
-    "ADM2": 'County',
-    "ADM3": 'Township',
-    "ADM4": 'Township',
-    "PPL": 'City',
-    "PPLA": 'City',
-    "PPLA2": 'City',
-    "PPLA3": 'City',
-    "PPLA4": 'City',
-    "PPLC": 'City',
-    "PPLG": 'City',
-    "PPLH": 'City',
-    "PPLL": 'Village',
-    "PPLQ": 'Historical',
-    "PPLX": 'Neighborhood'
-}

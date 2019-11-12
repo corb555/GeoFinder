@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 from tkinter import messagebox, filedialog
 
-from geofinder import GeoKeys
+from geofinder import GeoUtil
 
 
 class IniHandler:
@@ -71,12 +71,12 @@ class IniHandler:
                 self.directory = val
             else:
                 # Not Found.  Create INI file
-                self.directory = Path(os.path.join(str(self.home_path), GeoKeys.get_directory_name()))
+                self.directory = Path(os.path.join(str(self.home_path), GeoUtil.get_directory_name()))
                 self.ini_add_section('PATH')
                 self.ini_set(section='PATH', key='DIRECTORY', val=str(self.directory))
         else:
             # Not Found.  Create INI file
-            self.directory = Path(os.path.join(str(self.home_path), GeoKeys.get_directory_name()))
+            self.directory = Path(os.path.join(str(self.home_path), GeoUtil.get_directory_name()))
             self.ini_add_section('PATH')
             self.ini_set(section='PATH', key='DIRECTORY', val=str(self.directory))
 

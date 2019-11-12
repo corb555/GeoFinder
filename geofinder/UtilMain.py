@@ -23,7 +23,7 @@ import pickle
 from pathlib import Path
 from tkinter import *
 
-from geofinder import CachedDictionary,  GeoKeys, UtilLayout
+from geofinder import CachedDictionary,  GeoUtil, UtilLayout
 
 try:
     import unidecode
@@ -54,8 +54,8 @@ class UtilMain:
         logging.basicConfig(level=logging.DEBUG, format=fmt)
         self.logger.info('Configuration')
 
-        self.directory: str = os.path.join(str(Path.home()), GeoKeys.get_directory_name())
-        self.cache_dir = GeoKeys.get_cache_directory()
+        self.directory: str = os.path.join(str(Path.home()), GeoUtil.get_directory_name())
+        self.cache_dir = GeoUtil.get_cache_directory()
 
         # Get configuration settings stored in config pickle file
         self.cfg: CachedDictionary.CachedDictionary = CachedDictionary.CachedDictionary(self.cache_dir, "config.pkl")

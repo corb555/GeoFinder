@@ -23,7 +23,7 @@ import time
 import unittest
 from pathlib import Path
 
-from geofinder import Geodata, GeoKeys, Loc
+from geofinder import Geodata, GeoUtil, Loc
 
 halifax_lat = 44.646
 bruce_cty_lat = 44.50009
@@ -79,7 +79,7 @@ class TestGeodata(unittest.TestCase):
         # If multiple matches, truncate to first match
         lat = self.place.lat
         if len(self.place.georow_list) > 0:
-            lat = self.place.georow_list[0][GeoKeys.Entry.LAT]
+            lat = self.place.georow_list[0][GeoUtil.Entry.LAT]
             self.place.georow_list = self.place.georow_list[:1]
             TestGeodata.geodata.process_result(place=self.place, flags=flags)
 
@@ -103,7 +103,7 @@ class TestGeodata(unittest.TestCase):
         title = "City - good - but before city start"
         self.place.event_year = 1540
         lat, name = self.run_test(title, "Albanel,, Quebec, Canada")
-        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_eventyear03(self):
         title = "name"
@@ -138,83 +138,83 @@ class TestGeodata(unittest.TestCase):
     def test_res_code01(self):
         title = "City.  Good.  upper lowercase"
         lat, name = self.run_test(title, "AlbAnel,, Quebec, CanAda")
-        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code02(self):
         title = "City - multiple matches"
         lat, name = self.run_test(title, "Alberton,, Ontario, Canada")
-        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code03(self):
         title = "County - Good.  wrong Province"
         lat, name = self.run_test(title, "Halifax County, Alberta, Canada")
-        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code11(self):
         title = "City and county  Good."
         lat, name = self.run_test(title, "baldwin mills,estrie,,canada")
-        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code04(self):
         title = "city - Good. wrong Province"
         lat, name = self.run_test(title, "Halifax, ,Alberta, Canada")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.MULTIPLE_MATCHES, self.place.result_type, title)
 
     def test_res_code05(self):
         title = "multiple county - not unique"
         lat, name = self.run_test(title, "St Andrews,,,Canada")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.MULTIPLE_MATCHES, self.place.result_type, title)
 
     def test_res_code06(self):
         title = "City - good. wrong province"
         lat, name = self.run_test(title, "Natuashish, ,Alberta, Canada")
-        self.assertEqual(GeoKeys.Result.PARTIAL_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.PARTIAL_MATCH, self.place.result_type, title)
 
     def test_res_code07(self):
         title = "City - good. wrong county"
         lat, name = self.run_test(title, "Natuashish, Alberta, ,Canada")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.MULTIPLE_MATCHES, self.place.result_type, title)
 
     def test_res_code08(self):
         title = "City - Bad"
         lat, name = self.run_test(title, "Alberton, ,,Germany")
-        self.assertEqual(GeoKeys.Result.NO_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.NO_MATCH, self.place.result_type, title)
 
     def test_res_code09(self):
         title = "State - Bad"
         lat, name = self.run_test(title, "skdfjd,Germany")
-        self.assertEqual(GeoKeys.Result.NO_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.NO_MATCH, self.place.result_type, title)
 
     def test_res_code10(self):
         title = "Country - blank"
         lat, name = self.run_test(title, '')
-        self.assertEqual(GeoKeys.Result.NO_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.NO_MATCH, self.place.result_type, title)
 
     # Country
     def test_res_code_country01(self):
         title = "Country - bad"
         lat, name = self.run_test(title, "squid")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.MULTIPLE_MATCHES, self.place.result_type, title)
 
     def test_res_code_country02(self):
         title = "No Country - Natuashish"
         lat, name = self.run_test(title, "Natuashish,, ")
-        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code_country03(self):
         title = "No Country - Berlin"
         lat, name = self.run_test(title, "Berlin,,, ")
-        self.assertEqual(GeoKeys.Result.STRONG_MATCH, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.STRONG_MATCH, self.place.result_type, title)
 
     def test_res_code_country04(self):
         title = "Country - not supported"
         lat, name = self.run_test(title, "Tokyo,,,Japan")
-        self.assertEqual(GeoKeys.Result.NOT_SUPPORTED, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.NOT_SUPPORTED, self.place.result_type, title)
 
     def test_res_code_country05(self):
         title = "Country - not supported"
         lat, name = self.run_test(title, "Tokyo,Japan")
-        self.assertEqual(GeoKeys.Result.NOT_SUPPORTED, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.NOT_SUPPORTED, self.place.result_type, title)
 
     # =====  TEST PLACE TYPES
     def test_place_code01(self):
@@ -447,7 +447,7 @@ class TestGeodata(unittest.TestCase):
     def test_city31(self):
         title = "City - St. Margaret, Westminster, London, England"
         lat, name = self.run_test(title, "St. Margaret, Westminster, London, England")
-        self.assertEqual(GeoKeys.Result.MULTIPLE_MATCHES, self.place.result_type, title)
+        self.assertEqual(GeoUtil.Result.MULTIPLE_MATCHES, self.place.result_type, title)
 
     def test_city32(self):
         title = "City - Amsterdam, Zuiderkerk"

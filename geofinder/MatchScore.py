@@ -20,7 +20,7 @@ import logging
 import re
 from difflib import SequenceMatcher
 
-from geofinder import GeoKeys, Geodata, Loc
+from geofinder import Geodata, Loc, Normalize
 
 
 class MatchScore:
@@ -62,13 +62,13 @@ class MatchScore:
 
         # Create full place title (prefix,city,county,state,country) from input place.
         inp_title = inp_place.get_five_part_title()
-        inp_title = GeoKeys.normalize_match_title(inp_title, inp_place.country_iso)
+        inp_title = Normalize.normalize_title_for_match_scoring(inp_title, inp_place.country_iso)
         inp_tokens = inp_title.split(',')
 
         # Create full place title (prefix,city,county,state,country) from result place
         res_place.prefix = ' '
         res_title = res_place.get_five_part_title()
-        res_title = GeoKeys.normalize_match_title(res_title, res_place.country_iso)
+        res_title = Normalize.normalize_title_for_match_scoring(res_title, res_place.country_iso)
         res_tokens = res_title.split(',')
 
         # Store length of original input tokens.  This is used for percent unmatched calculation

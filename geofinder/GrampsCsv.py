@@ -21,7 +21,7 @@ import logging
 import math
 import re
 
-from geofinder import Loc, GeoKeys
+from geofinder import Loc, GeoUtil
 
 
 class CSVEntry:
@@ -297,8 +297,8 @@ class GrampsCsv:
             enc = ''
         if self.csv_path is not None:
             # 0Place (ID), 1Title, 2Name, 3Type, 4latitude, 5longitude, 6enclosed_by
-            title = GeoKeys.capwords(row[CSVEntry.TITLE])
-            name = GeoKeys.capwords(row[CSVEntry.NAME])
+            title = GeoUtil.capwords(row[CSVEntry.TITLE])
+            name = GeoUtil.capwords(row[CSVEntry.NAME])
 
             if math.isnan(float(row[CSVEntry.LAT])) or  math.isnan(float(row[CSVEntry.LAT])) :
                 self.csvfile.write(f'[{row[CSVEntry.PLACE_ID]}],"{title}","{name}",{row[CSVEntry.TYPE]},'

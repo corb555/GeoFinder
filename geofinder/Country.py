@@ -22,7 +22,7 @@ from typing import Dict
 
 import phonetics
 
-from geofinder import GeoDB, GeoKeys
+from geofinder import GeoDB, GeoUtil
 
 
 class CnRow:
@@ -78,7 +78,7 @@ class Country:
             # Create Geo_row
             # ('paris', 'fr', '07', '012', '12.345', '45.123', 'PPL')
             geo_row = [None] * GeoDB.Entry.MAX
-            geo_row[GeoDB.Entry.NAME] = GeoKeys.normalize(ky)
+            geo_row[GeoDB.Entry.NAME] = GeoUtil.normalize(ky)
             sdx = phonetics.dmetaphone(geo_row[GeoDB.Entry.NAME])
             geo_row[GeoDB.Entry.SDX] = sdx[0]
 

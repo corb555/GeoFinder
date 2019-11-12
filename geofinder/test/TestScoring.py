@@ -40,7 +40,7 @@ class TestScoring(unittest.TestCase):
     POOR = 48
     VERY_POOR = 68
     TERRIBLE = 88
-    NO_MATCH = 100.1
+    NO_MATCH = 110
 
     test_values = [
         # Target, Result, Feature, Expected Score

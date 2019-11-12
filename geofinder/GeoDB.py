@@ -24,8 +24,8 @@ import sys
 import time
 from tkinter import messagebox
 
-from geofinder import DB, Loc, GeoKeys, MatchScore, Country
-from geofinder.GeoKeys import Query, Result, Entry, get_soundex
+from geofinder import DB, Loc, GeoUtil, MatchScore, Country, Normalize
+from geofinder.GeoUtil import Query, Result, Entry, get_soundex
 
 
 class GeoDB:
@@ -132,7 +132,7 @@ class GeoDB:
             # Convert row tuple to list and extend so we can assign score
             update = list(rw)
             update.append(1)
-            update[GeoKeys.Entry.SCORE] = score
+            update[GeoUtil.Entry.SCORE] = score
             place.georow_list[idx] = tuple(update)  # Convert back from list to tuple
 
             # Remove items in prefix that are in result
@@ -257,7 +257,7 @@ class GeoDB:
 
         # self.logger.debug(f'Admin2 lookup=[{lookup_target}] country=[{place.country_iso}]')
         place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
-        if place.result_type == GeoKeys.Result.WILDCARD_MATCH:
+        if place.result_type == GeoUtil.Result.WILDCARD_MATCH:
             # Found as Admin2 without shire
             place.original_entry = re.sub('shire', '', place.original_entry)
 
@@ -513,7 +513,7 @@ class GeoDB:
             place.georow_list, place.result_type = self.db.process_query_list(from_tbl='main.admin', query_list=query_list)
         else:
             place.georow_list = place.georow_list[:1]
-            place.result_type = GeoKeys.Result.STRONG_MATCH
+            place.result_type = GeoUtil.Result.STRONG_MATCH
 
         # Add search quality score to each entry
         for idx, rw in enumerate(place.georow_list):
@@ -529,7 +529,7 @@ class GeoDB:
             for item in tk_list:
                 place.prefix = re.sub(item.strip(' ').lower(), '', place.prefix)
 
-            update[GeoKeys.Entry.SCORE] = int(score * 100)
+            update[GeoUtil.Entry.SCORE] = int(score * 100)
             place.georow_list[idx] = tuple(update)
 
     def lookup_main_dbid(self, place: Loc) -> None:
@@ -573,7 +573,7 @@ class GeoDB:
 
     def get_country_iso(self, place: Loc) -> str:
         """ Return ISO code for specified country"""
-        lookup_target, modified = GeoKeys.country_normalize(place.country_name)
+        lookup_target, modified = Normalize.country_normalize(place.country_name)
         if len(lookup_target) == 0:
             return ''
 

@@ -21,7 +21,7 @@ import copy
 import logging
 from operator import itemgetter
 
-from geofinder import GeodataFiles, GeoKeys, Loc, MatchScore
+from geofinder import GeodataFiles, GeoUtil, Loc, MatchScore, Normalize
 
 
 class Geodata:
@@ -88,7 +88,7 @@ class Geodata:
         self.country_is_valid(place)
 
         # The country in this entry is not supported (not loaded into DB)
-        if place.result_type == GeoKeys.Result.NOT_SUPPORTED:
+        if place.result_type == GeoUtil.Result.NOT_SUPPORTED:
             self.process_result(place=place, flags=flags)
             return
 
@@ -129,11 +129,11 @@ class Geodata:
             # NO MATCH
             self.logger.debug(f'Not found.')
             # place = self.save_place
-            if place.result_type != GeoKeys.Result.NO_COUNTRY and place.result_type != GeoKeys.Result.NOT_SUPPORTED:
-                place.result_type = GeoKeys.Result.NO_MATCH
+            if place.result_type != GeoUtil.Result.NO_COUNTRY and place.result_type != GeoUtil.Result.NOT_SUPPORTED:
+                place.result_type = GeoUtil.Result.NO_MATCH
         elif len(place.georow_list) > 1:
             self.logger.debug(f'Success!  {len(place.georow_list)} matches')
-            place.result_type = GeoKeys.Result.MULTIPLE_MATCHES
+            place.result_type = GeoUtil.Result.MULTIPLE_MATCHES
 
         # Process the results
         self.process_result(place=place, flags=flags)
@@ -147,15 +147,15 @@ class Geodata:
         :return:
         """
         # self.logger.debug(f'**PROCESS RESULT:  Res={place.result_type}  Targ={place.target} Georow_list={place.georow_list}')
-        if place.result_type == GeoKeys.Result.NOT_SUPPORTED:
+        if place.result_type == GeoUtil.Result.NOT_SUPPORTED:
             place.place_type = Loc.PlaceType.COUNTRY
 
-        if place.result_type in GeoKeys.successful_match and len(place.georow_list) > 0:
+        if place.result_type in GeoUtil.successful_match and len(place.georow_list) > 0:
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
             place.format_full_nm(self.geo_files.output_replace_dct)
         elif len(place.georow_list) > 0:
             self.logger.debug(f'***RESULT={place.result_type} Setting to Partial')
-            place.result_type = GeoKeys.Result.PARTIAL_MATCH
+            place.result_type = GeoUtil.Result.PARTIAL_MATCH
 
         place.prefix = place.prefix.strip(' ')
         place.set_place_type_text()
@@ -171,11 +171,11 @@ class Geodata:
         # Calculate prefix (unused tokens) for each row
         self.calculate_prefixes_for_rows(place=place)
 
-
     def build_result_list(self, place):
-        # Create a sorted version of result_list without any dupes
+        # Create a sorted version of result_list without any duplicates (same name, similar lat/lon)
+        # In case of duplicate, keep the one with best match score
         # Add flag if we hit the lookup limit
-        # Discard location names that didnt exist at time of event and add to result flag
+        # Discard location names that didnt exist at time of event (update result flag if this occurs)
         date_filtered = False  # Flag to indicate whether we dropped locations due to event date
         event_year = place.event_year
 
@@ -185,7 +185,7 @@ class Geodata:
             limited_flag = False
 
         # sort list by State/Province id, and County id
-        list_copy = sorted(place.georow_list, key=itemgetter(GeoKeys.Entry.LON, GeoKeys.Entry.LAT, GeoKeys.Entry.SCORE))
+        list_copy = sorted(place.georow_list, key=itemgetter(GeoUtil.Entry.LON, GeoUtil.Entry.LAT, GeoUtil.Entry.SCORE))
         place.georow_list.clear()
         distance_cutoff = 0.5  # Value to determine if two lat/longs are similar
 
@@ -198,11 +198,11 @@ class Geodata:
         # Find if two items with same name are similar lat/lon (within Box Distance of 0.5 degrees)
         # self.logger.debug('===== BUILD RESULT =====')
         for geo_row in list_copy:
-            if self.valid_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1], 60) is False:
+            if self.valid_year_for_location(event_year, geo_row[GeoUtil.Entry.ISO], geo_row[GeoUtil.Entry.ADM1], 60) is False:
                 # Skip location if location name  didnt exist at the time of event WITH 60 years padding
                 continue
 
-            if self.valid_year_for_location(event_year, geo_row[GeoKeys.Entry.ISO], geo_row[GeoKeys.Entry.ADM1], 0) is False:
+            if self.valid_year_for_location(event_year, geo_row[GeoUtil.Entry.ISO], geo_row[GeoUtil.Entry.ADM1], 0) is False:
                 # Flag if location name  didnt exist at the time of event
                 date_filtered = True
 
@@ -211,48 +211,48 @@ class Geodata:
             # self.logger.debug(f'{geo_row[GeoKeys.Entry.NAME]},{geo_row[GeoKeys.Entry.FEAT]} '
             #                  f'{geo_row[GeoKeys.Entry.SCORE]:.1f} {geo_row[GeoKeys.Entry.ADM2]}, '
             #                  f'{geo_row[GeoKeys.Entry.ADM1]} {geo_row[GeoKeys.Entry.ISO]}')
-            if geoid_dict.get(geo_row[GeoKeys.Entry.ID]):
+            if geoid_dict.get(geo_row[GeoUtil.Entry.ID]):
                 # We already have an entry for this geoid.  Replace if this one has better score
-                row_idx = geoid_dict.get(geo_row[GeoKeys.Entry.ID])
+                row_idx = geoid_dict.get(geo_row[GeoUtil.Entry.ID])
                 other_row = place.georow_list[row_idx]
-                if geo_row[GeoKeys.Entry.SCORE] < other_row[GeoKeys.Entry.SCORE]:
+                if geo_row[GeoUtil.Entry.SCORE] < other_row[GeoUtil.Entry.SCORE]:
                     # Same GEOID but this has better score so replace other entry.  Otherwise leave previous entry
                     place.georow_list[row_idx] = geo_row
-                    self.logger.debug(f'Better score {geo_row[GeoKeys.Entry.SCORE]} < {other_row[GeoKeys.Entry.SCORE]} {geo_row[GeoKeys.Entry.NAME]}')
-            elif geo_row[GeoKeys.Entry.NAME] != prev_geo_row[GeoKeys.Entry.NAME]:
+                    self.logger.debug(f'Better score {geo_row[GeoUtil.Entry.SCORE]} < {other_row[GeoUtil.Entry.SCORE]} {geo_row[GeoUtil.Entry.NAME]}')
+            elif geo_row[GeoUtil.Entry.NAME] != prev_geo_row[GeoUtil.Entry.NAME]:
                 # Name is different.  Add this item
                 place.georow_list.append(geo_row)
-                geoid_dict[geo_row[GeoKeys.Entry.ID]] = idx
+                geoid_dict[geo_row[GeoUtil.Entry.ID]] = idx
                 idx += 1
-            elif abs(float(prev_geo_row[GeoKeys.Entry.LAT]) - float(geo_row[GeoKeys.Entry.LAT])) + \
-                    abs(float(prev_geo_row[GeoKeys.Entry.LON]) - float(geo_row[GeoKeys.Entry.LON])) > distance_cutoff:
+            elif abs(float(prev_geo_row[GeoUtil.Entry.LAT]) - float(geo_row[GeoUtil.Entry.LAT])) + \
+                    abs(float(prev_geo_row[GeoUtil.Entry.LON]) - float(geo_row[GeoUtil.Entry.LON])) > distance_cutoff:
                 # Lat/lon is different from previous item. Add this one
                 place.georow_list.append(geo_row)
-                geoid_dict[geo_row[GeoKeys.Entry.ID]] = idx
+                geoid_dict[geo_row[GeoUtil.Entry.ID]] = idx
                 idx += 1
-            elif self.get_priority(geo_row[GeoKeys.Entry.SCORE]) < self.get_priority(prev_geo_row[GeoKeys.Entry.SCORE]):
+            elif self.get_priority(geo_row[GeoUtil.Entry.SCORE]) < self.get_priority(prev_geo_row[GeoUtil.Entry.SCORE]):
                 # Same Lat/lon but this has better so replace previous entry.  Otherwise leave previous entry
                 place.georow_list[idx - 1] = geo_row
-                geoid_dict[geo_row[GeoKeys.Entry.ID]] = idx - 1
-                self.logger.debug(f'Use. {geo_row[GeoKeys.Entry.SCORE]}  < {prev_geo_row[GeoKeys.Entry.SCORE]} {geo_row[GeoKeys.Entry.NAME]}')
+                geoid_dict[geo_row[GeoUtil.Entry.ID]] = idx - 1
+                self.logger.debug(f'Use. {geo_row[GeoUtil.Entry.SCORE]}  < {prev_geo_row[GeoUtil.Entry.SCORE]} {geo_row[GeoUtil.Entry.NAME]}')
             else:
-                self.logger.debug(f'Ignore. {geo_row[GeoKeys.Entry.SCORE]} NOT < {prev_geo_row[GeoKeys.Entry.SCORE]} {geo_row[GeoKeys.Entry.NAME]}')
+                self.logger.debug(f'Ignore. {geo_row[GeoUtil.Entry.SCORE]} NOT < {prev_geo_row[GeoUtil.Entry.SCORE]} {geo_row[GeoUtil.Entry.NAME]}')
 
             prev_geo_row = geo_row
 
         min_score = 9999
-        new_list = sorted(place.georow_list, key=itemgetter(GeoKeys.Entry.SCORE, GeoKeys.Entry.ADM1))
+        new_list = sorted(place.georow_list, key=itemgetter(GeoUtil.Entry.SCORE, GeoUtil.Entry.ADM1))
         place.georow_list.clear()
 
         for rw, geo_row in enumerate(new_list):
             # If first item, remove penalty for ADM entry
-            if rw == 0 and 'ADM' in geo_row[GeoKeys.Entry.FEAT]:
+            if rw == 0 and 'ADM' in geo_row[GeoUtil.Entry.FEAT]:
                 geo_row_update = list(geo_row)
-                geo_row_update[GeoKeys.Entry.SCORE] = self.match.adjust_adm_score(score=geo_row[GeoKeys.Entry.SCORE],
-                                                                                  feat=geo_row[GeoKeys.Entry.FEAT])
+                geo_row_update[GeoUtil.Entry.SCORE] = self.match.adjust_adm_score(score=geo_row[GeoUtil.Entry.SCORE],
+                                                                                  feat=geo_row[GeoUtil.Entry.FEAT])
                 geo_row = tuple(geo_row_update)
 
-            score = geo_row[GeoKeys.Entry.SCORE]
+            score = geo_row[GeoUtil.Entry.SCORE]
 
             if score < min_score:
                 min_score = score
@@ -265,7 +265,7 @@ class Geodata:
             prev_score = score
 
         if min_score < 9 and len(place.georow_list) == 1:
-            place.result_type = GeoKeys.Result.STRONG_MATCH
+            place.result_type = GeoUtil.Result.STRONG_MATCH
 
         return ResultFlags(limited=limited_flag, filtered=date_filtered)
 
@@ -290,7 +290,7 @@ class Geodata:
             row = copy.copy(place.georow_list[0])
             place.georow_list.clear()
             place.georow_list.append(row)
-            place.result_type = GeoKeys.Result.STRONG_MATCH
+            place.result_type = GeoUtil.Result.STRONG_MATCH
 
         self.process_result(place=place, flags=ResultFlags(limited=False, filtered=False))
 
@@ -302,9 +302,9 @@ class Geodata:
             # Copy geo row to Place
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
             place.original_entry = place.format_full_nm(None)
-            place.result_type = GeoKeys.Result.STRONG_MATCH
+            place.result_type = GeoUtil.Result.STRONG_MATCH
         else:
-            place.result_type = GeoKeys.Result.NO_MATCH
+            place.result_type = GeoUtil.Result.NO_MATCH
 
     def calculate_prefixes_for_rows(self, place: Loc.Loc):
         """
@@ -320,12 +320,12 @@ class Geodata:
             # Put unused fields into prefix
             self.geo_files.geodb.copy_georow_to_place(rw, temp_place)
             temp_place.prefix = ''
-            nm = GeoKeys.search_normalize(temp_place.format_full_nm(self.geo_files.output_replace_dct), place.country_iso)
+            nm = Normalize.search_normalize(temp_place.format_full_nm(self.geo_files.output_replace_dct), place.country_iso)
             # self.logger.debug(f'NAME ={nm}')
             place.prefix = ''
 
             for num, fld in enumerate(tokens[:2]):
-                item = GeoKeys.search_normalize(fld, place.country_iso)
+                item = Normalize.search_normalize(fld, place.country_iso)
                 add_item = False
                 # self.logger.debug(f'item={item} ')
                 if num == 0 and item not in nm:
@@ -346,7 +346,7 @@ class Geodata:
 
             if len(place.prefix) > 0:
                 place.prefix_commas = ', '
-            update[GeoKeys.Entry.PREFIX] = place.prefix
+            update[GeoUtil.Entry.PREFIX] = place.prefix
             # self.logger.debug(f'PREFIX={place.prefix} ')
 
             place.georow_list[idx] = tuple(update)
@@ -372,11 +372,11 @@ class Geodata:
     def country_is_valid(self, place: Loc) -> bool:
         # See if COUNTRY is present and is in the supported country list
         if place.country_iso == '':
-            place.result_type = GeoKeys.Result.NO_COUNTRY
+            place.result_type = GeoUtil.Result.NO_COUNTRY
             is_valid = False
         elif place.country_iso not in self.geo_files.supported_countries_dct:
             self.logger.debug(f'[{place.country_iso}] not supported')
-            place.result_type = GeoKeys.Result.NOT_SUPPORTED
+            place.result_type = GeoUtil.Result.NOT_SUPPORTED
             place.place_type = Loc.PlaceType.COUNTRY
             place.target = place.country_name
             is_valid = False
@@ -516,15 +516,15 @@ feature_priority = {'PP1M': 100, 'ADM1': 95, 'PPLA': 95, 'PPLC': 95, 'P1HK': 90,
                     'HSP': -80, 'VAL': -80, 'MT': -80}
 
 result_text_list = {
-    GeoKeys.Result.STRONG_MATCH: 'Matched! Click Save to accept:',
-    GeoKeys.Result.MULTIPLE_MATCHES: ' Multiple matches.  Select one and click Verify or Double-Click',
-    GeoKeys.Result.NO_MATCH: 'Not found.  Edit and click Verify.',
-    GeoKeys.Result.NOT_SUPPORTED: ' Country is not supported. Skip or Add Country in Config',
-    GeoKeys.Result.NO_COUNTRY: 'No Country found.',
-    GeoKeys.Result.PARTIAL_MATCH: 'Partial match.  Click Save to accept:',
-    GeoKeys.Result.DELETE: 'Empty.  Click Save to delete entry.',
-    GeoKeys.Result.WILDCARD_MATCH: 'Wildcard match. Click Save to accept:',
-    GeoKeys.Result.SOUNDEX_MATCH: 'Soundex match. Click Save to accept:',
+    GeoUtil.Result.STRONG_MATCH: 'Matched! Click Save to accept:',
+    GeoUtil.Result.MULTIPLE_MATCHES: ' Multiple matches.  Select one and click Verify or Double-Click',
+    GeoUtil.Result.NO_MATCH: 'Not found.  Edit and click Verify.',
+    GeoUtil.Result.NOT_SUPPORTED: ' Country is not supported. Skip or Add Country in Config',
+    GeoUtil.Result.NO_COUNTRY: 'No Country found.',
+    GeoUtil.Result.PARTIAL_MATCH: 'Partial match.  Click Save to accept:',
+    GeoUtil.Result.DELETE: 'Empty.  Click Save to delete entry.',
+    GeoUtil.Result.WILDCARD_MATCH: 'Wildcard match. Click Save to accept:',
+    GeoUtil.Result.SOUNDEX_MATCH: 'Soundex match. Click Save to accept:',
 }
 
 ResultFlags = collections.namedtuple('ResultFlags', 'limited filtered')

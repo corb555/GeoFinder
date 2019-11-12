@@ -25,7 +25,7 @@ from collections import namedtuple
 from tkinter import messagebox
 from typing import Dict
 
-from geofinder import CachedDictionary, Country, GeoDB, GeoKeys, Loc, AlternateNames, UtilFeatureFrame
+from geofinder import CachedDictionary, Country, GeoDB, GeoUtil, Loc, AlternateNames, UtilFeatureFrame
 
 
 class GeodataFiles:
@@ -54,7 +54,7 @@ class GeodataFiles:
         self.progress_bar = progress_bar
         self.line_num = 0
         self.cache_changed: bool = False
-        sub_dir = GeoKeys.get_cache_directory(self.directory)
+        sub_dir = GeoUtil.get_cache_directory(self.directory)
         self.country = None
 
         # Read in dictionary listing Geoname features we should include
@@ -132,7 +132,7 @@ class GeodataFiles:
         # if the user loads a new geonames.org file, we also need to rebuild the db
 
         # Use db if it exists and is newer than the geonames directory
-        cache_dir = GeoKeys.get_cache_directory(self.directory)
+        cache_dir = GeoUtil.get_cache_directory(self.directory)
         db_path = os.path.join(cache_dir, 'geodata.db')
         self.logger.debug(f'path for geodata.db: {db_path}')
         err_msg = ''
@@ -276,7 +276,7 @@ class GeodataFiles:
                     if geoname_row.iso.lower() in self.supported_countries_dct and \
                             geoname_row.feat_code in self.feature_code_list_dct:
                         self.insert_georow(geoname_row)
-                        if geoname_row.name.lower() != GeoKeys.normalize(geoname_row.name):
+                        if geoname_row.name.lower() != GeoUtil.normalize(geoname_row.name):
                             self.geodb.insert_alternate_name(geoname_row.name,
                                                                    geoname_row.id, 'ut8')
 
@@ -296,8 +296,8 @@ class GeodataFiles:
         # Create Geo_row and inses
         # ('paris', 'fr', '07', '012', 12.345, 45.123, 'PPL', '34124')
         geo_row = [None] * GeoDB.Entry.MAX
-        geo_row[GeoDB.Entry.NAME] = GeoKeys.normalize(geoname_row.name)
-        geo_row[GeoDB.Entry.SDX] = GeoKeys.get_soundex(geo_row[GeoDB.Entry.NAME])
+        geo_row[GeoDB.Entry.NAME] = GeoUtil.normalize(geoname_row.name)
+        geo_row[GeoDB.Entry.SDX] = GeoUtil.get_soundex(geo_row[GeoDB.Entry.NAME])
 
         geo_row[GeoDB.Entry.ISO] = geoname_row.iso.lower()
         geo_row[GeoDB.Entry.ADM1] = geoname_row.admin1_id

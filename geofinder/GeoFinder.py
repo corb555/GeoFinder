@@ -28,7 +28,7 @@ from pathlib import Path
 from tkinter import filedialog
 from tkinter import messagebox
 
-from geofinder import Geodata, GeoKeys, Config, Gedcom, Loc, AppLayout, UtilLayout, GrampsXml
+from geofinder import Geodata, GeoUtil, Config, Gedcom, Loc, AppLayout, UtilLayout, GrampsXml
 from geofinder import __version__
 from geofinder.CachedDictionary import CachedDictionary
 from geofinder.Geodata import ResultFlags
@@ -59,12 +59,17 @@ class GeoFinder:
 
     GeoFinder - The main GUI
     GeoData - The geonames data model routines
-    GeoDB -  Database insert/lookup routines
+    GeoDB - Database insert/lookup routines.
+            ADM0,ADM1 and ADM2 entries are in admin table.
+            All other places are in geodata table.
+            Alternate names are in altname table.
+    GeoKeys - Text normalization routines and some utility functions
     GEDCOM - routines to read and write GEDCOM files
     GrampsXML - routines to read and write GrampsXML files
     GeodataFile - routines to read/write geoname data sources
     AppLayout - routines to create the app windows and widgets
     Loc - holds all info for a single location
+    Util* - are the frames for the Config button
 
     """
 
@@ -122,11 +127,11 @@ class GeoFinder:
 
         # Get our base directory path from INI file.  Create INI if it doesnt exist
         home_path = str(Path.home())
-        self.directory = Path(os.path.join(home_path, GeoKeys.get_directory_name()))
+        self.directory = Path(os.path.join(home_path, GeoUtil.get_directory_name()))
         self.ini_handler = IniHandler(home_path=home_path, ini_name='geofinder.ini')
         self.directory = self.ini_handler.get_directory_from_ini()
 
-        self.cache_dir = GeoKeys.get_cache_directory(self.directory)
+        self.cache_dir = GeoUtil.get_cache_directory(self.directory)
         self.logger.info(f'Cache directory {self.cache_dir}')
 
         # Set up configuration  class
@@ -200,7 +205,7 @@ class GeoFinder:
         # Convert all global_replace items to lowercase
         for ky in dict_copy:
             val = self.global_replace.dict.pop(ky)
-            new_key = GeoKeys.semi_normalize(ky)
+            new_key = GeoUtil.semi_normalize(ky)
             self.global_replace.dict[new_key] = val
 
         # Initialize geo data
@@ -288,7 +293,7 @@ class GeoFinder:
             # Process it and keep looping until we need user input
             self.place.clear()
             town_entry, eof, rec_id = self.ancestry_file_handler.get_next_place()
-            town_entry = GeoKeys.semi_normalize(town_entry)
+            town_entry = GeoUtil.semi_normalize(town_entry)
             self.place.id = rec_id
 
             if eof:
@@ -302,7 +307,7 @@ class GeoFinder:
                 # In GLOBAL REPLACE LIST - There is a already a global change that we can apply to this line.
                 self.matched_count += 1
 
-                if self.place.result_type == GeoKeys.Result.STRONG_MATCH:
+                if self.place.result_type == GeoUtil.Result.STRONG_MATCH:
                     # Output updated place to ancestry file
                     self.write_updated_place(self.place, town_entry)
                     if self.place.prefix != '':
@@ -314,7 +319,7 @@ class GeoFinder:
                         self.periodic_update("Creating Import...")
                     else:
                         self.periodic_update("Applying change")
-                elif self.place.result_type == GeoKeys.Result.DELETE:
+                elif self.place.result_type == GeoUtil.Result.DELETE:
                     continue
                 else:
                     self.logger.warning(f'***ERROR looking up GEOID=[{replacement_geoid}] for [{town_entry}] ')
@@ -336,9 +341,9 @@ class GeoFinder:
                 self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
                 self.geodata.find_location(town_entry, self.place, self.w.prog.shutdown_requested)
 
-                if self.place.result_type in GeoKeys.successful_match:
+                if self.place.result_type in GeoUtil.successful_match:
                     # FOUND A MATCH in database
-                    if self.place.result_type == GeoKeys.Result.STRONG_MATCH:
+                    if self.place.result_type == GeoUtil.Result.STRONG_MATCH:
                         # FOUND STRONG MATCH
                         self.matched_count += 1
 
@@ -351,7 +356,7 @@ class GeoFinder:
                         # Add to global replace list - Use '@' for tokenizing.  Save GEOID_TOKEN and PREFIX_TOKEN
                         res = '@' + self.place.geoid + '@' + self.place.prefix
 
-                        self.global_replace.set(GeoKeys.semi_normalize(town_entry), res)
+                        self.global_replace.set(GeoUtil.semi_normalize(town_entry), res)
                         self.logger.debug(f'Found Strong Match for {town_entry} res= [{res}] Setting DICT')
                         # Periodically flush dictionary to disk.  (We flush on exit as well)
                         if self.err_count % 200 == 1:
@@ -452,7 +457,7 @@ class GeoFinder:
             else:
                 # User entry is blank - prompt to delete this entry
                 self.place.clear()
-                self.place.result_type = GeoKeys.Result.DELETE
+                self.place.result_type = GeoUtil.Result.DELETE
                 self.logger.debug('Blank: DELETE')
                 self.geodata.process_result(self.place, ResultFlags(limited=False, filtered=False))
 
@@ -466,13 +471,13 @@ class GeoFinder:
         TKHelper.enable_buttons(self.w.review_buttons)
 
         # Enable action buttons based on type of result
-        if place.result_type == GeoKeys.Result.MULTIPLE_MATCHES or \
-                place.result_type == GeoKeys.Result.NO_MATCH or \
-                place.result_type == GeoKeys.Result.NO_COUNTRY:
+        if place.result_type == GeoUtil.Result.MULTIPLE_MATCHES or \
+                place.result_type == GeoUtil.Result.NO_MATCH or \
+                place.result_type == GeoUtil.Result.NO_COUNTRY:
             # Disable the Save & Map button until user clicks Verify and item is found
             self.set_save_allowed(False)
             TKHelper.set_preferred_button(self.w.verify_button, self.w.review_buttons, "Preferred.TButton")
-        elif place.result_type == GeoKeys.Result.NOT_SUPPORTED:
+        elif place.result_type == GeoUtil.Result.NOT_SUPPORTED:
             # Found a match or Not supported - enable save and verify
             # self.set_save_allowed(True)  # Enable save button
             TKHelper.set_preferred_button(self.w.skip_button, self.w.review_buttons, "Preferred.TButton")
@@ -483,7 +488,7 @@ class GeoFinder:
 
         # Display status and color based on success
         self.set_status_text(place.get_status())
-        if place.result_type in GeoKeys.successful_match:
+        if place.result_type in GeoUtil.successful_match:
             if place.place_type == Loc.PlaceType.CITY:
                 self.w.status.configure(style="Good.TLabel")
             else:
@@ -544,11 +549,11 @@ class GeoFinder:
                                                          admin1=temp_place.admin1_id, padding=0)
             if valid:
                 # Get prefix
-                self.list_insert(nm, geo_row[GeoKeys.Entry.PREFIX], geo_row[GeoKeys.Entry.ID], f'{int(geo_row[GeoKeys.Entry.SCORE]):d}',
-                                 geo_row[GeoKeys.Entry.FEAT])
+                self.list_insert(nm, geo_row[GeoUtil.Entry.PREFIX], geo_row[GeoUtil.Entry.ID], f'{int(geo_row[GeoUtil.Entry.SCORE]):d}',
+                                 geo_row[GeoUtil.Entry.FEAT])
             else:
-                self.list_insert(nm, "VERIFY DATE", geo_row[GeoKeys.Entry.ID], f'{int(geo_row[GeoKeys.Entry.SCORE]):d}',
-                                 geo_row[GeoKeys.Entry.FEAT])
+                self.list_insert(nm, "VERIFY DATE", geo_row[GeoUtil.Entry.ID], f'{int(geo_row[GeoUtil.Entry.SCORE]):d}',
+                                 geo_row[GeoUtil.Entry.FEAT])
 
         self.w.root.update_idletasks()
 
@@ -573,14 +578,14 @@ class GeoFinder:
         # self.geodata.set_last_iso(self.place.country_iso)
 
         ky = self.w.original_entry.get_text()
-        if self.place.result_type == GeoKeys.Result.DELETE:
+        if self.place.result_type == GeoUtil.Result.DELETE:
             # Put in a blank as replacement
             self.place.geoid = ''
             self.place.prefix = ''
 
         res = '@' + self.place.geoid + '@' + self.place.prefix
         # self.logger.debug(f'Save [{ky}] :: [{res}]')
-        self.global_replace.set(GeoKeys.semi_normalize(ky), res)
+        self.global_replace.set(GeoUtil.semi_normalize(ky), res)
 
         # Periodically flush dict to disk
         if self.err_count % 10 == 1:
@@ -588,7 +593,7 @@ class GeoFinder:
         # self.logger.debug(f'SAVE SetGblRep for [{ky}] res=[{res}] Updating DICT')
 
         # Write out corrected item to  output file
-        if self.place.result_type != GeoKeys.Result.DELETE:
+        if self.place.result_type != GeoUtil.Result.DELETE:
             self.write_updated_place(self.place, ky)
 
         # Get next error
@@ -740,11 +745,11 @@ class GeoFinder:
         # Write out updated location and lat/lon to  file
         self.geodata.geo_files.geodb.set_display_names(place)
         place.original_entry = place.format_full_nm(self.geodata.geo_files.output_replace_dct)
-        prefix = GeoKeys.capwords(self.place.prefix)
+        prefix = GeoUtil.capwords(self.place.prefix)
         if self.diagnostics:
             self.in_diag_file.write(f'{entry}\n')
 
-        if place.result_type != GeoKeys.Result.DELETE:
+        if place.result_type != GeoUtil.Result.DELETE:
             # self.logger.debug(f'Write Updated - name={place.name} pref=[{place.prefix}]')
 
             self.ancestry_file_handler.write_updated(prefix + place.prefix_commas + place.original_entry, place)
@@ -904,7 +909,7 @@ class GeoFinder:
                 if len(geoid) > 0:
                     self.geodata.find_geoid(geoid, place)
                 else:
-                    place.result_type = GeoKeys.Result.DELETE
+                    place.result_type = GeoUtil.Result.DELETE
 
                 # Get prefix if there was one
                 if len(rep_tokens) > 2:
