@@ -66,8 +66,6 @@ class SetupReplaceFrame(UtilListboxFrame.ListboxFrame):
             if len(place.georow_list) > 0:
                 # Copy geo row to Place
                 self.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
-                if 'oston' in item:
-                    self.logger.debug(f'{item} id={rep_token[GEOID_TOKEN]} state={place.admin1_id}')
             else:
                 if len(place.target) == 0:
                     place.clear()
@@ -81,6 +79,7 @@ class SetupReplaceFrame(UtilListboxFrame.ListboxFrame):
             if len(rep_token) > 2:
                 place.prefix = rep_token[PREFIX_TOKEN]
 
+            place.set_place_type()
             nm = place.format_full_nm(self.output_replace_dct)
             if len(place.prefix) > 0:
                 line = f'[{place.prefix}]{place.prefix_commas}{nm}'

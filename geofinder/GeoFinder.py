@@ -908,6 +908,7 @@ class GeoFinder:
                 geoid = rep_tokens[GEOID_TOKEN]
                 if len(geoid) > 0:
                     self.geodata.find_geoid(geoid, place)
+                    place.set_place_type()
                 else:
                     place.result_type = GeoUtil.Result.DELETE
 

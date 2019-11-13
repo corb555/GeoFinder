@@ -17,10 +17,15 @@
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 import logging
-import re
-from difflib import SequenceMatcher
 
-from geofinder import Geodata, Loc, Normalize
+from geofinder import Geodata, Loc, Normalize, GeoUtil
+
+EXCELLENT = 10
+GOOD = 29
+POOR = 49
+VERY_POOR = 69
+TERRIBLE = 89
+NO_MATCH = 109
 
 
 class MatchScore:
@@ -39,7 +44,9 @@ class MatchScore:
         self.logger = logging.getLogger(__name__)
 
         # Weighting for each token - prefix, city, adm2, adm1, country
-        self.token_weight = [0.8, 1.0, 0.3, 0.6, 0.9]
+        self.token_weight = [0.0, 1.0, 0.3, 0.6, 0.9]
+        #self.token_weight = [1.0, 1.0, 1.0, 1.0, 1.0]
+
         self.prefix_weight = 0.5
         self.wildcard_penalty = 10.0
         self.first_token_match_bonus = 10.0
@@ -73,7 +80,7 @@ class MatchScore:
         inp_title = Normalize.normalize_for_scoring(inp_title, inp_place.country_iso)
         inp_tokens = inp_title.split(',')
         # Create a list of all the words in input
-        input_words = ', '.join(map(str, inp_tokens))
+        #input_words = ', '.join(map(str, inp_tokens))
         input_words = inp_title
         # Store length of original input tokens.  This is used for percent unmatched calculation
         for it, tk in enumerate(inp_tokens):
@@ -83,15 +90,18 @@ class MatchScore:
         # Create full place title (prefix,city,county,state,country) from result place
         res_title = res_place.get_five_part_title()
         res_title = Normalize.normalize_for_scoring(res_title, res_place.country_iso)
+        res_place.original_entry = res_title
         res_tokens = res_title.split(',')
         # Create a list of all the words in result
-        res_words = ', '.join(map(str, res_tokens))
+        #res_words = ', '.join(map(str, res_tokens))
         res_words = res_title
         # save result len for percent calc
-        orig_res_len = len(res_words)
+        resw = res_words.strip(',')
+        resw = resw.strip(' ')
+        orig_res_len = len(resw)
 
         # Remove any sequences that match in input list and result
-        res_words, input_words = self.remove_matching_sequences(res_words, input_words)
+        res_words, input_words = GeoUtil.remove_matching_sequences(res_words, input_words)
 
         # For each input token calculate percent of new (unmatched) size vs original size
         unmatched_input_tokens = input_words.split(',')
@@ -99,6 +109,9 @@ class MatchScore:
         # Each token in place hierarchy gets a different weighting
         #      Prefix, city,county, state, country
         score_diags = ''
+
+        # Restore prefix
+        unmatched_input_tokens[0] = inp_tokens[0]
 
         # Calculate percent of USER INPUT text that was unmatched, then apply weighting
         for idx, tk in enumerate(inp_tokens):
@@ -116,12 +129,17 @@ class MatchScore:
                         in_score -= self.first_token_match_bonus
 
         # Average over number of tokens (with fractional weight).  Gives 0-100% regardless of weighting and number of tokens
-        in_score = in_score / num_inp_tokens
+        if num_inp_tokens > 0:
+            in_score = in_score / num_inp_tokens
+        else:
+            in_score = 0
         # self.logger.debug(f'raw in={in_score}  numtkn={num_inp_tokens}')
 
         # Calculate percent of DB RESULT text that was unmatched
+        res = res_words.strip(',')
+        res = res.strip(' ')
         if orig_res_len > 0:
-            out_score = int(100.0 * len(res_words.strip(' ')) / orig_res_len)
+            out_score = int(100.0 * len(res) / orig_res_len)
             # self.logger.debug(f"Out=[{res_word_list.strip(' ')}] orig_len={orig_res_len}")
         else:
             out_score = 0
@@ -148,50 +166,12 @@ class MatchScore:
         score:float = in_score * self.in_weight +  out_score * self.out_weight  + \
                       feature_score * self.feature_weight  + wildcard_penalty + prefix_penalty * self.prefix_weight
 
-        self.logger.debug(f'SCORE {score:.1f} [{res_title}]\n{inp_title}  out={out_score * self.out_weight:.1f} '
-                          f'in={in_score * self.in_weight:.1f} feat={feature_score * self.feature_weight:.1f} {res_place.feature}  '
-                          f'wild={wildcard_penalty}')
-        self.logger.debug(f'{score_diags}')
+        self.logger.debug(f'SCORE {score:.1f} res=[{res_title}]\ninp=[{inp_title}]  outSc={out_score * self.out_weight:.1f}% '
+                          f'inSc={in_score * self.in_weight:.1f}% feat={feature_score * self.feature_weight:.1f} {res_place.feature}  '
+                          f'wild={wildcard_penalty} pref={prefix_penalty * self.prefix_weight} outrem=[{res}]')
+        self.logger.debug(f'{score_diags}\n')
 
         return round(score)
-
-    def _remove_matching_seq(self, text1: str, text2: str, attempts: int) -> (str, str):
-        """
-        Find largest matching sequence.  Remove it in text1 and text2.
-                Private - called by remove_matching_sequences which provides a wrapper
-        Call recursively until attempts hits zero or there are no matches longer than 1 char
-        :param text1:
-        :param text2:
-        :param attempts: Number of times to remove largest text sequence
-        :return:
-        """
-        s = SequenceMatcher(None, text1, text2)
-        match = s.find_longest_match(0, len(text1), 0, len(text2))
-        if match.size > 1:
-            # Remove matched sequence from inp and out
-            item = text1[match.a:match.a + match.size]
-            text2 = re.sub(item, '', text2)
-            text1 = re.sub(item, '', text1)
-            if attempts > 0:
-                # Call recursively to get next largest match and remove it
-                text1, text2 = self._remove_matching_seq(text1, text2, attempts - 1)
-        return text1, text2
-
-    def remove_matching_sequences(self, text1: str, text2: str) -> (str, str):
-        """
-        Find largest sequences that match between text1 and 2.  Remove them from text1 and text2.
-        :param text1:
-        :param text2:
-        :return:
-        """
-        # Prepare strings for input to remove_matching_seq
-        # Swap all commas in text1 string to '@'.  This way they will never match comma in text2 string
-        # Ensures we don;t remove commas and don't match across tokens
-        text2 = re.sub(',', '@', text2)
-        text1, text2 = self._remove_matching_seq(text1=text1, text2=text2, attempts=15)
-        # Restore commas in inp
-        text2 = re.sub('@', ',', text2)
-        return text1.strip(' '), text2.strip(' ')
 
     def adjust_adm_score(self, score, feat):
         if 'ADM3' in feat or 'ADM4' in feat:

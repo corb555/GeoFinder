@@ -44,20 +44,15 @@ class AlternateNames(FileReader):
         self.loc = Loc()
 
     def read(self) -> bool:
+        # Do entire file as one transaction
         self.geo_files.geodb.db.begin()
-        # Read in file.  This will call handle_line for each file line
+        # Read in file.  This will call handle_line for each line in file
         res = super().read()
         self.geo_files.geodb.db.commit()
         return res
 
-    def cancel(self):
-        # User requested cancel
-        # Abort DB build.  Clear out partial DB
-        self.geo_files.geodb.db.commit()
-        self.geo_files.geodb.clear_geoname_data()
-
     def handle_line(self, line_num, row):
-        # This is called as each line is read
+        # This is called for each line read
         alt_tokens = row.split('\t')
         if len(alt_tokens) != 10:
             self.logger.debug(f'Incorrect number of tokens: {alt_tokens} line {line_num}')
@@ -67,25 +62,31 @@ class AlternateNames(FileReader):
 
         # Alternate names are in multiple languages.  Only add if item is in requested lang list
         if alt_tokens[ALT_LANG] in self.lang_list:
-            # Add this alias to geoname db if there is already an entry (geoname DB is filtered based on feature)
+            # Only Add this alias if main DB already has an entry (geoname DB is filtered based on feature)
             # See if item has an entry with same GEOID in Main DB
             dbid = self.geo_files.geodb.geoid_main_dict.get(alt_tokens[ALT_GEOID])
             if dbid is not None:
                 self.loc.target = dbid
+                # Retrieve entry
                 self.geo_files.geodb.lookup_main_dbid(place=self.loc)
             else:
                 # See if item has an  entry with same GEOID in Admin DB
                 dbid = self.geo_files.geodb.geoid_admin_dict.get(alt_tokens[ALT_GEOID])
                 if dbid is not None:
                     self.loc.target = dbid
+                    # Retrieve entry
                     self.geo_files.geodb.lookup_admin_dbid(place=self.loc)
 
             if len(self.loc.georow_list) > 0:
-                # convert to list  and modify name and add to DB and its soundex
+                # We are going to create a duplicate entry in the alternate name DB but with this name and soundex
+                # convert row to list. modify name and soundex and add to alternate name DB
                 lst = list(self.loc.georow_list[0])
-                del lst[-1]
-                lst[GeoDB.Entry.NAME] = Normalize.normalize(alt_tokens[ALT_NAME],remove_commas=True)
-                lst.append(GeoUtil.get_soundex(alt_tokens[ALT_NAME]))
+                # Update the name in the row with the alternate name
+                #lst[GeoDB.Entry.NAME] = Normalize.normalize(alt_tokens[ALT_NAME],remove_commas=True)
+                #del lst[-1]   # Remove Soundex entry
+                #lst.append(GeoUtil.get_soundex(lst[GeoDB.Entry.NAME]))
+                self.geo_files.update_geo_row_name(geo_row=lst, name=alt_tokens[ALT_NAME])
+
                 new_row = tuple(lst)   # Convert back to tuple
                 if alt_tokens[ALT_LANG] != 'en' or 'ADM' not in lst[GeoDB.Entry.FEAT]:
                     # Only add if not English or not ADM1/ADM2
@@ -96,3 +97,9 @@ class AlternateNames(FileReader):
                 if alt_tokens[ALT_LANG] != 'en':
                     self.geo_files.geodb.insert_alternate_name(alt_tokens[ALT_NAME],
                                                            alt_tokens[ALT_GEOID], alt_tokens[ALT_LANG])
+
+    def cancel(self):
+        # User requested cancel
+        # Abort DB build.  Clear out partial DB
+        self.geo_files.geodb.db.commit()
+        self.geo_files.geodb.clear_geoname_data()

@@ -37,7 +37,7 @@ class Geodata:
         self.directory: str = directory_name
         self.progress_bar = progress_bar  # progress_bar
         self.geo_files = GeodataFiles.GeodataFiles(self.directory, progress_bar=self.progress_bar)  # , geo_district=self.geo_district)
-        self.save_place = None
+        self.save_place:Loc.Loc = Loc.Loc()
         self.match = MatchScore.MatchScore()
 
     def find_location(self, location: str, place: Loc.Loc, shutdown):
@@ -52,6 +52,9 @@ class Geodata:
         Geofinder then calls geodate.build_list which removes duplicates and ranks the items
         """
         place.parse_place(place_name=location, geo_files=self.geo_files)
+        self.logger.debug(f"    ==== PARSE: [{location}]\n    Pref=[{place.prefix}] City=[{place.city1}] Adm2=[{place.admin2_name}]"
+                          f" Adm1 [{place.admin1_name}] adm1_id [{place.admin1_id}] Ctry [{place.country_name}]"
+                          f" type_id={place.place_type}")
 
         # Successful Admin1 will also fill in country_iso
         # Use this to fill in country name if missing
@@ -98,7 +101,7 @@ class Geodata:
 
         self.geo_files.geodb.lookup_place(place=place)
         result_list.extend(place.georow_list)
-        self.calculate_prefixes_for_rows(place=place)
+        #self.calculate_prefixes_for_rows(place=place)
 
         # Restore items
         place.city1 = self.save_place.city1
@@ -169,9 +172,9 @@ class Geodata:
             # place.result_type = GeoKeys.Result.PARTIAL_MATCH
 
         # Calculate prefix (unused tokens) for each row
-        self.calculate_prefixes_for_rows(place=place)
+        #self.calculate_prefixes_for_rows(place=place)
 
-    def build_result_list(self, place):
+    def build_result_list(self, place:Loc.Loc):
         # Create a sorted version of result_list without any duplicates (same name, similar lat/lon)
         # In case of duplicate, keep the one with best match score
         # Add flag if we hit the lookup limit
@@ -230,13 +233,13 @@ class Geodata:
                 place.georow_list.append(geo_row)
                 geoid_dict[geo_row[GeoUtil.Entry.ID]] = idx
                 idx += 1
-            elif self.get_priority(geo_row[GeoUtil.Entry.SCORE]) < self.get_priority(prev_geo_row[GeoUtil.Entry.SCORE]):
-                # Same Lat/lon but this has better so replace previous entry.  Otherwise leave previous entry
+            elif geo_row[GeoUtil.Entry.SCORE] < prev_geo_row[GeoUtil.Entry.SCORE]:
+                # Same Lat/lon but this has better score so replace previous entry.  Otherwise leave previous entry
                 place.georow_list[idx - 1] = geo_row
                 geoid_dict[geo_row[GeoUtil.Entry.ID]] = idx - 1
-                self.logger.debug(f'Use. {geo_row[GeoUtil.Entry.SCORE]}  < {prev_geo_row[GeoUtil.Entry.SCORE]} {geo_row[GeoUtil.Entry.NAME]}')
-            else:
-                self.logger.debug(f'Ignore. {geo_row[GeoUtil.Entry.SCORE]} NOT < {prev_geo_row[GeoUtil.Entry.SCORE]} {geo_row[GeoUtil.Entry.NAME]}')
+                #self.logger.debug(f'Use. {geo_row[GeoUtil.Entry.SCORE]}  < {prev_geo_row[GeoUtil.Entry.SCORE]} {geo_row[GeoUtil.Entry.NAME]}')
+            #else:
+                #self.logger.debug(f'Ignore. {geo_row[GeoUtil.Entry.SCORE]} NOT < {prev_geo_row[GeoUtil.Entry.SCORE]} {geo_row[GeoUtil.Entry.NAME]}')
 
             prev_geo_row = geo_row
 
@@ -283,7 +286,7 @@ class Geodata:
 
         # Lookup location
         self.geo_files.geodb.lookup_place(place=place)
-        self.calculate_prefixes_for_rows(place=place)
+        #self.calculate_prefixes_for_rows(place=place)
 
         # Clear to a single entry
         if len(place.georow_list) > 1:
@@ -306,7 +309,7 @@ class Geodata:
         else:
             place.result_type = GeoUtil.Result.NO_MATCH
 
-    def calculate_prefixes_for_rows(self, place: Loc.Loc):
+    def calculate_prefixes_for_rowsZZZ(self, place: Loc.Loc):
         """
         Calculate the prefix values in the georow_list
         :param place:
@@ -346,7 +349,7 @@ class Geodata:
 
             if len(place.prefix) > 0:
                 place.prefix_commas = ', '
-            update[GeoUtil.Entry.PREFIX] = place.prefix
+            update[GeoUtil.Entry.PREFIX] = GeoUtil.capwords(place.prefix)
             # self.logger.debug(f'PREFIX={place.prefix} ')
 
             place.georow_list[idx] = tuple(update)
@@ -369,7 +372,7 @@ class Geodata:
         else:
             self.logger.debug(msg)
 
-    def country_is_valid(self, place: Loc) -> bool:
+    def country_is_valid(self, place:Loc.Loc) -> bool:
         # See if COUNTRY is present and is in the supported country list
         if place.country_iso == '':
             place.result_type = GeoUtil.Result.NO_COUNTRY
@@ -412,7 +415,7 @@ class Geodata:
 
         return 100.0 - float(f_prior)
 
-    def lookup_by_type(self, place, result_list, typ, save_place):
+    def lookup_by_type(self, place:Loc.Loc, result_list, typ, save_place:Loc.Loc):
         typ_name = ''
         if typ == Loc.PlaceType.CITY:
             # Try City as city (do as-is)
@@ -421,7 +424,7 @@ class Geodata:
         elif typ == Loc.PlaceType.ADMIN2:
             # Try ADMIN2 as city
             if place.admin2_name != '':
-                place.prefix += place.city1
+                place.prefix += ' ' + place.city1
                 place.city1 = place.admin2_name
                 place.admin2_name = ''
                 typ_name = 'Admin2'
@@ -447,7 +450,7 @@ class Geodata:
 
             self.geo_files.geodb.lookup_place(place=place)
             result_list.extend(place.georow_list)
-            self.calculate_prefixes_for_rows(place=place)
+            #self.calculate_prefixes_for_rows(place=place)
 
             # Restore items
             place.city1 = save_place.city1
@@ -455,32 +458,32 @@ class Geodata:
             place.prefix = save_place.prefix
             place.extra = save_place.extra
 
-    def lookup_geoid(self, place):
+    def lookup_geoid(self, place:Loc.Loc):
         flags = ResultFlags(limited=False, filtered=False)
         self.geo_files.geodb.lookup_geoid(place)
-        self.calculate_prefixes_for_rows(place=place)
+        #self.calculate_prefixes_for_rows(place=place)
         self.process_result(place=place, flags=flags)
 
-    def search_city(self, place):
+    def search_city(self, place:Loc.Loc):
         place.target = place.city1
         place.prefix = f' {place.admin2_name.title()}'
         self.logger.debug(f' Try city [{place.target}] as city')
         self.geo_files.geodb.lookup_place(place=place)
-        self.calculate_prefixes_for_rows(place=place)
+        #self.calculate_prefixes_for_rows(place=place)
 
-    def search_admin2(self, place):
+    def search_admin2ZZZ(self, place:Loc.Loc):
         place.target = place.admin2_name
         place.prefix = f' {place.city1.title()}'
-        self.logger.debug(f'  Try admin2  [{place.target}] as city')
+        self.logger.debug(f'  Try admin2  [{place.target}] as city [{place.get_five_part_title()}]')
         self.geo_files.geodb.lookup_place(place=place)
-        self.calculate_prefixes_for_rows(place=place)
+        #self.calculate_prefixes_for_rows(place=place)
 
-    def search_admin1(self, place):
+    def search_admin1ZZZ(self, place:Loc.Loc):
         place.target = place.admin1_name
         # place.prefix = f' {place.city1.title()} {place.admin2_name.title()}'
-        self.logger.debug(f'  Try admin1  [{place.target}] as city')
+        self.logger.debug(f'  Try admin1  [{place.target}] as city [{place.get_five_part_title()}]')
         self.geo_files.geodb.lookup_place(place=place)
-        self.calculate_prefixes_for_rows(place=place)
+        #self.calculate_prefixes_for_rows(place=place)
 
     def lookup_as_admin2(self, place: Loc.Loc, result_list, save_place: Loc.Loc):
         # Try City as ADMIN2
@@ -489,10 +492,10 @@ class Geodata:
         place.admin2_name = place.city1
         place.city1 = ''
         place.place_type = Loc.PlaceType.ADMIN2
-
+        self.logger.debug(f'  Try admin2  [{place.target}] as city [{place.get_five_part_title()}]')
         self.geo_files.geodb.lookup_place(place=place)
         result_list.extend(place.georow_list)
-        self.calculate_prefixes_for_rows(place=place)
+        #self.calculate_prefixes_for_rows(place=place)
 
         # Restore items
         place.city1 = save_place.city1
@@ -509,11 +512,11 @@ default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ",
 # If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
 # These scores are also part of the match ranking score
 # Note: PP1M, P1HK, P10K do not exist in Geonames and are created by geofinder
-feature_priority = {'PP1M': 90, 'ADM1': 88, 'PPLA': 88, 'PPLC': 88, 'P1HK': 85, 'PPLA2': 85, 'P10K': 80,
-                    'PPL': 78, 'PPLA3': 75, 'PPLA4': 73,  'ADMX': 70,
+feature_priority = {'PP1M': 90, 'ADM1': 88, 'PPLA': 88, 'PPLC': 88, 'PP1K': 85, 'PPLA2': 85, 'P10K': 80,
+                    'PPL': 78, 'PPLA3': 75, 'PPLA4': 73, 'ADMX': 70,'PAL': 40,
                     'ADM2': 73, 'PPLG': 68, 'MILB': 40, 'NVB': 65, 'PPLF': 63, 'ADM0': 85, 'PPLL': 60, 'PPLQ': 55, 'PPLR': 55,
-                    'CH': 40, 'MSQE': 40, 'CMTY': 40,  'PPLS': 50, 'PPLW': 50, 'PPLX': 75, 'BTL': 20,
-                    'HSP': 0, 'VAL': 0, 'MT': 0, 'ADM3': 0, 'ADM4': 0,'DEFAULT': 0,}
+                    'CH': 40, 'MSQE': 40, 'SYG': 40, 'CMTY': 40, 'CSTL': 40,'EST': 40,'PPLS': 50, 'PPLW': 50, 'PPLX': 75, 'BTL': 20,
+                    'HSTS': 40,'HSP': 0, 'VAL': 0, 'MT': 0, 'ADM3': 0, 'ADM4': 0, 'DEFAULT': 0, }
 
 result_text_list = {
     GeoUtil.Result.STRONG_MATCH: 'Matched! Click Save to accept:',

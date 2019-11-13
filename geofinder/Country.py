@@ -34,9 +34,9 @@ class CnRow:
 
 
 class Country:
-    def __init__(self, progress, geodb, lang_list):
+    def __init__(self, progress, geo_files, lang_list):
         self.logger = logging.getLogger(__name__)
-        self.geodb = geodb
+        self.geo_files = geo_files
         self.progress = progress
         self.country_dict: Dict[str, str] = {}  # Dictionary of Country Name to country iso code
         self.iso_dict: Dict[str, str] = {}  # Reverse dictionary - Country ISO code to country name
@@ -59,7 +59,7 @@ class Country:
 
         # list of all countries and their ISO codes
         # This also includes some common aliases
-        self.geodb.db.begin()
+        self.geo_files.geodb.db.begin()
 
         self.logger.debug(self.lang_list)
 
@@ -78,9 +78,10 @@ class Country:
             # Create Geo_row
             # ('paris', 'fr', '07', '012', '12.345', '45.123', 'PPL')
             geo_row = [None] * GeoDB.Entry.MAX
-            geo_row[GeoDB.Entry.NAME] = GeoUtil.normalize(ky)
-            sdx = phonetics.dmetaphone(geo_row[GeoDB.Entry.NAME])
-            geo_row[GeoDB.Entry.SDX] = sdx[0]
+            #geo_row[GeoDB.Entry.NAME] = GeoUtil.normalize(ky)
+            #sdx = phonetics.dmetaphone(geo_row[GeoDB.Entry.NAME])
+            #geo_row[GeoDB.Entry.SDX] = sdx[0]
+            self.geo_files.update_geo_row_name(geo_row=geo_row, name=ky)
 
             geo_row[GeoDB.Entry.ISO] = row[CnRow.ISO].lower()
             geo_row[GeoDB.Entry.ADM1] = ''
@@ -90,9 +91,9 @@ class Country:
             geo_row[GeoDB.Entry.FEAT] = 'ADM0'
             geo_row[GeoDB.Entry.ID] = row[CnRow.ISO].lower()
 
-            self.geodb.insert(geo_row=geo_row, feat_code='ADM0')
+            self.geo_files.geodb.insert(geo_row=geo_row, feat_code='ADM0')
 
-        self.geodb.db.commit()
+        self.geo_files.geodb.db.commit()
         return False
 
 

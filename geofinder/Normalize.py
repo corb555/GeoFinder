@@ -19,7 +19,6 @@
 import re
 import unidecode
 
-
 def normalize_for_scoring(full_title:str, iso:str)->str:
     # Normalize the title we use to determine how close a match we got
     full_title = normalize_for_search(full_title, iso)

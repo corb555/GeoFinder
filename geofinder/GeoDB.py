@@ -16,7 +16,6 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
-import copy
 import logging
 import os
 import re
@@ -53,7 +52,7 @@ class GeoDB:
         # If DB exists
         if db_exists:
             # Run sanity test on DB
-            res = self.db.db_test('main.geodata')
+            res = self.db.test_database('main.geodata')
 
             if res:
                 self.logger.warning(f'DB error for {db_path}')
@@ -112,10 +111,11 @@ class GeoDB:
             self.select_city(place)
 
         # nm = place.original_entry
-        self.logger.debug(f'Search results for {lookup_type} {place.target}, {place.admin2_name}, {place.admin1_name}, {place.country_name}:')
+        self.logger.debug(f'LOOKUP: {len(place.georow_list)} matches for {lookup_type}  targ={place.target} nm=[{place.get_five_part_title()}]\n')
         min_score = 9999
+        prfx = place.prefix + ' ' + place.target
 
-        # Add search quality score to each entry
+        # Add search quality score and prefix to each entry
         for idx, rw in enumerate(place.georow_list):
             self.copy_georow_to_place(row=rw, place=result_place)
 
@@ -126,32 +126,31 @@ class GeoDB:
                 result_place.prefix = ''
 
             score = self.match.match_score(inp_place=place, res_place=result_place)
-            if score < min_score:
-                min_score = score
+            min_score = min(min_score, score)
+
+            # Remove items in prefix that are in result
+
+            # Res_words is all words in result
+            res_words = re.sub(' ', ',', result_place.original_entry)
+            res_words = res_words.split(",")
+
+            if place.place_type != Loc.PlaceType.ADVANCED_SEARCH:
+                tmp = ','.join(res_words)
+                #tmp, prfx = GeoUtil.remove_matching_sequences(text1=tmp,text2=prfx)
+                for item in res_words:
+                    prfx = re.sub(item.strip(' ').lower(), '', prfx)
 
             # Convert row tuple to list and extend so we can assign score
             update = list(rw)
             update.append(1)
             update[GeoUtil.Entry.SCORE] = score
+            update[GeoUtil.Entry.PREFIX] = GeoUtil.capwords(prfx)
             place.georow_list[idx] = tuple(update)  # Convert back from list to tuple
-
-            # Remove items in prefix that are in result
-            tk_list = result_place.original_entry.split(",")
-            if place.place_type != Loc.PlaceType.ADVANCED_SEARCH:
-                #
-                prfx = copy.copy(place.prefix)
-                tmp = ','.join(tk_list)
-                tmp, prfx = self.match.remove_matching_sequences(text1=tmp,text2=prfx)
-                if len(prfx) < 4:
-                    place.prefix = ''
-                else:
-                    for item in tk_list:
-                        place.prefix = re.sub(item.strip(' ').lower(), '', place.prefix)
 
         if place.result_type == Result.STRONG_MATCH and len(place.prefix) > 0:
             place.result_type = Result.PARTIAL_MATCH
 
-        if place.result_type == Result.STRONG_MATCH and min_score > 10:
+        if place.result_type == Result.STRONG_MATCH and min_score > MatchScore.EXCELLENT:
             place.result_type = Result.PARTIAL_MATCH
 
     def select_city(self, place: Loc):

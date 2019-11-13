@@ -19,6 +19,7 @@
 import collections
 import os
 import re
+from difflib import SequenceMatcher
 
 import phonetics
 
@@ -82,6 +83,44 @@ def get_directory_name() -> str:
 def get_cache_directory(dirname):
     """ Return the directory for cache files """
     return os.path.join(dirname, "cache")
+
+def _remove_matching_seq(text1: str, text2: str, attempts: int) -> (str, str):
+    """
+    Find largest matching sequence.  Remove it in text1 and text2.
+            Private - called by remove_matching_sequences which provides a wrapper
+    Call recursively until attempts hits zero or there are no matches longer than 1 char
+    :param text1:
+    :param text2:
+    :param attempts: Number of times to remove largest text sequence
+    :return:
+    """
+    s = SequenceMatcher(None, text1, text2)
+    match = s.find_longest_match(0, len(text1), 0, len(text2))
+    if match.size > 2:
+        # Remove matched sequence from inp and out
+        item = text1[match.a:match.a + match.size]
+        text2 = re.sub(item, '', text2, count=1)
+        text1 = re.sub(item, '', text1, count=1)
+        if attempts > 0:
+            # Call recursively to get next largest match and remove it
+            text1, text2 = _remove_matching_seq(text1, text2, attempts - 1)
+    return text1, text2
+
+def remove_matching_sequences(text1: str, text2: str) -> (str, str):
+    """
+    Find largest sequences that match between text1 and 2.  Remove them from text1 and text2.
+    :param text1:
+    :param text2:
+    :return:
+    """
+    # Prepare strings for input to remove_matching_seq
+    # Swap all commas in text1 string to '@'.  This way they will never match comma in text2 string
+    # Ensures we don;t remove commas and don't match across tokens
+    text2 = re.sub(',', '@', text2)
+    text1, text2 = _remove_matching_seq(text1=text1, text2=text2, attempts=15)
+    # Restore commas in inp
+    text2 = re.sub('@', ',', text2)
+    return text1.strip(' '), text2.strip(' ')
 
 
 type_names = {

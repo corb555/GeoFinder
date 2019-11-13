@@ -24,7 +24,7 @@ import time
 import unittest
 from pathlib import Path
 
-from geofinder import Loc, MatchScore, Geodata
+from geofinder import Loc, MatchScore, Geodata, GeoUtil
 
 
 class TestScoring(unittest.TestCase):
@@ -35,55 +35,55 @@ class TestScoring(unittest.TestCase):
     delta = 22
 
     # ===== TEST SCORING
-    EXCELLENT = 10
-    GOOD = 29
-    POOR = 49
-    VERY_POOR = 69
-    TERRIBLE = 89
-    NO_MATCH = 109
+    MatchScore.EXCELLENT = 10
+    MatchScore.GOOD = 29
+    MatchScore.POOR = 49
+    MatchScore.VERY_POOR = 69
+    MatchScore.TERRIBLE = 89
+    MatchScore.NO_MATCH = 109
 
     test_values = [
         # Target, Result, Feature, Expected Score
-        ("toronto,nova scotia, canada", "toronto,ontario,canada", 'PPL', GOOD),   #0
-        ("toronto,ontario,canada", "toronto,ontario,canada", 'PP1M', EXCELLENT), #1
+        ("toronto,nova scotia, canada", "toronto,ontario,canada", 'PPL', MatchScore.GOOD),   #0
+        ("toronto,ontario,canada", "toronto,ontario,canada", 'PP1M', MatchScore.EXCELLENT), #1
 
-        ("toronto, canada", "toronto, canada", 'PPL', EXCELLENT), #2
+        ("toronto, canada", "toronto, canada", 'PPL', MatchScore.EXCELLENT), #2
 
-        ("chelsea,,england", "winchelsea, east sussex, england, united kingdom", 'PP1M', GOOD), #3
-        ("chelsea,,england", "chelsea, greater london, england, united kingdom", 'PP1M', EXCELLENT), #4
+        ("chelsea,,england", "winchelsea, east sussex, england, united kingdom", 'PP1M', MatchScore.GOOD), #3
+        ("chelsea,,england", "chelsea, greater london, england, united kingdom", 'PP1M', MatchScore.EXCELLENT), #4
 
-        ("sonderburg", "sonderborg kommune,region syddanmark, denmark", 'PP1M', GOOD), #5
+        ("sonderburg", "sonderborg kommune,region syddanmark, denmark", 'PP1M', MatchScore.GOOD), #5
 
-        ("Paris, France", "Paris,, France", 'PP1M', EXCELLENT), #6
-        ("Paris, France.", "Paris,, France", 'PP1M', EXCELLENT), #7
+        ("Paris, France", "Paris,, France", 'PP1M', MatchScore.EXCELLENT), #6
+        ("Paris, France.", "Paris,, France", 'PP1M', MatchScore.EXCELLENT), #7
 
-        ("London, England", "London, England, United Kingdom", 'PP1M', EXCELLENT), #8
-        ("London, England, United Kingdom", "London, England, United Kingdom", 'PP1M', EXCELLENT), #9
-        ("London, England, United Kingdom", "London, England, United Kingdom", 'HSP', GOOD), #10
+        ("London, England", "London, England, United Kingdom", 'PP1M', MatchScore.EXCELLENT), #8
+        ("London, England, United Kingdom", "London, England, United Kingdom", 'PP1M', MatchScore.EXCELLENT), #9
+        ("London, England, United Kingdom", "London, England, United Kingdom", 'HSP', MatchScore.GOOD), #10
 
-        ("Domfront, Normandy", "Domfront-En-Champagne, Sarthe, Pays De La Loire, France", 'PP1M', POOR), #11
-        ("Domfront, Normandy", "Domfront, Department De L'Orne, Normandie, France", 'PP1M', GOOD), #12
+        ("Domfront, Normandy", "Domfront-En-Champagne, Sarthe, Pays De La Loire, France", 'PP1M', MatchScore.POOR), #11
+        ("Domfront, Normandy", "Domfront, Department De L'Orne, Normandie, France", 'PP1M', MatchScore.GOOD), #12
 
-        ("St Quentin, Aisne, Picardy, France", "St Quentin, Departement De L'Aisne, Hauts De France, France", 'PP1M', EXCELLENT), #13
+        ("St Quentin, Aisne, Picardy, France", "St Quentin, Departement De L'Aisne, Hauts De France, France", 'PP1M', MatchScore.EXCELLENT), #13
 
-        ("Old Bond Street, London, Middlesex, England"," , London, Greater London, England, United Kingdom", 'PP1M', GOOD), #14
-        ("Old Bond Street, London, Middlesex, England", " , Museum Of London, Greater London, England, United Kingdom", 'PPL', GOOD),#15
+        ("Old Bond Street, London, Middlesex, England"," , London, Greater London, England, United Kingdom", 'PP1M', MatchScore.GOOD), #14
+        ("Old Bond Street, London, Middlesex, England", " , Museum Of London, Greater London, England, United Kingdom", 'PPL', MatchScore.GOOD),#15
 
-        ("zxq, xyzzy", " , London, Greater London, England, United Kingdom", ' ', NO_MATCH),#16
+        ("zxq, xyzzy", " , London, Greater London, England, United Kingdom", ' ', MatchScore.NO_MATCH),#16
 
-        ("St. Margaret, Westminster, London, England", "London,England,United Kingdom", 'PPL', POOR),#17
-        ("St. Margaret, Westminster, London, England", "Westminster Cathedral, Greater London, England", 'PPL', GOOD), #18
+        ("St. Margaret, Westminster, London, England", "London,England,United Kingdom", 'PPL', MatchScore.POOR),#17
+        ("St. Margaret, Westminster, London, England", "Westminster Cathedral, Greater London, England", 'PPL', MatchScore.GOOD), #18
 
-        ("Canada", "Canada", 'ADM0', EXCELLENT),#19
-        ("France", ",France", 'ADM0', EXCELLENT),  # 20
+        ("Canada", "Canada", 'ADM0', MatchScore.EXCELLENT),#19
+        ("France", ",France", 'ADM0', MatchScore.EXCELLENT),  # 20
 
-        ("barton, lancashire, england, united kingdom", "barton, lancashire, england, united kingdom", 'PPLL', EXCELLENT), #21
-        ("barton, lancashire, england, united kingdom", "barton, cambridgeshire, england, united kingdom", 'PPLL', GOOD), #22
+        ("barton, lancashire, england, united kingdom", "barton, lancashire, england, united kingdom", 'PPLL', MatchScore.EXCELLENT), #21
+        ("barton, lancashire, england, united kingdom", "barton, cambridgeshire, england, united kingdom", 'PPLL', MatchScore.GOOD), #22
 
-        ("testerton, norfolk, , england", "norfolk,england, united kingdom","ADM2", GOOD), #23
-        ("testerton, norfolk, , england", "testerton, norfolk, england,united kingdom", "PPLL", EXCELLENT), #24
+        ("testerton, norfolk, , england", "norfolk,england, united kingdom","ADM2", MatchScore.GOOD), #23
+        ("testerton, norfolk, , england", "testerton, norfolk, england,united kingdom", "PPLL", MatchScore.EXCELLENT), #24
 
-        ("Holborn, Middlesex, England", "Holborn, Greater London, England, United Kingdom", 'PP1M', GOOD),  # 25
+        ("Holborn, Middlesex, England", "Holborn, Greater London, England, United Kingdom", 'PP1M', MatchScore.GOOD),  # 25
 
     ]
 
@@ -114,13 +114,13 @@ class TestScoring(unittest.TestCase):
 
     def run_test1(self, title: str, inp, out):
         print("*****TEST: WORD {}".format(title))
-        out, inp = TestScoring.scoring.remove_matching_sequences(out, inp)
+        out, inp = GeoUtil.remove_matching_sequences(out, inp)
         return out, inp
 
     @staticmethod
     def run_test2(title: str, inp, out):
         print("*****TEST: CHAR {}".format(title))
-        out, inp = TestScoring.scoring.remove_matching_sequences(out, inp)
+        out, inp = GeoUtil.remove_matching_sequences(out, inp)
         return out, inp
 
     @staticmethod
@@ -347,7 +347,7 @@ class TestScoring(unittest.TestCase):
     def test_in06(self):
         title = "Input word1"
         out, inp = self.run_test1(title, "St. Margaret, Westminster, London, England", "Westminster Cathedral, Greater London, England")
-        self.assertEqual('St. Marg, ,,', inp, title)
+        self.assertEqual('St. Margaret, ,,', inp, title)
 
     # ===== TEST OUTPUT WORD REMOVAL
 

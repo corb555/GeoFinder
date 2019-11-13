@@ -21,7 +21,7 @@ import logging
 import re
 from typing import List, Tuple
 
-from geofinder import GeoUtil , Normalize
+from geofinder import GeoUtil, Normalize
 from geofinder.ArgumentParserNoExit import ArgumentParserNoExit
 
 #default_country = 'nederland'
@@ -245,26 +245,52 @@ class Loc:
         self.admin2_name = str(self.admin2_name)
         self.prefix = str(self.prefix)
 
+    def format_term(self, txt)->str:
+        if txt == '':
+            if self.need_commas:
+                return ', '
+            else:
+                return ''
+        else:
+            self.need_commas = True
+            return f'{txt}, '
+
     def format_full_nm(self, replace_dct):
         """ Take the parts of a Place and build fullname.  e.g. pref, city,adm2,adm1,country name """
-        self.set_place_type()
+        #self.set_place_type()
+        self.need_commas = False
 
         if self.admin1_name is None:
             self.admin1_name = ''
         if self.admin2_name is None:
             self.admin2_name = ''
 
+        city = self.format_term(self.city1)
+        admin2 = self.format_term(self.admin2_name)
+        admin1 = self.format_term(self.admin1_name)
+
         if self.place_type == PlaceType.COUNTRY:
             nm = f"{self.country_name}"
         elif self.place_type == PlaceType.ADMIN1:
-            nm = f"{self.admin1_name}, {self.country_name}"
+            nm = f"{admin1}{self.country_name}"
         elif self.place_type == PlaceType.ADMIN2:
-            nm = f"{self.admin2_name}, {self.admin1_name}, {self.country_name}"
+            nm = f"{admin2}{admin1}{self.country_name}"
         else:
-            nm = f"{self.city1}, {self.admin2_name}, {self.admin1_name}, {str(self.country_name)}"
+            nm = f"{city}{admin2}{admin1}{str(self.country_name)}"
 
-        if self.prefix in nm:
-            self.prefix = ''
+        # Remove text from prefix if it is in name
+        self.prefix = Normalize.normalize_for_search(self.prefix, self.country_iso)
+        self.prefix = re.sub(',', '', self.prefix)
+        self.prefix = re.sub('.', '', self.prefix)
+
+        #prefix_words = self.prefix.split(' ')
+        #result = ''
+        #for word in prefix_words:
+            #if word not in nm or len(word) < 4:
+                #result += word + ' '
+
+        #self.prefix = result.strip(' ')
+        #self.prefix, nm2 =  GeoUtil.remove_matching_sequences(self.prefix, nm)
 
         if len(self.prefix) > 0:
             self.prefix_commas = ', '
@@ -293,9 +319,9 @@ class Loc:
         self.country_name, modified = Normalize.country_normalize(self.country_name)
 
         if len(self.extra) > 0:
-            full_title = self.prefix + ' ' + self.extra + ',' + self.format_full_nm(None)
+            full_title = self.prefix + ' ' + self.extra + ',' +  f"{self.city1}, {self.admin2_name}, {self.admin1_name}, {str(self.country_name)}"
         else:
-            full_title = self.prefix + ',' + self.format_full_nm(None)
+            full_title = self.prefix + ',' + f"{self.city1}, {self.admin2_name}, {self.admin1_name}, {str(self.country_name)}"
 
         # Restore values to original
         self.place_type = save_type

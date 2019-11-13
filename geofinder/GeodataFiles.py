@@ -190,7 +190,7 @@ class GeodataFiles:
             self.logger.debug('Database deleted')
 
         self.geodb = GeoDB.GeoDB(db_path=db_path, version=self.required_db_version)
-        self.country = Country.Country(self.progress_bar, geodb=self.geodb, lang_list=self.lang_list)
+        self.country = Country.Country(self.progress_bar, geo_files=self, lang_list=self.lang_list)
 
         # walk thru list of files ending in .txt e.g US.txt, FR.txt, all_countries.txt, etc
         file_count = 0
@@ -292,12 +292,15 @@ class GeodataFiles:
         else:
             return True
 
+    def update_geo_row_name(self, geo_row, name):
+        geo_row[GeoDB.Entry.NAME] = Normalize.normalize(name, remove_commas=True)
+        geo_row[GeoDB.Entry.SDX] = GeoUtil.get_soundex(geo_row[GeoDB.Entry.NAME])
+
     def insert_georow(self, geoname_row):
         # Create Geo_row and inses
         # ('paris', 'fr', '07', '012', 12.345, 45.123, 'PPL', '34124')
         geo_row = [None] * GeoDB.Entry.MAX
-        geo_row[GeoDB.Entry.NAME] = Normalize.normalize(geoname_row.name, remove_commas=True)
-        geo_row[GeoDB.Entry.SDX] = GeoUtil.get_soundex(geo_row[GeoDB.Entry.NAME])
+        self.update_geo_row_name(geo_row=geo_row, name=geoname_row.name)
 
         geo_row[GeoDB.Entry.ISO] = geoname_row.iso.lower()
         geo_row[GeoDB.Entry.ADM1] = geoname_row.admin1_id
@@ -321,7 +324,8 @@ class GeodataFiles:
 
         # Also add abbreviations for USA states
         if geo_row[GeoDB.Entry.ISO] == 'us' and geoname_row.feat_code == 'ADM1':
-            geo_row[GeoDB.Entry.NAME] = geo_row[GeoDB.Entry.ADM1].lower()
+            #geo_row[GeoDB.Entry.NAME] = geo_row[GeoDB.Entry.ADM1].lower()
+            self.update_geo_row_name(geo_row=geo_row, name=geo_row[GeoDB.Entry.ADM1])
             self.geodb.insert(geo_row=geo_row, feat_code=geoname_row.feat_code)
 
     def get_supported_countries(self) -> [str, int]:

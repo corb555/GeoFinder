@@ -187,7 +187,7 @@ class DB:
             self.logger.warning(f'DB ERROR {e}')
             return False
 
-    def db_test(self, from_tbl: str):
+    def test_database(self, from_tbl: str):
         where = 'name = ? AND country = ?'
         args = ('ba', 'fr')
 
@@ -207,7 +207,7 @@ class DB:
     def process_query(self, select_string, from_tbl: str, query_list: [Query]):
         # Try each query in list until we find a match
         row_list = None
-        result = None
+        #result = None
         res = Result.NO_MATCH
         for query in query_list:
             # During shutdown, wildcards are turned off since there is no UI to verify results
@@ -249,7 +249,7 @@ class DB:
         several words.  This performs a wildcard match on each word, and then
         merges the results into a single result.  During the merge, we note if
         a duplicate occurs, and mark that as a higher priority result.  We
-        also note if an individualt word has too many results, as we will drop
+        also note if an individual word has too many results, as we will drop
         those results from the final list after doing the priority checks.
         This should kill off common words from the results, while still
         preserving combinations.
@@ -276,6 +276,7 @@ class DB:
                         res_flags[indx] = True
                         break
                 else:  # this result row did not match anything
+                    # Remove "word" from prefix
                     results.append(row)  # add it to overall list
                     # if reasonable number of results for this word, flag to
                     # keep the result
