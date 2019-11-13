@@ -84,7 +84,7 @@ class GeoFinder:
 
         self.save_enabled = False  # Only allow SAVE when we have an item that was matched in geonames
         self.user_selected_list = False  # Indicates whether user selected a list entry or text edit entry
-        self.err_count = 0
+        self.flush_countdown = 0
         self.matched_count = 0
         self.review_count = 0
         self.skip_count = 0
@@ -285,7 +285,7 @@ class GeoFinder:
         self.clear_detail_text(self.place)
 
         while True:
-            self.err_count += 1  # Counter is used to periodically update
+            self.flush_countdown += 1  # Counter is used to periodically update
             # Update statistics
             self.update_statistics()
 
@@ -359,7 +359,7 @@ class GeoFinder:
                         self.global_replace.set(Normalize.normalize(res=town_entry,remove_commas=False), res)
                         self.logger.debug(f'Found Strong Match for {town_entry} res= [{res}] Setting DICT')
                         # Periodically flush dictionary to disk.  (We flush on exit as well)
-                        if self.err_count % 200 == 1:
+                        if self.flush_countdown % 200 == 1:
                             self.global_replace.write()
 
                         self.write_updated_place(self.place, town_entry)
@@ -542,6 +542,7 @@ class GeoFinder:
         # Get geodata for each item and add to listbox output
         for geo_row in place.georow_list:
             self.geodata.geo_files.geodb.copy_georow_to_place(geo_row, temp_place)
+            temp_place.set_place_type()
 
             self.geodata.geo_files.geodb.set_display_names(temp_place)
             nm = temp_place.format_full_nm(self.geodata.geo_files.output_replace_dct)
@@ -549,7 +550,8 @@ class GeoFinder:
                                                          admin1=temp_place.admin1_id, padding=0)
             if valid:
                 # Get prefix
-                self.list_insert(nm, geo_row[GeoUtil.Entry.PREFIX], geo_row[GeoUtil.Entry.ID], f'{int(geo_row[GeoUtil.Entry.SCORE]):d}',
+                self.list_insert(nm, GeoUtil.capwords(geo_row[GeoUtil.Entry.PREFIX]), geo_row[GeoUtil.Entry.ID],
+                                 f'{int(geo_row[GeoUtil.Entry.SCORE]):d}',
                                  geo_row[GeoUtil.Entry.FEAT])
             else:
                 self.list_insert(nm, "VERIFY DATE", geo_row[GeoUtil.Entry.ID], f'{int(geo_row[GeoUtil.Entry.SCORE]):d}',
@@ -588,7 +590,7 @@ class GeoFinder:
         self.global_replace.set(Normalize.normalize(res=ky,remove_commas=False), res)
 
         # Periodically flush dict to disk
-        if self.err_count % 10 == 1:
+        if self.flush_countdown % 10 == 1:
             self.global_replace.write()
         # self.logger.debug(f'SAVE SetGblRep for [{ky}] res=[{res}] Updating DICT')
 
@@ -827,7 +829,7 @@ class GeoFinder:
 
     def periodic_update(self, msg):
         # Display status to user
-        if self.err_count % 50 == 0:
+        if self.flush_countdown % 50 == 0:
             if not self.w.prog.shutdown_requested:
                 self.w.status.set_text(msg)
                 self.w.status.configure(style="Good.TLabel")

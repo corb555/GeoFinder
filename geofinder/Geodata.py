@@ -157,7 +157,7 @@ class Geodata:
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
             place.format_full_nm(self.geo_files.output_replace_dct)
         elif len(place.georow_list) > 0:
-            self.logger.debug(f'***RESULT={place.result_type} Setting to Partial')
+            #self.logger.debug(f'***RESULT={place.result_type} Setting to Partial')
             place.result_type = GeoUtil.Result.PARTIAL_MATCH
 
         place.prefix = place.prefix.strip(' ')
@@ -308,51 +308,6 @@ class Geodata:
             place.result_type = GeoUtil.Result.STRONG_MATCH
         else:
             place.result_type = GeoUtil.Result.NO_MATCH
-
-    def calculate_prefixes_for_rowsZZZ(self, place: Loc.Loc):
-        """
-        Calculate the prefix values in the georow_list
-        :param place:
-        """
-        temp_place = Loc.Loc()
-        tokens = place.original_entry.split(',')
-
-        for idx, rw in enumerate(place.georow_list):
-            update = list(rw)
-
-            # Put unused fields into prefix
-            self.geo_files.geodb.copy_georow_to_place(rw, temp_place)
-            temp_place.prefix = ''
-            nm = Normalize.normalize_for_search(temp_place.format_full_nm(self.geo_files.output_replace_dct), place.country_iso)
-            # self.logger.debug(f'NAME ={nm}')
-            place.prefix = ''
-
-            for num, fld in enumerate(tokens[:2]):
-                item = Normalize.normalize_for_search(fld, place.country_iso)
-                add_item = False
-                # self.logger.debug(f'item={item} ')
-                if num == 0 and item not in nm:
-                    add_item = True
-
-                if num == 1 and item not in nm and len(tokens) == 2:
-                    # We only add the second token if there are only 2 tokens
-                    add_item = True
-
-                if '*' in item:
-                    # Don't add as prefix if item is a wildcard search
-                    add_item = False
-
-                if add_item:
-                    if len(place.prefix) > 0:
-                        place.prefix += ' '
-                    place.prefix += item.title()
-
-            if len(place.prefix) > 0:
-                place.prefix_commas = ', '
-            update[GeoUtil.Entry.PREFIX] = GeoUtil.capwords(place.prefix)
-            # self.logger.debug(f'PREFIX={place.prefix} ')
-
-            place.georow_list[idx] = tuple(update)
 
     def read(self) -> bool:
         """ Read in geo name files which contain place names and their lat/lon.
@@ -512,8 +467,8 @@ default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ",
 # If there are 2 identical entries, we only add the one with higher feature priority.  Highest value is for large city or capital
 # These scores are also part of the match ranking score
 # Note: PP1M, P1HK, P10K do not exist in Geonames and are created by geofinder
-feature_priority = {'PP1M': 90, 'ADM1': 88, 'PPLA': 88, 'PPLC': 88, 'PP1K': 85, 'PPLA2': 85, 'P10K': 80,
-                    'PPL': 78, 'PPLA3': 75, 'PPLA4': 73, 'ADMX': 70,'PAL': 40,
+feature_priority = {'PP1M': 90, 'ADM1': 88, 'PPLA': 88, 'PPLC': 88, 'PP1K': 85, 'PPLA2': 85, 'P10K': 80,'P1HK': 80,
+                    'PPL': 73, 'PPLA3': 75, 'PPLA4': 73, 'ADMX': 70,'PAL': 40,
                     'ADM2': 73, 'PPLG': 68, 'MILB': 40, 'NVB': 65, 'PPLF': 63, 'ADM0': 85, 'PPLL': 60, 'PPLQ': 55, 'PPLR': 55,
                     'CH': 40, 'MSQE': 40, 'SYG': 40, 'CMTY': 40, 'CSTL': 40,'EST': 40,'PPLS': 50, 'PPLW': 50, 'PPLX': 75, 'BTL': 20,
                     'HSTS': 40,'HSP': 0, 'VAL': 0, 'MT': 0, 'ADM3': 0, 'ADM4': 0, 'DEFAULT': 0, }

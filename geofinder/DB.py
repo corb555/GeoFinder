@@ -32,8 +32,6 @@ class DB:
 
     def __init__(self, db_filename: str):
         self.logger = logging.getLogger(__name__)
-
-        # self.select_str = '*'
         self.order_str = ''
         self.limit_str = ''
         self.cur = None
@@ -204,8 +202,8 @@ class DB:
             self.logger.warning(f'DB ERROR {e}')
             return True
 
-    def process_query(self, select_string, from_tbl: str, query_list: [Query]):
-        # Try each query in list until we find a match
+    def process_query_list(self, select_string, from_tbl: str, query_list: [Query]):
+        # Perform each query in list
         row_list = None
         #result = None
         res = Result.NO_MATCH
@@ -236,16 +234,9 @@ class DB:
                 break
         return row_list, res
 
-    def process_query_list(self, from_tbl: str, query_list: [Query]):
-        # Try each query in list until we find a match
-        select_str = 'name, country, admin1_id, admin2_id, lat, lon, f_code, geoid, sdx'
-        row_list, res = self.process_query(select_string=select_str, from_tbl=from_tbl,
-                                           query_list=query_list)
-        return row_list, res
-
     def word_match(self, select_string, where, from_tbl, args):
         """
-        args[0] contains the place string to search for, and may contain
+        args[0] contains the string to search for, and may contain
         several words.  This performs a wildcard match on each word, and then
         merges the results into a single result.  During the merge, we note if
         a duplicate occurs, and mark that as a higher priority result.  We
@@ -287,7 +278,7 @@ class DB:
         return result
 
     def set_speed_pragmas(self):
-        # Set DB pragmas for speed.  These can lead to corruption!   -900
+        # Set DB pragmas for speed.  These can lead to corruption!
         self.logger.info('Database pragmas set for speed')
         for txt in ['PRAGMA temp_store = memory',
                     'PRAGMA journal_mode = off',
@@ -296,8 +287,8 @@ class DB:
             self.set_pragma(txt)
 
     def set_analyze_pragma(self):
-        # Set DB pragmas for speed.  These can lead to corruption!   -900
-        self.logger.info(' Database Analyze pragma')
+        # Set DB pragmas for database optimize
+        self.logger.info(' Database Optimize pragma')
         for txt in ['PRAGMA optimize',
                     ]:
             self.set_pragma(txt)

@@ -256,8 +256,10 @@ class Loc:
             return f'{txt}, '
 
     def format_full_nm(self, replace_dct):
-        """ Take the parts of a Place and build fullname.  e.g. pref, city,adm2,adm1,country name """
-        #self.set_place_type()
+        """
+        Take the parts of a Place and build fullname.  e.g.  city,adm2,adm1,country name
+        Prefix is NOT included
+        """
         self.need_commas = False
 
         if self.admin1_name is None:
@@ -278,19 +280,9 @@ class Loc:
         else:
             nm = f"{city}{admin2}{admin1}{str(self.country_name)}"
 
-        # Remove text from prefix if it is in name
+        # normalize prefix
         self.prefix = Normalize.normalize_for_search(self.prefix, self.country_iso)
-        self.prefix = re.sub(',', '', self.prefix)
-        self.prefix = re.sub('.', '', self.prefix)
-
-        #prefix_words = self.prefix.split(' ')
-        #result = ''
-        #for word in prefix_words:
-            #if word not in nm or len(word) < 4:
-                #result += word + ' '
-
-        #self.prefix = result.strip(' ')
-        #self.prefix, nm2 =  GeoUtil.remove_matching_sequences(self.prefix, nm)
+        #self.prefix = re.sub(',', '', self.prefix)
 
         if len(self.prefix) > 0:
             self.prefix_commas = ', '

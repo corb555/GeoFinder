@@ -30,6 +30,12 @@ def normalize_for_search(res, iso)->str:
     res = normalize(res=res, remove_commas=False)
     return res
 
+def remove_aliase(input_words, res_words)->(str, str):
+    if "middlesex" in input_words and "greater london" in res_words:
+        input_words = re.sub('middlesex','', input_words)
+        res_words = re.sub('greater london','', res_words)
+    return input_words, res_words
+
 def normalize(res:str, remove_commas:bool) -> str:
     """ Strip commas.   strip spaces and normalize spelling for items such as Saint and County and chars: ø ß """
 
@@ -75,12 +81,8 @@ def _remove_noise_words(res):
 
     res = re.sub(r'nouveau brunswick', ' ', res)
 
-    res = re.sub(r' de ', ' ', res)
-    res = re.sub(r' di ', ' ', res)
-
-    res = re.sub(r' du ', ' ', res)
-    res = re.sub(r' of ', ' ', res)
     res = re.sub(r'city of ', ' ', res)
+    res = re.sub(r'citta metropolitana di ', ' ', res)
     res = re.sub(r'town of ', ' ', res)
 
     res = re.sub(r"politischer bezirk ", ' ', res)
@@ -95,6 +97,11 @@ def _remove_noise_words(res):
     res = re.sub(r'mound', 'mund', res)
     res = re.sub(r'ourne', 'orn', res)
     res = re.sub(r'ney', 'ny', res)
+
+    res = re.sub(r' de ', ' ', res)
+    res = re.sub(r' di ', ' ', res)
+    res = re.sub(r' du ', ' ', res)
+    res = re.sub(r' of ', ' ', res)
 
     """
     res = re.sub(r' county', ' ', res)

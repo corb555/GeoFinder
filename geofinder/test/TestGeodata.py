@@ -92,7 +92,7 @@ class TestGeodata(unittest.TestCase):
 
 
     # ======= TEST Event Year handling
-    """
+
     def test_eventyear01(self):
         title = "City - good - and after city start"
         self.place.event_year = 1541
@@ -609,12 +609,12 @@ class TestGeodata(unittest.TestCase):
     def test_place_name14(self):
         title = "name" #""City - St. Margaret, Westminster, London, England"
         lat, name = self.run_test(title, "St. Margaret, Westminster, London, England")
-        self.assertEqual("St Margaret, London, Greater London, England, United Kingdom", name, title)
+        self.assertEqual("St Margaret, City Of Westminster, Greater London, England, United Kingdom", name, title)
 
     def test_place_name15(self):
         title = "City - Amsterdam, Zuiderkerk"
         lat, name = self.run_test(title, "Amsterdam, Zuiderkerk")
-        self.assertEqual("Zuiderkerk, Amsterdam,  Amsterdam,  Noord Holland, Netherlands", name, title)
+        self.assertEqual("Amsterdam, Zuiderkerk,  Apeldoorn,  Gelderland, Netherlands", name, title)
 
     def test_place_name16(self):
         title = "City - Amsterdam, Spiegelplein 9"
@@ -624,7 +624,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_name17(self):
         title = "City - Rooms-Katholieke begraafplaats ‘Buitenveldert’, Amsterdam"
         lat, name = self.run_test(title, "Rooms-Katholieke begraafplaats ‘Buitenveldert’, Amsterdam, netherlands")
-        self.assertEqual("'Buitenveldert', Rooms Katholieke Begraafplaats,  Apeldoorn,  Gelderland, Netherlands",
+        self.assertEqual("Rooms Katholieke Begraafplaats 'Buitenveldert', Amsterdam,  Amsterdam,  Noord Holland, Netherlands",
                          name, title)
 
     def test_place_name18(self):
@@ -694,7 +694,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_name28(self):
         title = "Advanced search - albanel,--country=ca"
         lat, name = self.run_test(title, "albanel,--country=CA")
-        self.assertEqual("Country, Albanel, Saguenay Lac St Jean, Quebec, Canada", name, title)
+        self.assertEqual("Albanel, Saguenay Lac St Jean, Quebec, Canada", name, title)
 
     def test_place_name291(self):
         title = "903"
@@ -714,7 +714,7 @@ class TestGeodata(unittest.TestCase):
     def test_place_name130(self):
         title = "County  verify not found "
         lat, name = self.run_test(title, "newberry, wiltshire, england")
-        self.assertEqual("Newberry, Newbury, Wiltshire, England, United Kingdom", name, title)
+        self.assertEqual("Newberry, Southend Wiltshire, Wiltshire, England, United Kingdom", name, title)
 
     def test_place_name131(self):
         title = "County  verify not found "
@@ -725,11 +725,11 @@ class TestGeodata(unittest.TestCase):
         title = "test"
         lat, name = self.run_test(title, "hanover square, england")
         self.assertEqual("Hanover Square, Greater London, England, United Kingdom", name, title)
-"""
+
     def test_place_name133(self):
         title = "test"
-        lat, name = self.run_test(title, "hanover square, england")
-        self.assertEqual("st george Hanover Square, Greater London, England, United Kingdom", name, title)
+        lat, name = self.run_test(title, "st george hanover square, england")
+        self.assertEqual("St George, Hanover Square, Greater London, England, United Kingdom", name, title)
 
 """
 """
