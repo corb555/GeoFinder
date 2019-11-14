@@ -100,8 +100,8 @@ class GeoFinder:
 
         # initiate the parser
         parser = argparse.ArgumentParser()
-        parser.add_argument("--logging", help="Enable quiet logging")
-        parser.add_argument("--diagnostics", help="Create diagnostics files")
+        parser.add_argument("--logging", help="info - Enable quiet logging")
+        parser.add_argument("--diagnostics", help="on - Create xx.input.txt and xx.output.txt diagnostics files")
 
         # read arguments from the command line
         args = parser.parse_args()
@@ -114,7 +114,7 @@ class GeoFinder:
             self.logger = self.setup_logging('geofinder Init')
 
         # check for --diagnostics switch
-        if args.diagnostics:
+        if args.diagnostics == 'on':
             self.logger.info(f"--diagnostics files enabled {args.diagnostics}")
             self.diagnostics = True
         else:
@@ -191,6 +191,7 @@ class GeoFinder:
 
         # Flag to indicate whether we are in startup or in Window loop.  Determines how window idle is called
         self.startup = False
+        self.w.title.set_text(f'GEO FINDER v{__version__.__version__}')
         self.w.root.mainloop()  # ENTER MAIN LOOP and Wait for user to click on load button
 
     def load_data(self):
