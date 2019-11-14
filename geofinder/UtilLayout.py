@@ -151,7 +151,7 @@ class UtilLayout:
         if self.country_list.is_dirty() or self.feature_list.is_dirty() or self.languages_list.is_dirty():
             # Delete geoname.db so GeoFinder will rebuild it with new country list or feature list
             if messagebox.askyesno('Configuration Changed',  'Do you want to rebuild the database on next startup?'):
-                self.country_list.close()
+                self.replace_list.close()
                 for fname in ['geodata.db']:
                     path = os.path.join(self.cache_dir, fname)
                     self.logger.debug(f'Quit - DELETING FILE {path}')

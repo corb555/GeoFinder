@@ -87,3 +87,6 @@ class SetupReplaceFrame(UtilListboxFrame.ListboxFrame):
                 line = f'{nm}'
 
             self.list_insert(self.tree, item, line)
+
+    def close(self):
+        self.geodb.close()

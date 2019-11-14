@@ -347,4 +347,5 @@ class GeodataFiles:
             self.progress_bar.update_progress(val, msg)
 
     def close(self):
-        self.geodb.close()
+        if self.geodb:
+            self.geodb.close()
