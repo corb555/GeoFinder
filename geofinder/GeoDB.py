@@ -144,7 +144,8 @@ class GeoDB:
                 new_prfx = original_prefix
                 # Remove words in result from prefix
                 for item in result_words:
-                    new_prfx = re.sub(item.strip(' ').lower(), '', new_prfx)
+                    if len(item) > 0:
+                        new_prfx = re.sub(item.strip(' ').lower(), '', new_prfx, count=1)
                 place.prefix = new_prfx
 
             score = self.match.match_score(inp_place=place, res_place=result_place)
@@ -224,7 +225,7 @@ class GeoDB:
                                 args=(lookup_target, place.country_iso),
                                 result=Result.PARTIAL_MATCH))
 
-        if len(place.admin1_name) > 0:
+        if  False:
             # lookup by Soundex name, country and admin1
             query_list.append(Query(where="sdx = ? AND admin1_id = ? AND country = ?",
                                     args=(sdx, place.admin1_id, place.country_iso),
@@ -540,7 +541,8 @@ class GeoDB:
             # Remove items in prefix that are in result
             tk_list = res_nm.split(",")
             for item in tk_list:
-                place.prefix = re.sub(item.strip(' ').lower(), '', place.prefix)
+                if len(item) > 0:
+                    place.prefix = re.sub(item.strip(' ').lower(), '', place.prefix, count=1)
 
             update[GeoUtil.Entry.SCORE] = int(score * 100)
             place.georow_list[idx] = tuple(update)

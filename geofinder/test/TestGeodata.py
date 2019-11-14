@@ -92,7 +92,7 @@ class TestGeodata(unittest.TestCase):
 
 
     # ======= TEST Event Year handling
-
+    """
     def test_eventyear01(self):
         title = "City - good - and after city start"
         self.place.event_year = 1541
@@ -730,6 +730,12 @@ class TestGeodata(unittest.TestCase):
         title = "test"
         lat, name = self.run_test(title, "st george hanover square, england")
         self.assertEqual("St George, Hanover Square, Greater London, England, United Kingdom", name, title)
+
+"""
+    def test_place_name134(self):
+        title = "mispelling winthrope"
+        lat, name = self.run_test(title, "winthrope, lincolnshire, england")
+        self.assertEqual("Winthrope, Lincolnshire Partnership Trust, Lincolnshire, England, United Kingdom", name, title)
 
 """
 """

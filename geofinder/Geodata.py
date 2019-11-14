@@ -259,10 +259,17 @@ class Geodata:
 
             if score < min_score:
                 min_score = score
-            # self.logger.debug(f'Score {score:.2f}  {geo_row[GeoKeys.Entry.NAME]}, {geo_row[GeoKeys.Entry.ADM2]}, {geo_row[GeoKeys.Entry.ADM1]}')
-            if score > min_score + 10:
+            self.logger.debug(f'Score {score:.2f}  {geo_row[GeoUtil.Entry.NAME]}, {geo_row[GeoUtil.Entry.ADM2]}, {geo_row[GeoUtil.Entry.ADM1]}')
+
+            gap_threshold =  4 + abs(min_score) * .6
+            if score > min_score + gap_threshold:
+                self.logger.debug(f'Score gap greater than {gap_threshold}. min={min_score} curr={score}')
                 break
-            if min_score < 7 and score > min_score + 6:
+
+            gap_threshold2 =  3 + abs(min_score) * .5
+
+            if min_score < 7 and score > min_score + gap_threshold2:
+                self.logger.debug(f'Min score <7 and gap > {gap_threshold2}. min={min_score} curr={score}')
                 break
             place.georow_list.append(geo_row)
             prev_score = score
