@@ -345,3 +345,6 @@ class GeodataFiles:
 
         if self.progress_bar is not None:
             self.progress_bar.update_progress(val, msg)
+
+    def close(self):
+        self.geodb.close()

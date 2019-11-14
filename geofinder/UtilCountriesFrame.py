@@ -141,3 +141,6 @@ class SetupCountriesFrame(UtilListboxFrame.ListboxFrame):
                 self.dict[col1.strip(" ")] = " "  # Add key for entry to dict
 
         super().add_handler()
+
+    def close(self):
+        self.geoFiles.close()
