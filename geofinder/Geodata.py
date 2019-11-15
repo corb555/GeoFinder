@@ -51,19 +51,31 @@ class Geodata:
         3) Process place - Update place with -- lat, lon, district, city, country_iso, result code
         Geofinder then calls geodate.build_list which removes duplicates and ranks the items
         """
+        if shutdown:
+            # During shutdown there is no user to validate wildcard searches
+            self.geo_files.geodb.db.use_wildcards = False
+
+        original = location
+
+        # Fix spelling errors where possible
+        if self.geo_files.spell_checker and '--' not in location and '*' not in location:
+            location_tokens = location.split(',')
+            for idx, item in enumerate(location_tokens):
+                location_tokens[idx] = self.geo_files.spellcheck.fix_spelling(item)
+
+            location = ','.join(location_tokens)
+
         place.parse_place(place_name=location, geo_files=self.geo_files)
         self.logger.debug(f"    ==== PARSE: [{location}]\n    Pref=[{place.prefix}] City=[{place.city1}] Adm2=[{place.admin2_name}]"
                           f" Adm1 [{place.admin1_name}] adm1_id [{place.admin1_id}] Ctry [{place.country_name}]"
                           f" type_id={place.place_type}")
 
+        place.original_entry = original
+
         # Successful Admin1 will also fill in country_iso
         # Use this to fill in country name if missing
         if place.country_name == '' and place.country_iso != '':
             place.country_name = self.geo_files.geodb.get_country_name(place.country_iso)
-
-        if shutdown:
-            # During shutdown there is no user verification and no reason to try wildcard searches
-            self.geo_files.geodb.db.use_wildcards = False
 
         flags = ResultFlags(limited=False, filtered=False)
         result_list = []
@@ -75,20 +87,10 @@ class Geodata:
         self.save_place = copy.copy(place)
 
         if place.place_type == Loc.PlaceType.ADVANCED_SEARCH:
-            # Lookup location with advanced search params
-            self.logger.debug('Advanced Search')
-            self.lookup_by_type(place, result_list, place.place_type, self.save_place)
-            place.georow_list.clear()
-            place.georow_list.extend(result_list)
-
-            if len(place.georow_list) > 0:
-                # Build list - sort and remove duplicates
-                # self.logger.debug(f'Match {place.georow_list}')
-                self.process_result(place=place, flags=flags)
-                flags = self.build_result_list(place)
+            self.advanced_search(place, result_list)
             return
 
-        self.country_is_valid(place)
+        self.is_country_valid(place)
 
         # The country in this entry is not supported (not loaded into DB)
         if place.result_type == GeoUtil.Result.NOT_SUPPORTED:
@@ -109,8 +111,8 @@ class Geodata:
         place.prefix = self.save_place.prefix
         place.extra = self.save_place.extra
 
-        # try alternatives since parsing can be wrong
-        # 2) Try a) Prefix as city, b) Admin2  as city
+        # Try alternatives since parsing can be wrong
+        # 2)  a) Try Prefix as city, b) Try Admin2  as city
         place.standard_parse = False
         for ty in [Loc.PlaceType.PREFIX, Loc.PlaceType.ADMIN2]:
             self.lookup_by_type(place, result_list, ty, self.save_place)
@@ -334,7 +336,7 @@ class Geodata:
         else:
             self.logger.debug(msg)
 
-    def country_is_valid(self, place:Loc.Loc) -> bool:
+    def is_country_valid(self, place:Loc.Loc) -> bool:
         # See if COUNTRY is present and is in the supported country list
         if place.country_iso == '':
             place.result_type = GeoUtil.Result.NO_COUNTRY
@@ -465,6 +467,20 @@ class Geodata:
         place.admin1_name = save_place.admin1_name
         place.prefix = save_place.prefix
 
+    def advanced_search(self, place, result_list):
+        # Lookup location with advanced search params
+        self.logger.debug('Advanced Search')
+        self.lookup_by_type(place, result_list, place.place_type, self.save_place)
+        place.georow_list.clear()
+        place.georow_list.extend(result_list)
+
+        if len(place.georow_list) > 0:
+            # Build list - sort and remove duplicates
+            # self.logger.debug(f'Match {place.georow_list}')
+            flags = ResultFlags(limited=False, filtered=False)
+            self.process_result(place=place, flags=flags)
+            self.build_result_list(place)
+
 
 # Default geonames.org feature types to load
 default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ", "HSP",
@@ -478,7 +494,7 @@ feature_priority = {'PP1M': 90, 'ADM1': 88, 'PPLA': 88, 'PPLC': 88, 'PP1K': 85, 
                     'PPL': 73, 'PPLA3': 75, 'PPLA4': 73, 'ADMX': 70,'PAL': 40,
                     'ADM2': 73, 'PPLG': 68, 'MILB': 40, 'NVB': 65, 'PPLF': 63, 'ADM0': 85, 'PPLL': 60, 'PPLQ': 55, 'PPLR': 55,
                     'CH': 40, 'MSQE': 40, 'SYG': 40, 'CMTY': 40, 'CSTL': 40,'EST': 40,'PPLS': 50, 'PPLW': 50, 'PPLX': 75, 'BTL': 20,
-                    'HSTS': 40,'HSP': 0, 'VAL': 0, 'MT': 0, 'ADM3': 0, 'ADM4': 0, 'DEFAULT': 0, }
+                    'HSTS': 40,'HSP': 0, 'VAL': 0, 'MT': 0, 'ADM3': 30, 'ADM4': 0, 'DEFAULT': 0, }
 
 result_text_list = {
     GeoUtil.Result.STRONG_MATCH: 'Matched! Click Save to accept:',

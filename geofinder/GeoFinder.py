@@ -194,7 +194,12 @@ class GeoFinder:
         self.w.title.set_text(f'GEO FINDER v{__version__.__version__}')
         self.w.root.mainloop()  # ENTER MAIN LOOP and Wait for user to click on load button
 
-    def load_data(self):
+    def load_data_files(self)->bool:
+        """
+        Load in data files required for GeoFinder:
+        Load global_replace dictionary, Geodata files and geonames
+        :return: Error bool - True if error occurred
+        """
         # Read in Skiplist, Replace list
         self.skiplist = CachedDictionary(self.cache_dir, "skiplist.pkl")
         self.skiplist.read()
@@ -228,15 +233,15 @@ class GeoFinder:
 
     def load_handler(self):
         """
-        User pressed LOAD button to load an Ancestry file. Switch app display to the Review Widgets
-        Load in file name and
-        loop through  file and find every PLACE entry and verify the entry against the geoname data
+        User pressed LOAD button to load an Ancestry file. Switch app display to the Review Widgets layout
+        Load in file name and call handle_place_entry()
+        :return:
         """
         self.w.original_entry.set_text("")
         self.w.remove_initialization_widgets()  # Remove old widgets
         self.w.create_review_widgets()  # Switch display from Initial widgets to main review widgets
 
-        self.load_data()
+        self.load_data_files()
 
         ged_path = self.cfg.get("gedcom_path")  # Get saved config setting for  file
 
@@ -476,7 +481,7 @@ class GeoFinder:
                 place.result_type == GeoUtil.Result.NO_MATCH or \
                 place.result_type == GeoUtil.Result.NO_COUNTRY:
             # Disable the Save & Map button until user clicks Verify and item is found
-            self.set_save_allowed(False)
+            self.set_save_button_allowed(False)
             TKHelper.set_preferred_button(self.w.verify_button, self.w.review_buttons, "Preferred.TButton")
         elif place.result_type == GeoUtil.Result.NOT_SUPPORTED:
             # Found a match or Not supported - enable save and verify
@@ -484,7 +489,7 @@ class GeoFinder:
             TKHelper.set_preferred_button(self.w.skip_button, self.w.review_buttons, "Preferred.TButton")
         else:
             # Found a match or Not supported - enable save and verify
-            self.set_save_allowed(True)  # Enable save button
+            self.set_save_button_allowed(True)  # Enable save button
             TKHelper.set_preferred_button(self.w.save_button, self.w.review_buttons, "Preferred.TButton")
 
         # Display status and color based on success
@@ -500,7 +505,7 @@ class GeoFinder:
         # set Verify as preferred button
         if len(place.georow_list) > 1:
             TKHelper.set_preferred_button(self.w.verify_button, self.w.review_buttons, "Preferred.TButton")
-            self.set_save_allowed(False)
+            self.set_save_button_allowed(False)
 
         if len(place.georow_list) > 0:
             # Display matches in listbox
@@ -744,13 +749,20 @@ class GeoFinder:
         logger.info(msg)
         return logger
 
-    def write_updated_place(self, place: Loc.Loc, entry):
-        # Write out updated location and lat/lon to  file
+    def write_updated_place(self, place: Loc.Loc, original_entry):
+        """
+        Write out this updated location and lat/lon to ancestry file output
+        If place result_type was DELETE, do not write out location
+        Also write to diagnostic file if enabled
+        :param place: Updated location
+        :param original_entry: Original file entry
+        :return:
+        """
         self.geodata.geo_files.geodb.set_display_names(place)
         place.original_entry = place.format_full_nm(self.geodata.geo_files.output_replace_dct)
         prefix = GeoUtil.capwords(self.place.prefix)
         if self.diagnostics:
-            self.in_diag_file.write(f'{entry}\n')
+            self.in_diag_file.write(f'{original_entry}\n')
 
         if place.result_type != GeoUtil.Result.DELETE:
             # self.logger.debug(f'Write Updated - name={place.name} pref=[{place.prefix}]')
@@ -766,8 +778,61 @@ class GeoFinder:
                 self.out_diag_file.write('DELETE\n')
             pass
 
+    def set_save_button_allowed(self, save_allowed: bool):
+        """
+        Mark Save Button and Map button as allowed if save_allowed is True
+        :param save_allowed: Bool to indicate whether Save button is allowed
+        :return:
+        """
+        if save_allowed:
+            # Enable the Save and Map buttons
+            self.save_enabled = True
+            self.w.save_button.config(state="normal")  # Match - enable  button
+            self.w.map_button.config(state="normal")  # Match - enable  button
+        else:
+            # Disable the Save and Map buttons
+            self.save_enabled = False
+            self.w.save_button.config(state="disabled")
+            self.w.map_button.config(state="disabled")
+
+    def set_status_text(self, txt):
+        """ Update status text """
+        self.w.status.state(["!readonly"])
+        self.w.status.set_text(txt)
+        self.w.status.state(["readonly"])
+
+    def end_of_file_shutdown(self):
+        """
+        Reached End of file - close ancestry file handler, display Completion message to user and
+        call shutdown()
+        :return:
+        """
+        TKHelper.disable_buttons(button_list=self.w.review_buttons)
+        # self.start_time = time.time()
+        # self.logger.debug(f'COMPLETED time={int((time.time() - self.start_time) / 60)} minutes')
+        self.w.status.set_text("Done.  Shutting Down...")
+        self.w.original_entry.set_text(" ")
+        path = self.cfg.get("gedcom_path")
+        self.ancestry_file_handler.close()
+
+        self.update_statistics()
+        self.w.root.update_idletasks()  # Let GUI update
+
+        if 'ramp' in self.out_suffix:
+            # Gramps file is .csv
+            messagebox.showinfo("Info", f"Finished.  Created file for Import to Ancestry software:\n\n {path}.csv")
+        else:
+            messagebox.showinfo("Info", f"Finished.  Created file for Import to Ancestry software:\n\n {path}.{self.out_suffix}")
+        self.logger.info('End of  file')
+        self.shutdown()
+
     def shutdown(self):
-        """ Shutdown - write out Gbl Replace and skip file and exit """
+        """
+         Shutdown - write out all data structures and exit.
+         Write out Gbl Replace, skip list, config, ancestry file, out_diag, in_diag
+         Close DB
+        :return: Does not return
+        """
         # self.w.root.update_idletasks()
         if self.geodata:
             self.geodata.geo_files.geodb.close()
@@ -789,47 +854,12 @@ class GeoFinder:
         # sys.exit()
         os._exit(0)
 
-    def set_save_allowed(self, save_allowed: bool):
-        if save_allowed:
-            # Enable the Save and Map buttons
-            self.save_enabled = True
-            self.w.save_button.config(state="normal")  # Match - enable  button
-            self.w.map_button.config(state="normal")  # Match - enable  button
-        else:
-            # Disable the Save and Map buttons
-            self.save_enabled = False
-            self.w.save_button.config(state="disabled")
-            self.w.map_button.config(state="disabled")
-
-    def set_status_text(self, txt):
-        # status text is readonly
-        self.w.status.state(["!readonly"])
-        self.w.status.set_text(txt)
-        self.w.status.state(["readonly"])
-
-    def end_of_file_shutdown(self):
-        # End of file reached
-        TKHelper.disable_buttons(button_list=self.w.review_buttons)
-        # self.start_time = time.time()
-        # self.logger.debug(f'COMPLETED time={int((time.time() - self.start_time) / 60)} minutes')
-        self.w.status.set_text("Done.  Shutting Down...")
-        self.w.original_entry.set_text(" ")
-        path = self.cfg.get("gedcom_path")
-        self.ancestry_file_handler.close()
-
-        self.update_statistics()
-        self.w.root.update_idletasks()  # Let GUI update
-
-        if 'ramp' in self.out_suffix:
-            # Gramps file is .csv
-            messagebox.showinfo("Info", f"Finished.  Created file for Import to Ancestry software:\n\n {path}.csv")
-        else:
-            messagebox.showinfo("Info", f"Finished.  Created file for Import to Ancestry software:\n\n {path}.{self.out_suffix}")
-        self.logger.info('End of  file')
-        self.shutdown()
-
     def periodic_update(self, msg):
-        # Display status to user
+        """
+        Periodically display status text to user (display on every N updates)
+        :param msg: message to periodically display
+        :return:
+        """
         if self.flush_countdown % 50 == 0:
             if not self.w.prog.shutdown_requested:
                 self.w.status.set_text(msg)
@@ -837,7 +867,11 @@ class GeoFinder:
                 self.w.original_entry.set_text(self.place.original_entry)  # Display place
             self.w.root.update_idletasks()  # Let GUI update
 
-    def check_configuration(self):
+    def check_configuration(self)->bool:
+        """
+        Check if configuration is valid:  valid country list, valid GEODB or geoname files
+        :return: Error - True if error
+        """
         file_error = False
         file_list = ['allCountries.txt', 'cities500.txt']
 
@@ -883,7 +917,8 @@ class GeoFinder:
 
     def update_statistics(self):
         """
-        Display completion statistics to user
+        Display completion statistics to user:
+        Matched, skipped, needed review, remaining
         """
         done = self.matched_count + self.skip_count + self.review_count
         if self.ancestry_file_handler.place_total is not None:
@@ -901,6 +936,14 @@ class GeoFinder:
         return done
 
     def get_replacement(self, dct, town_entry: str, place):
+        """
+        Check global_replace dictionary to see if we've already found a match for this location.
+        Update place structure with prefix and found location
+        :param dct: global replacement dictionary
+        :param town_entry: entry to lookup
+        :param place: place structure
+        :return: Return geoid of location if found, else None
+        """
         geoid = None
         replacement = dct.get(town_entry)
 

@@ -23,7 +23,7 @@ import time
 import unittest
 from pathlib import Path
 
-from geofinder import Geodata, GeoUtil, Loc
+from geofinder import Geodata, GeoUtil, Loc, SpellCheck
 
 halifax_lat = 44.646
 bruce_cty_lat = 44.50009
@@ -32,6 +32,7 @@ albanel_lat = 48.91492
 
 class TestGeodata(unittest.TestCase):
     geodata = None
+    spell_check = None
 
     """
     Test case - multiple st andrews:
@@ -49,6 +50,9 @@ class TestGeodata(unittest.TestCase):
 
         # Load test data
         directory = os.path.join(str(Path.home()), "geoname_test")
+        cache_directory = os.path.join(directory, 'cache')
+        TestGeodata.spell_check = SpellCheck.SpellCheck(cache_directory, None)
+        TestGeodata.spell_check.read()
         TestGeodata.geodata = Geodata.Geodata(directory_name=directory, progress_bar=None)
         error: bool = TestGeodata.geodata.read()
         if error:
@@ -695,7 +699,7 @@ class TestGeodata(unittest.TestCase):
         title = "Advanced search - albanel,--country=ca"
         lat, name = self.run_test(title, "albanel,--country=CA")
         self.assertEqual("Albanel, Saguenay Lac St Jean, Quebec, Canada", name, title)
-
+"""
     def test_place_name291(self):
         title = "903"
         lat, name = self.run_test(title, "Germany")
@@ -731,13 +735,18 @@ class TestGeodata(unittest.TestCase):
         lat, name = self.run_test(title, "st george hanover square, england")
         self.assertEqual("St George, Hanover Square, Greater London, England, United Kingdom", name, title)
 
-"""
     def test_place_name134(self):
         title = "mispelling winthrope"
         lat, name = self.run_test(title, "winthrope, lincolnshire, england")
-        self.assertEqual("Winthrope, Lincolnshire Partnership Trust, Lincolnshire, England, United Kingdom", name, title)
+        self.assertEqual("Winthorpe, Lincolnshire, England, United Kingdom", name, title)
 
-"""
+    def test_place_name135(self):
+        title = "aisne, picardy, france"
+        lat, name = self.run_test(title, "aisne, picardy, france")
+        self.assertEqual("aisne, picardy, france", name, title)
+
+""" 
+aisne, picardy, france
 """
 
 

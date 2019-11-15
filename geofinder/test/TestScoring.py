@@ -84,6 +84,9 @@ class TestScoring(unittest.TestCase):
         ("testerton, norfolk, , england", "testerton, norfolk, england,united kingdom", "PPLL", MatchScore.EXCELLENT), #24
 
         ("Holborn, Middlesex, England", "Holborn, Greater London, England, United Kingdom", 'PP1M', MatchScore.GOOD),  # 25
+        ("aisne, picardy, france", "aisne, picardy, france", 'PP1M', MatchScore.EXCELLENT),  # 26
+
+
 
     ]
 

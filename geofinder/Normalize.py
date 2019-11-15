@@ -80,6 +80,7 @@ def _remove_noise_words(res):
     res = re.sub(r"normandy american ", 'normandie american ', res)
 
     res = re.sub(r'nouveau brunswick', ' ', res)
+    res = re.sub(r'westphalia', 'westfalen', res)
 
     res = re.sub(r'city of ', ' ', res)
     res = re.sub(r'citta metropolitana di ', ' ', res)
@@ -102,11 +103,12 @@ def _remove_noise_words(res):
     res = re.sub(r' di ', ' ', res)
     res = re.sub(r' du ', ' ', res)
     res = re.sub(r' of ', ' ', res)
+    res = re.sub(r' departement', ' ', res)
+
 
     """
     res = re.sub(r' county', ' ', res)
     res = re.sub(r' stadt', ' ', res)
-    res = re.sub(r' departement', ' ', res)
     res = re.sub(r'regierungsbezirk ', ' ', res)
     res = re.sub(r' departement', ' ', res)
     res = re.sub(r'gemeente ', ' ', res)
@@ -120,6 +122,7 @@ def admin1_normalize(res, iso):
     #res = re.sub(r"'", '', res)  # Normalize hyphens
     if iso == 'de':
         res = re.sub(r'bayern', 'bavaria', res)
+        res = re.sub(r'westphalia', 'westfalen', res)
 
     if iso == 'fr':
         res = re.sub(r'normandy', 'normandie', res)

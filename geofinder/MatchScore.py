@@ -76,24 +76,22 @@ class MatchScore:
         res_place.prefix = ' '
 
         # Create full place title (prefix,city,county,state,country) from input place.
-        inp_title = inp_place.get_five_part_title()
-        inp_title = Normalize.normalize_for_scoring(inp_title, inp_place.country_iso)
-        inp_tokens = inp_title.split(',')
+        input_words = inp_place.get_five_part_title()
+        input_words = Normalize.normalize_for_scoring(input_words, inp_place.country_iso)
+        inp_tokens = input_words.split(',')
         # Create a list of all the words in input
-        input_words = inp_title
         # Store length of original input tokens.  This is used for percent unmatched calculation
         for it, tk in enumerate(inp_tokens):
             inp_tokens[it] = inp_tokens[it].strip(' ')
             inp_len[it] = len(inp_tokens[it])
 
         # Create full place title (prefix,city,county,state,country) from result place
-        res_title = res_place.get_five_part_title()
-        res_title = Normalize.normalize_for_scoring(res_title, res_place.country_iso)
-        res_place.original_entry = res_title
-        res_tokens = res_title.split(',')
+        res_words = res_place.get_five_part_title()
+        res_words = Normalize.normalize_for_scoring(res_words, res_place.country_iso)
+        res_place.original_entry = res_words
+        res_tokens = res_words.split(',')
 
         # Create a list of all the words in result
-        res_words = res_title
         # save result len for percent calc
         resw = res_words.strip(',')
         resw = resw.strip(' ')

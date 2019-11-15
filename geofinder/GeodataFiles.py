@@ -25,6 +25,7 @@ from collections import namedtuple
 from tkinter import messagebox
 from typing import Dict
 
+import SpellCheck
 from geofinder import CachedDictionary, Country, GeoDB, GeoUtil, Loc, AlternateNames, UtilFeatureFrame, Normalize
 
 
@@ -56,6 +57,7 @@ class GeodataFiles:
         self.cache_changed: bool = False
         sub_dir = GeoUtil.get_cache_directory(self.directory)
         self.country = None
+        self.spell_checker = False
 
         # Read in dictionary listing Geoname features we should include
         self.feature_code_list_cd = CachedDictionary.CachedDictionary(sub_dir, "feature_list.pkl")
@@ -82,6 +84,9 @@ class GeodataFiles:
 
         for item in self.languages_list_dct:
             self.lang_list.append(item)
+
+        if self.spell_checker:
+            self.spellcheck = SpellCheck.SpellCheck(sub_dir, self.supported_countries_dct)
 
         # Read in dictionary listing output text replacements
         self.output_replace_cd = CachedDictionary.CachedDictionary(sub_dir, "output_list.pkl")
@@ -134,6 +139,7 @@ class GeodataFiles:
         # Use db if it exists and is newer than the geonames directory
         cache_dir = GeoUtil.get_cache_directory(self.directory)
         db_path = os.path.join(cache_dir, 'geodata.db')
+
         self.logger.debug(f'path for geodata.db: {db_path}')
         err_msg = ''
 
@@ -174,6 +180,9 @@ class GeodataFiles:
             # No DB errors detected
             self.geodb.create_indices()
             self.geodb.create_geoid_index()
+            if self.spell_checker:
+                self.logger.debug(f'Reading spelling dictionary')
+                self.spellcheck.read()
             return False
 
         # DB error detected - rebuild database
@@ -224,6 +233,11 @@ class GeodataFiles:
         self.alternate_names.read()
         self.logger.info(f'Alternate names done.  Elapsed ={time.time() - start_time}')
         self.logger.info(f'Geonames entries = {self.geodb.get_row_count():,}')
+
+        # Write out spelling file
+        if self.spell_checker:
+            self.progress('Creating Spelling dictionary',88)
+            self.spellcheck.write()
 
         start_time = time.time()
         self.progress("3) Final Step: Creating Indices for Database...", 95)
@@ -327,6 +341,10 @@ class GeodataFiles:
             #geo_row[GeoDB.Entry.NAME] = geo_row[GeoDB.Entry.ADM1].lower()
             self.update_geo_row_name(geo_row=geo_row, name=geo_row[GeoDB.Entry.ADM1])
             self.geodb.insert(geo_row=geo_row, feat_code=geoname_row.feat_code)
+
+        # Add item to Spell Check dictionary
+        if self.spell_checker:
+            self.spellcheck.insert(geo_row[GeoDB.Entry.NAME], geo_row[GeoDB.Entry.ISO])
 
     def get_supported_countries(self) -> [str, int]:
         """ Convert list of supported countries into sorted string """
