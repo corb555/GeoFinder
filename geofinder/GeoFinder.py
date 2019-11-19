@@ -84,7 +84,7 @@ class GeoFinder:
 
         self.save_enabled = False  # Only allow SAVE when we have an item that was matched in geonames
         self.user_selected_list = False  # Indicates whether user selected a list entry or text edit entry
-        self.flush_countdown = 0
+        self.update_counter = 0
         self.matched_count = 0
         self.review_count = 0
         self.skip_count = 0
@@ -97,11 +97,13 @@ class GeoFinder:
         self.out_suffix = 'unknown_suffix'
         self.out_diag_file = None
         self.in_diag_file = None
+        self.enable_spell_checker = False
 
         # initiate the parser
         parser = argparse.ArgumentParser()
         parser.add_argument("--logging", help="info - Enable quiet logging")
         parser.add_argument("--diagnostics", help="on - Create xx.input.txt and xx.output.txt diagnostics files")
+        parser.add_argument("--spellcheck", help="on - Enable spellchecker")
 
         # read arguments from the command line
         args = parser.parse_args()
@@ -119,6 +121,13 @@ class GeoFinder:
             self.diagnostics = True
         else:
             self.diagnostics = False
+
+        # check for --diagnostics switch
+        if args.spellcheck == 'on':
+            self.logger.info(f"--spellchecking enabled {args.spellcheck}")
+            self.enable_spell_checker = True
+        else:
+            self.enable_spell_checker = False
 
         # Create App window and configure  window buttons and widgets
         self.w: AppLayout.AppLayout = AppLayout.AppLayout(self)
@@ -191,6 +200,7 @@ class GeoFinder:
 
         # Flag to indicate whether we are in startup or in Window loop.  Determines how window idle is called
         self.startup = False
+
         self.w.title.set_text(f'GEO FINDER v{__version__.__version__}')
         self.w.root.mainloop()  # ENTER MAIN LOOP and Wait for user to click on load button
 
@@ -211,11 +221,11 @@ class GeoFinder:
         # Convert all global_replace items to lowercase
         for ky in dict_copy:
             val = self.global_replace.dict.pop(ky)
-            new_key = Normalize.normalize(res=ky,remove_commas=False)
+            new_key = Normalize.normalize(text=ky, remove_commas=False)
             self.global_replace.dict[new_key] = val
 
         # Initialize geo data
-        self.geodata = Geodata.Geodata(directory_name=self.directory, progress_bar=self.w.prog)
+        self.geodata = Geodata.Geodata(directory_name=self.directory, progress_bar=self.w.prog, enable_spell_checker=self.enable_spell_checker)
         error = self.geodata.read()
         if error:
             TKHelper.fatal_error(MISSING_FILES)
@@ -228,6 +238,8 @@ class GeoFinder:
         error = self.geodata.read_geonames()
         if error:
             TKHelper.fatal_error(MISSING_FILES)
+
+
         self.w.root.update()
         self.w.prog.update_progress(100, " ")
 
@@ -291,7 +303,7 @@ class GeoFinder:
         self.clear_detail_text(self.place)
 
         while True:
-            self.flush_countdown += 1  # Counter is used to periodically update
+            self.update_counter += 1  # Counter is used to periodically update
             # Update statistics
             self.update_statistics()
 
@@ -299,14 +311,15 @@ class GeoFinder:
             # Process it and keep looping until we need user input
             self.place.clear()
             town_entry, eof, rec_id = self.ancestry_file_handler.get_next_place()
-            town_entry = Normalize.normalize(res=town_entry, remove_commas=False)
+            self.place.updated_entry = town_entry
+            town_entry = Normalize.normalize(text=town_entry, remove_commas=False)
             self.place.id = rec_id
 
             if eof:
                 self.end_of_file_shutdown()
 
             # See if we already have a fix (Global Replace) or Skip (ignore).
-            # Otherwise have user handle it
+            # Otherwise see if we can find it or have user handle it
             replacement_geoid = self.get_replacement(self.global_replace, town_entry, self.place)
 
             if replacement_geoid is not None:
@@ -350,7 +363,7 @@ class GeoFinder:
                 if self.place.result_type in GeoUtil.successful_match:
                     # FOUND A MATCH in database
                     if self.place.result_type == GeoUtil.Result.STRONG_MATCH:
-                        # FOUND STRONG MATCH
+                        # FOUND STRONG MATCH - no user verification needed
                         self.matched_count += 1
 
                         # Write out line without user verification
@@ -362,10 +375,10 @@ class GeoFinder:
                         # Add to global replace list - Use '@' for tokenizing.  Save GEOID_TOKEN and PREFIX_TOKEN
                         res = '@' + self.place.geoid + '@' + self.place.prefix
 
-                        self.global_replace.set(Normalize.normalize(res=town_entry,remove_commas=False), res)
+                        self.global_replace.set(Normalize.normalize(text=town_entry, remove_commas=False), res)
                         self.logger.debug(f'Found Strong Match for {town_entry} res= [{res}] Setting DICT')
                         # Periodically flush dictionary to disk.  (We flush on exit as well)
-                        if self.flush_countdown % 200 == 1:
+                        if self.update_counter % 200 == 1:
                             self.global_replace.write()
 
                         self.write_updated_place(self.place, town_entry)
@@ -373,7 +386,7 @@ class GeoFinder:
                     else:
                         # FOUND A WEAK MATCH OR MULTIPLE MATCHES
                         if self.w.prog.shutdown_requested:
-                            # User requested shutdown.  Write this item out as-is
+                            # User requested shutdown - so no user interaction.  Write this item out as-is
                             self.review_count += 1
                             self.periodic_update("Creating Import...")
                             self.w.original_entry.set_text(" ")
@@ -385,7 +398,7 @@ class GeoFinder:
 
                             self.w.status.configure(style="Good.TLabel")
                             self.w.original_entry.set_text(self.place.original_entry)  # Display place
-                            self.w.user_entry.set_text(self.place.original_entry)  # Display place
+                            self.w.user_entry.set_text(self.place.updated_entry)  # Display place
                             # Break out of loop and have user review the match
                             break
                 else:
@@ -593,10 +606,10 @@ class GeoFinder:
 
         res = '@' + self.place.geoid + '@' + self.place.prefix
         # self.logger.debug(f'Save [{ky}] :: [{res}]')
-        self.global_replace.set(Normalize.normalize(res=ky,remove_commas=False), res)
+        self.global_replace.set(Normalize.normalize(text=ky, remove_commas=False), res)
 
         # Periodically flush dict to disk
-        if self.flush_countdown % 10 == 1:
+        if self.update_counter % 10 == 1:
             self.global_replace.write()
         # self.logger.debug(f'SAVE SetGblRep for [{ky}] res=[{res}] Updating DICT')
 
@@ -860,7 +873,7 @@ class GeoFinder:
         :param msg: message to periodically display
         :return:
         """
-        if self.flush_countdown % 50 == 0:
+        if self.update_counter % 50 == 0:
             if not self.w.prog.shutdown_requested:
                 self.w.status.set_text(msg)
                 self.w.status.configure(style="Good.TLabel")

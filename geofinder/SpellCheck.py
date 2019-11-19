@@ -18,6 +18,7 @@
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 import logging
 import os
+import re
 from collections import Counter
 
 from symspellpy.symspellpy import SymSpell, Verbosity
@@ -26,7 +27,8 @@ delim = '_'
 
 
 class SpellCheck:
-    def __init__(self, directory, countries_dict):
+    def __init__(self, progress, directory, countries_dict):
+        self.progress = progress
         self.logger = logging.getLogger(__name__)
         self.spelling_update = Counter()
         self.directory = directory
@@ -68,33 +70,55 @@ class SpellCheck:
         if os.path.exists(self.spell_path):
             self.logger.info(f'Loading Spelling Dictionary from {self.spell_path}')
             success = self.sym_spell.load_pickle(self.spell_path)
+        else:
+            self.logger.error(f"spelling dictionary not found: {self.spell_path}")
 
         if not success:
-                self.logger.error(f"error loading spelling dictionary from {self.spell_path}")
+            self.logger.error(f"error loading spelling dictionary from {self.spell_path}")
         else:
-            size = len(self.sym_spell.words)
-            self.logger.info(f"Spelling Dictionary contains {size} words")
             self.sym_spell.delete_dictionary_entry(key='gothland')
+
+        size = len(self.sym_spell.words)
+        self.logger.info(f"Spelling Dictionary contains {size} words")
 
     def lookup(self, input_term):
         #suggestions = [SymSpell.    SuggestItem]
-        suggestions = self.sym_spell.lookup(input_term, Verbosity.TOP,
-                                       max_edit_distance=2, include_unknown=True)
-        return suggestions[0]._term
+        res = ''
+        if len(input_term) > 1:
+            suggestions = self.sym_spell.lookup(input_term, Verbosity.CLOSEST,
+                                           max_edit_distance=2, include_unknown=True)
+            for idx, item in enumerate(suggestions):
+                if idx > 3:
+                    break
+                #self.logger.debug(f'{item._term}')
+                if item._term[0] == input_term[0]:
+                    # Only accept results where first letter matches
+                    res += item._term + ' '
+            return res
+        else:
+            return input_term
 
     def lookup_compound(self, phrase):
         suggestions = self.sym_spell.lookup_compound(phrase=phrase,
                                        max_edit_distance=2, ignore_non_words=False)
+        for item in suggestions:
+            self.logger.debug(f'{item._term}')
         return suggestions[0]._term
 
     def fix_spelling(self, text):
-        new_text = self.lookup_compound(text)
+        new_text = text
+        if  bool(re.search(r'\d', text)):
+            # Has digits, just return text, no spellcheck
+            pass
+        elif 'st ' in text:
+            # Spellcheck not handling St properly
+            pass
+        else:
+            if len(text) > 0:
+                new_text = self.lookup(text)
+                self.logger.debug(f'Spell {text} -> {new_text}')
+
+        return new_text.strip(' ')
 
         #for word in text.split(' '):
         #    new_text += self.lookup(word) + ' '
-
-        self.logger.debug(f'Spell {text} -> {new_text}')
-        return new_text
-
-
-

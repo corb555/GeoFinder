@@ -480,6 +480,9 @@ country_lang = {
 }
 
 
+# Non English Country Name tables
+
+# Dutch
 nl_trans = {
     "Afghanistan": "Afghanistan",
     "Albania": "Albanië",
@@ -678,6 +681,8 @@ nl_trans = {
     "Zimbabwe": "Zimbabwe",
 }
 
+
+# German
 de_trans = {
     "Afghanistan": "Afghanistan",
     "Albania": "Albanien",

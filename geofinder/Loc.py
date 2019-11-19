@@ -80,6 +80,7 @@ class Loc:
         self.id = ''
         self.enclosed_by = ''
         self.standard_parse = True
+        self.updated_entry = ''
 
         # Lookup result info
         self.status: str = ""
@@ -121,8 +122,9 @@ class Loc:
 
     def parse_place(self, place_name: str, geo_files):
         """
-        Given a comma separated place name, parse into its city, AdminID, country_iso and type of entity (city, country etc)
-        Expected format: prefix,city,admin2,admin1,country
+        Given a comma separated place name, attempt to extract Country and Admin1 from last 2 items.
+        Remaining items could be prefix, city, or Admin2 (county).  Those are placed into a list
+        parse into its city, AdminID, country_iso and type of entity (city, country etc)
         self.status has Result status code
         """
         self.clear()
@@ -135,7 +137,7 @@ class Loc:
         tokens = res.split(",")
         if len(tokens[-1]) == 0:
             # Last item is blank, so remove it
-            tokens = tokens[:-2]
+            tokens = tokens[:-1]
 
         token_count = len(tokens)
         self.place_type = PlaceType.CITY
@@ -172,7 +174,7 @@ class Loc:
 
         if token_count > 1:
             #  Format: Admin1, Country.
-            #  Admin1 is 2nd to last token
+            #  See if 2nd to last token is Admin1
             self.admin1_name = Normalize.normalize_for_search(tokens[-2], self.country_iso)
             self.admin1_name = Normalize.admin1_normalize(self.admin1_name, self.country_iso)
 
@@ -209,8 +211,6 @@ class Loc:
                 self.target = self.admin2_name
 
         if token_count > 3:
-            # Format: Prefix, City, Admin2, Admin1, Country
-            # City is 4th to last token
             # Other tokens go into Prefix
             self.city1 = Normalize.normalize_for_search(tokens[-4], self.country_iso)
             if len(self.city1) > 0:
@@ -222,11 +222,6 @@ class Loc:
                 if len(self.prefix) > 0:
                     self.prefix += ' '
                 self.prefix += str(item.strip(' '))
-
-        # Special case for New York, New York which normally refers to the City, not county
-        if self.admin2_name == 'new york' and self.place_type == PlaceType.ADMIN2:
-            self.admin2_name = 'new york city'
-            self.target = self.admin2_name
 
         self.prefix = self.prefix.strip(',')
 

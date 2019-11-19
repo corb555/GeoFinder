@@ -21,13 +21,17 @@ import os
 
 
 class FileReader:
-    """
-    Read a file and call a handler for each line
-    """
 
-    def __init__(self, directory_name: str, filename: str, progress_bar):
+    def __init__(self, directory: str, filename: str, progress_bar):
+        """
+            Read a file and call a handler for each line
+
+        :param directory: Directory of file
+        :param filename: Filename
+        :param progress_bar: Progress Bar or None
+        """
         self.logger = logging.getLogger(__name__)
-        self.directory: str = directory_name
+        self.directory: str = directory
         self.progress_bar = progress_bar
         self.fname: str = filename
         self.cache_changed = False
@@ -35,7 +39,7 @@ class FileReader:
 
     def read(self) -> bool:
         """
-        :synopsis:  Read geoname.org alternate name file and add names as alternates in geoname dict
+        :synopsis:  Read a file and call a handler for each line.  Update progress bar
         :return: Error
         """
         line_num = 0

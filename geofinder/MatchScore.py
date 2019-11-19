@@ -17,10 +17,11 @@
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 import logging
+import re
 
 from geofinder import Geodata, Loc, Normalize, GeoUtil
 
-EXCELLENT = 10
+EXCELLENT = 6
 GOOD = 29
 POOR = 49
 VERY_POOR = 69
@@ -44,8 +45,7 @@ class MatchScore:
         self.logger = logging.getLogger(__name__)
 
         # Weighting for each token - prefix, city, adm2, adm1, country
-        self.token_weight = [0.0, 1.0, 0.3, 0.6, 0.9]
-        #self.token_weight = [1.0, 1.0, 1.0, 1.0, 1.0]
+        self.token_weight = [0.0, 1.0, 0.6, 0.8, 0.9]
 
         self.prefix_weight = 1.2
         self.wildcard_penalty = 10.0
@@ -63,22 +63,28 @@ class MatchScore:
         if self.out_weight + self.feature_weight > 1.0:
             self.logger.error('Out weight + Feature weight must be less than 1.0')
 
-    def match_score(self, inp_place: Loc.Loc, res_place: Loc.Loc) -> int:
+    def match_score(self, inp_place: Loc, res_place: Loc) -> float:
         """
-        :param inp_place: Input place structure with users text
-        :param res_place: Result place structure with DB result text
-        :return: score 0-100 reflecting the difference between the user input and the result.  0 is perfect match, 100 is no match
+        :param inp_place: Input place structure with users entry
+        :param res_place: Result place structure with DB result
+        :return: score -10-100 reflecting the difference between the user input and the result.  -10 is perfect match, 100 is no match
         Score is also adjusted based on Feature type.  More important features (large city) get lower result
         """
-        inp_len = [0] * 5
+        inp_len = [0] * 20
         num_inp_tokens = 0.0
         in_score = 0
         res_place.prefix = ' '
+
+        # Clean up prefix - remove any items in city, admin1 or 2 from Prefix
+        for item in [inp_place.city1, inp_place.admin2_name, inp_place.admin1_name]:
+            if item in inp_place.prefix:
+                inp_place.prefix = re.sub(item, '', inp_place.prefix)
 
         # Create full place title (prefix,city,county,state,country) from input place.
         input_words = inp_place.get_five_part_title()
         input_words = Normalize.normalize_for_scoring(input_words, inp_place.country_iso)
         inp_tokens = input_words.split(',')
+
         # Create a list of all the words in input
         # Store length of original input tokens.  This is used for percent unmatched calculation
         for it, tk in enumerate(inp_tokens):
@@ -98,7 +104,7 @@ class MatchScore:
         orig_res_len = len(resw)
 
         # Remove any sequences that match in input list and result
-        res_words, input_words = GeoUtil.remove_matching_sequences(res_words, input_words)
+        res_words, input_words = GeoUtil.remove_matching_sequences(res_words, input_words, 2)
 
         input_words, res_words = Normalize.remove_aliase(input_words, res_words)
 
@@ -169,27 +175,17 @@ class MatchScore:
         feature_score = Geodata.Geodata.get_priority(res_place.feature)
 
         # Add up scores - Each item is appx 0-100 and weighted
-        score:float = in_score * self.in_weight +  out_score * self.out_weight  + match_bonus + \
-                      feature_score * self.feature_weight  + wildcard_penalty + prefix_penalty * self.prefix_weight
+        score: float = in_score * self.in_weight + out_score * self.out_weight + match_bonus + \
+                       feature_score * self.feature_weight + wildcard_penalty + prefix_penalty * self.prefix_weight
 
-        #self.logger.debug(f'SCORE {score:.1f} res=[{res_title}]\ninp=[{inp_title}]  outSc={out_score * self.out_weight:.1f}% '
-        #                  f'inSc={in_score * self.in_weight:.1f}% feat={feature_score * self.feature_weight:.1f} {res_place.feature}  '
-        #                  f'wild={wildcard_penalty} pref={prefix_penalty * self.prefix_weight} outrem=[{res}]')
-        #self.logger.debug(f'{score_diags}\n')
+        self.logger.debug(f'SCORE {score:.1f} res=[{res_place.original_entry}] [{inp_place.prefix}]\n'
+                          f'inp=[{",".join(inp_tokens)}]  outSc={out_score * self.out_weight:.1f}% '
+                          f'inSc={in_score * self.in_weight:.1f}% feat={feature_score * self.feature_weight:.1f} {res_place.feature}  '
+                          f'wild={wildcard_penalty} pref={prefix_penalty * self.prefix_weight} outrem=[{res}]')
+        self.logger.debug(f'{score_diags}\n')
 
-
-        return round(score)
+        return score
 
     def adjust_adm_score(self, score, feat):
         return score
-
-        if 'ADM3' in feat or 'ADM4' in feat:
-            # Back out original feature score
-            score -= Geodata.Geodata.get_priority(feat) * self.feature_weight
-            # Add in score for ADMX score
-            score += Geodata.Geodata.get_priority('ADMX') * self.feature_weight
-        return score
-
-
-
 

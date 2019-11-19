@@ -44,15 +44,15 @@ class TestScoring(unittest.TestCase):
 
     test_values = [
         # Target, Result, Feature, Expected Score
-        ("toronto,nova scotia, canada", "toronto,ontario,canada", 'PPL', MatchScore.GOOD),   #0
+        ("toronto,nova scotia, canada", "toronto,ontario,canada", 'PPL', MatchScore.POOR),   #0
         ("toronto,ontario,canada", "toronto,ontario,canada", 'PP1M', MatchScore.EXCELLENT), #1
 
         ("toronto, canada", "toronto, canada", 'PPL', MatchScore.EXCELLENT), #2
 
-        ("chelsea,,england", "winchelsea, east sussex, england, united kingdom", 'PP1M', MatchScore.GOOD), #3
+        ("chelsea,,england", "winchelsea, east sussex, england, united kingdom", 'PP1M', MatchScore.EXCELLENT), #3
         ("chelsea,,england", "chelsea, greater london, england, united kingdom", 'PP1M', MatchScore.EXCELLENT), #4
 
-        ("sonderburg", "sonderborg kommune,region syddanmark, denmark", 'PP1M', MatchScore.GOOD), #5
+        ("sonderburg,denmark", "sonderborg kommune,region syddanmark, denmark", 'PP1M', MatchScore.GOOD), #5
 
         ("Paris, France", "Paris,, France", 'PP1M', MatchScore.EXCELLENT), #6
         ("Paris, France.", "Paris,, France", 'PP1M', MatchScore.EXCELLENT), #7
@@ -67,7 +67,7 @@ class TestScoring(unittest.TestCase):
         ("St Quentin, Aisne, Picardy, France", "St Quentin, Departement De L'Aisne, Hauts De France, France", 'PP1M', MatchScore.EXCELLENT), #13
 
         ("Old Bond Street, London, Middlesex, England"," , London, Greater London, England, United Kingdom", 'PP1M', MatchScore.GOOD), #14
-        ("Old Bond Street, London, Middlesex, England", " , Museum Of London, Greater London, England, United Kingdom", 'PPL', MatchScore.GOOD),#15
+        ("Old Bond Street, London, Middlesex, England", " , Museum Of London, Greater London, England, United Kingdom", 'PPL', MatchScore.POOR),#15
 
         ("zxq, xyzzy", " , London, Greater London, England, United Kingdom", ' ', MatchScore.NO_MATCH),#16
 
@@ -78,16 +78,14 @@ class TestScoring(unittest.TestCase):
         ("France", ",France", 'ADM0', MatchScore.EXCELLENT),  # 20
 
         ("barton, lancashire, england, united kingdom", "barton, lancashire, england, united kingdom", 'PPLL', MatchScore.EXCELLENT), #21
-        ("barton, lancashire, england, united kingdom", "barton, cambridgeshire, england, united kingdom", 'PPLL', MatchScore.GOOD), #22
+        ("barton, lancashire, england, united kingdom", "barton, cambridgeshire, england, united kingdom", 'PPLL', MatchScore.EXCELLENT), #22
 
         ("testerton, norfolk, , england", "norfolk,england, united kingdom","ADM2", MatchScore.GOOD), #23
-        ("testerton, norfolk, , england", "testerton, norfolk, england,united kingdom", "PPLL", MatchScore.EXCELLENT), #24
+        ("testerton, norfolk, , england", "testerton, norfolk, england,united kingdom", "PPLL", MatchScore.GOOD), #24
 
-        ("Holborn, Middlesex, England", "Holborn, Greater London, England, United Kingdom", 'PP1M', MatchScore.GOOD),  # 25
+        ("Holborn, Middlesex, England", "Holborn, Greater London, England, United Kingdom", 'PP1M', MatchScore.EXCELLENT),  # 25
         ("aisne, picardy, france", "aisne, picardy, france", 'PP1M', MatchScore.EXCELLENT),  # 26
-
-
-
+        ("braines, loire atlantique, france", "brains, loire atlantique, pays de la loire, france", 'PPL', MatchScore.GOOD),  # 27
     ]
 
     @classmethod
@@ -100,7 +98,7 @@ class TestScoring(unittest.TestCase):
 
         # Load test data
         directory = os.path.join(str(Path.home()), "geoname_test")
-        TestScoring.geodata = Geodata.Geodata(directory_name=directory, progress_bar=None)
+        TestScoring.geodata = Geodata.Geodata(directory_name=directory, progress_bar=None, enable_spell_checker=True)
         error: bool = TestScoring.geodata.read()
         if error:
             TestScoring.logger.error("Missing geodata support Files.")
@@ -117,13 +115,13 @@ class TestScoring(unittest.TestCase):
 
     def run_test1(self, title: str, inp, out):
         print("*****TEST: WORD {}".format(title))
-        out, inp = GeoUtil.remove_matching_sequences(out, inp)
+        out, inp = GeoUtil.remove_matching_sequences(out, inp, 2)
         return out, inp
 
     @staticmethod
     def run_test2(title: str, inp, out):
         print("*****TEST: CHAR {}".format(title))
-        out, inp = GeoUtil.remove_matching_sequences(out, inp)
+        out, inp = GeoUtil.remove_matching_sequences(out, inp, 2)
         return out, inp
 
     @staticmethod
@@ -150,6 +148,9 @@ class TestScoring(unittest.TestCase):
         score = TestScoring.scoring.match_score(in_place, res_place)
         print(f'#{idx} {score:.1f} [{in_place.original_entry.title()}] [{res_place.get_five_part_title()}]')
         return score
+
+    # ======= TESTS ===========
+
 
     def test_score_00(self):
         score = self.run_test3(0)
@@ -319,6 +320,23 @@ class TestScoring(unittest.TestCase):
                         TestScoring.test_values[TestScoring.test_idx][0])
         self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
                         TestScoring.test_values[TestScoring.test_idx][0])
+        
+
+    def test_score_26(self):
+        score = self.run_test3(26)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+
+
+    def test_score_27(self):
+        score = self.run_test3(27)
+        self.assertLess(score, TestScoring.test_values[TestScoring.test_idx][3],
+                        TestScoring.test_values[TestScoring.test_idx][0])
+        self.assertGreaterEqual(score, TestScoring.test_values[TestScoring.test_idx][3]-TestScoring.delta,
+                        TestScoring.test_values[TestScoring.test_idx][0])
+
 
     # ===== TEST INPUT WORD REMOVAL
 
@@ -350,7 +368,7 @@ class TestScoring(unittest.TestCase):
     def test_in06(self):
         title = "Input word1"
         out, inp = self.run_test1(title, "St. Margaret, Westminster, London, England", "Westminster Cathedral, Greater London, England")
-        self.assertEqual('St. Margaret, ,,', inp, title)
+        self.assertEqual('St. Marg, ,,', inp, title)
 
     # ===== TEST OUTPUT WORD REMOVAL
 
@@ -405,9 +423,9 @@ class TestScoring(unittest.TestCase):
         self.assertEqual('u', inp, title)
 
     
+    
     """
     """
-
 
 
 if __name__ == '__main__':

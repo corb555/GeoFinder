@@ -46,7 +46,7 @@ class GeodataFiles:
          3. if files or the above are changed, the utility deletes the DB
     """
 
-    def __init__(self, directory: str, progress_bar):
+    def __init__(self, directory: str, progress_bar, enable_spell_checker):
         self.logger = logging.getLogger(__name__)
         self.geodb = None
         self.required_db_version = 2
@@ -57,7 +57,7 @@ class GeodataFiles:
         self.cache_changed: bool = False
         sub_dir = GeoUtil.get_cache_directory(self.directory)
         self.country = None
-        self.spell_checker = False
+        self.enable_spell_checker:bool = enable_spell_checker
 
         # Read in dictionary listing Geoname features we should include
         self.feature_code_list_cd = CachedDictionary.CachedDictionary(sub_dir, "feature_list.pkl")
@@ -85,8 +85,11 @@ class GeodataFiles:
         for item in self.languages_list_dct:
             self.lang_list.append(item)
 
-        if self.spell_checker:
-            self.spellcheck = SpellCheck.SpellCheck(sub_dir, self.supported_countries_dct)
+        if self.enable_spell_checker:
+            self.spellcheck:SpellCheck.SpellCheck = SpellCheck.SpellCheck(progress=self.progress_bar,directory=sub_dir,
+                                                    countries_dict=self.supported_countries_dct)
+        else:
+            self.spellcheck = None
 
         # Read in dictionary listing output text replacements
         self.output_replace_cd = CachedDictionary.CachedDictionary(sub_dir, "output_list.pkl")
@@ -101,7 +104,7 @@ class GeodataFiles:
         self.entry_place = Loc.Loc()
 
         # Support for Geonames AlternateNames file.  Adds alternate names for entries
-        self.alternate_names = AlternateNames.AlternateNames(directory_name=self.directory,
+        self.alternate_names = AlternateNames.AlternateNames(directory=self.directory,
                                                              geo_files=self, progress_bar=self.progress_bar,
                                                              filename='alternateNamesV2.txt', lang_list=self.lang_list)
 
@@ -147,7 +150,7 @@ class GeodataFiles:
         if os.path.exists(db_path):
             # See if db is fresh (newer than other files)
             self.logger.debug(f'DB found at {db_path}')
-            self.geodb = GeoDB.GeoDB(db_path=db_path, version=self.required_db_version)
+            self.geodb = GeoDB.GeoDB(db_path=db_path, version=self.required_db_version, spellcheck=self.spellcheck)
 
             # Make sure DB is correct version
             ver = self.geodb.get_db_version()
@@ -180,7 +183,7 @@ class GeodataFiles:
             # No DB errors detected
             self.geodb.create_indices()
             self.geodb.create_geoid_index()
-            if self.spell_checker:
+            if self.enable_spell_checker:
                 self.logger.debug(f'Reading spelling dictionary')
                 self.spellcheck.read()
             return False
@@ -198,8 +201,8 @@ class GeodataFiles:
             os.remove(db_path)
             self.logger.debug('Database deleted')
 
-        self.geodb = GeoDB.GeoDB(db_path=db_path, version=self.required_db_version)
-        self.country = Country.Country(self.progress_bar, geo_files=self, lang_list=self.lang_list)
+        self.geodb = GeoDB.GeoDB(db_path=db_path, version=self.required_db_version,spellcheck=self.spellcheck)
+        self.country = Country.Country(progress=self.progress_bar, geo_files=self, lang_list=self.lang_list)
 
         # walk thru list of files ending in .txt e.g US.txt, FR.txt, all_countries.txt, etc
         file_count = 0
@@ -234,8 +237,11 @@ class GeodataFiles:
         self.logger.info(f'Alternate names done.  Elapsed ={time.time() - start_time}')
         self.logger.info(f'Geonames entries = {self.geodb.get_row_count():,}')
 
+        # Add aliases
+        Normalize.add_aliases(self)
+
         # Write out spelling file
-        if self.spell_checker:
+        if self.enable_spell_checker:
             self.progress('Creating Spelling dictionary',88)
             self.spellcheck.write()
 
@@ -341,10 +347,6 @@ class GeodataFiles:
             #geo_row[GeoDB.Entry.NAME] = geo_row[GeoDB.Entry.ADM1].lower()
             self.update_geo_row_name(geo_row=geo_row, name=geo_row[GeoDB.Entry.ADM1])
             self.geodb.insert(geo_row=geo_row, feat_code=geoname_row.feat_code)
-
-        # Add item to Spell Check dictionary
-        if self.spell_checker:
-            self.spellcheck.insert(geo_row[GeoDB.Entry.NAME], geo_row[GeoDB.Entry.ISO])
 
     def get_supported_countries(self) -> [str, int]:
         """ Convert list of supported countries into sorted string """

@@ -147,7 +147,7 @@ class DB:
         sql = f"SELECT {select_str} FROM {from_tbl} WHERE {where} {self.order_str} {self.limit_str}"
         try:
             cur.execute(sql, args)
-            res = cur.fetchall()
+            result_list = cur.fetchall()
         except Exception as e:
             messagebox.showwarning('Error', f'Database select error\n\n'
             f'SELECT\n {select_str}\n FROM {from_tbl} WHERE\n {where}\n'
@@ -156,7 +156,7 @@ class DB:
             self.logger.error(e)
             error = True
             sys.exit()
-        return res
+        return result_list
 
     def table_exists(self, table_name):
         # SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';
@@ -206,33 +206,35 @@ class DB:
         # Perform each query in list
         row_list = None
         #result = None
-        res = Result.NO_MATCH
+        result_type = Result.NO_MATCH
         for query in query_list:
             # During shutdown, wildcards are turned off since there is no UI to verify results
             if self.use_wildcards == False and (query.result == Result.WILDCARD_MATCH or query.result == Result.SOUNDEX_MATCH):
                 continue
             start = time.time()
             if query.result == Result.WILDCARD_MATCH:
-                result = self.word_match(select_string, query.where, from_tbl,
+                result_list = self.word_match(select_string, query.where, from_tbl,
                                          query.args)
             else:
-                result = self.select(select_string, query.where, from_tbl,
+                result_list = self.select(select_string, query.where, from_tbl,
                                      query.args)
             if row_list:
-                row_list.extend(result)
+                row_list.extend(result_list)
             else:
-                row_list = result
+                row_list = result_list
+
+            if len(row_list) > 0:
+                result_type = query.result
+
             elapsed = time.time() - start
             self.total_time += elapsed
             if elapsed > 5:
                 self.logger.debug(f'[{elapsed:.4f}] [{self.total_time:.1f}] len {len(row_list)} from {from_tbl} '
                                   f'where {query.where} val={query.args} ')
             if len(row_list) > 50:
-                res = query.result  # Set specified success code
-                # self.logger.debug(row_list)
-                # Found match.  Break out of loop
                 break
-        return row_list, res
+
+        return row_list, result_type
 
     def word_match(self, select_string, where, from_tbl, args):
         """

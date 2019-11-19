@@ -84,7 +84,7 @@ def get_cache_directory(dirname):
     """ Return the directory for cache files """
     return os.path.join(dirname, "cache")
 
-def _remove_matching_seq(text1: str, text2: str, attempts: int) -> (str, str):
+def _remove_matching_seq(text1: str, text2: str, attempts: int, min_len:int) -> (str, str):
     """
     Find largest matching sequence.  Remove it in text1 and text2.
             Private - called by remove_matching_sequences which provides a wrapper
@@ -96,17 +96,17 @@ def _remove_matching_seq(text1: str, text2: str, attempts: int) -> (str, str):
     """
     s = SequenceMatcher(None, text1, text2)
     match = s.find_longest_match(0, len(text1), 0, len(text2))
-    if match.size > 2:
+    if match.size >= min_len:
         # Remove matched sequence from inp and out
         item = text1[match.a:match.a + match.size]
         text2 = re.sub(item, '', text2, count=1)
         text1 = re.sub(item, '', text1, count=1)
         if attempts > 0:
             # Call recursively to get next largest match and remove it
-            text1, text2 = _remove_matching_seq(text1, text2, attempts - 1)
+            text1, text2 = _remove_matching_seq(text1, text2, attempts - 1, min_len)
     return text1, text2
 
-def remove_matching_sequences(text1: str, text2: str) -> (str, str):
+def remove_matching_sequences(text1: str, text2: str, min_len:int) -> (str, str):
     """
     Find largest sequences that match between text1 and 2.  Remove them from text1 and text2.
     :param text1:
@@ -117,7 +117,7 @@ def remove_matching_sequences(text1: str, text2: str) -> (str, str):
     # Swap all commas in text1 string to '@'.  This way they will never match comma in text2 string
     # Ensures we don;t remove commas and don't match across tokens
     text2 = re.sub(',', '@', text2)
-    text1, text2 = _remove_matching_seq(text1=text1, text2=text2, attempts=15)
+    text1, text2 = _remove_matching_seq(text1=text1, text2=text2, attempts=15, min_len=min_len)
     # Restore commas in inp
     text2 = re.sub('@', ',', text2)
     return text1.strip(' '), text2.strip(' ')
