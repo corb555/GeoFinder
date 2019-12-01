@@ -24,6 +24,7 @@ import os
 import sys
 import time
 import webbrowser
+from datetime import timedelta
 from pathlib import Path
 from tkinter import filedialog
 from tkinter import messagebox
@@ -122,7 +123,7 @@ class GeoFinder:
         else:
             self.diagnostics = False
 
-        # check for --diagnostics switch
+        # check for --spellcheck switch
         if args.spellcheck == 'on':
             self.logger.info(f"--spellchecking enabled {args.spellcheck}")
             self.enable_spell_checker = True
@@ -204,7 +205,7 @@ class GeoFinder:
         self.w.title.set_text(f'GEO FINDER v{__version__.__version__}')
         self.w.root.mainloop()  # ENTER MAIN LOOP and Wait for user to click on load button
 
-    def load_data_files(self)->bool:
+    def load_data_files(self) -> bool:
         """
         Load in data files required for GeoFinder:
         Load global_replace dictionary, Geodata files and geonames
@@ -225,7 +226,8 @@ class GeoFinder:
             self.global_replace.dict[new_key] = val
 
         # Initialize geo data
-        self.geodata = Geodata.Geodata(directory_name=self.directory, progress_bar=self.w.prog, enable_spell_checker=self.enable_spell_checker)
+        self.geodata = Geodata.Geodata(directory_name=self.directory, progress_bar=self.w.prog,
+                                       enable_spell_checker=self.enable_spell_checker)
         error = self.geodata.read()
         if error:
             TKHelper.fatal_error(MISSING_FILES)
@@ -239,9 +241,9 @@ class GeoFinder:
         if error:
             TKHelper.fatal_error(MISSING_FILES)
 
-
         self.w.root.update()
         self.w.prog.update_progress(100, " ")
+        return error
 
     def load_handler(self):
         """
@@ -274,8 +276,10 @@ class GeoFinder:
             self.out_suffix = 'unk.new.ged'
             messagebox.showwarning(f'UNKNOWN File type. Not .gramps and not .ged. \n\n{ged_path}')
 
-        self.out_diag_file = open(ged_path + '.output.txt', 'w')
-        self.in_diag_file = open(ged_path + '.input.txt', 'w')
+        self.out_diag_file = open(ged_path + '.output.txt', 'wt')
+        self.in_diag_file = open(ged_path + '.input.txt', 'wt')
+        miss_diag_fname = ged_path + '.miss.txt'
+        self.geodata.open_diag_fname(miss_diag_fname)
 
         if self.ancestry_file_handler.error:
             TKHelper.fatal_error(f"File {ged_path} not found.")
@@ -448,7 +452,7 @@ class GeoFinder:
         self.w.user_entry.set_text(town_entry)
 
         # Since we are verifying users choice, Get exact match by geoid
-        self.geodata.lookup_geoid(self.place)
+        self.geodata.find_geoid(self.place.geoid, self.place)
         self.place.prefix = pref
         # self.logger.debug(f'id={self.place.geoid} res={self.place.result_type} {self.place.georow_list}')
 
@@ -775,7 +779,7 @@ class GeoFinder:
         place.original_entry = place.format_full_nm(self.geodata.geo_files.output_replace_dct)
         prefix = GeoUtil.capwords(self.place.prefix)
         if self.diagnostics:
-            self.in_diag_file.write(f'{original_entry}\n')
+            self.in_diag_file.write(f'{GeoUtil.capwords(original_entry)}\n')
 
         if place.result_type != GeoUtil.Result.DELETE:
             # self.logger.debug(f'Write Updated - name={place.name} pref=[{place.prefix}]')
@@ -783,7 +787,7 @@ class GeoFinder:
             self.ancestry_file_handler.write_updated(prefix + place.prefix_commas + place.original_entry, place)
             self.ancestry_file_handler.write_lat_lon(lat=place.lat, lon=place.lon)
             text = prefix + place.prefix_commas + place.original_entry + '\n'
-            text = str(text.encode('utf-8', errors='replace'))
+            # text = str(text.encode('utf-8', errors='replace'))
             self.out_diag_file.write(text)
         else:
             # self.logger.debug('zero len, no output')
@@ -834,8 +838,10 @@ class GeoFinder:
         if 'ramp' in self.out_suffix:
             # Gramps file is .csv
             messagebox.showinfo("Info", f"Finished.  Created file for Import to Ancestry software:\n\n {path}.csv")
+            self.logger.info(f'DONE.  Created output file {path}.csv')
         else:
             messagebox.showinfo("Info", f"Finished.  Created file for Import to Ancestry software:\n\n {path}.{self.out_suffix}")
+            self.logger.info(f'DONE.  Created output file {path}{self.out_suffix}')
         self.logger.info('End of  file')
         self.shutdown()
 
@@ -848,7 +854,11 @@ class GeoFinder:
         """
         # self.w.root.update_idletasks()
         if self.geodata:
+            self.logger.info(f'TOTAL DATABASE LOOKUP TIME: {str(timedelta(seconds=self.geodata.geo_files.geodb.db.total_time))}')
+            self.logger.info(f'Lookups per second {self.geodata.geo_files.geodb.db.total_lookups / self.geodata.geo_files.geodb.db.total_time:.0f}')
+            self.logger.info(self.get_stats_text())
             self.geodata.geo_files.geodb.close()
+            self.geodata.close_diag_file()
         if self.skiplist:
             self.skiplist.write()
         if self.global_replace:
@@ -863,7 +873,7 @@ class GeoFinder:
             self.in_diag_file.close()
 
         self.w.root.quit()
-        self.logger.info('SYS EXIT')
+        self.logger.info('EXIT')
         # sys.exit()
         os._exit(0)
 
@@ -880,7 +890,7 @@ class GeoFinder:
                 self.w.original_entry.set_text(self.place.original_entry)  # Display place
             self.w.root.update_idletasks()  # Let GUI update
 
-    def check_configuration(self)->bool:
+    def check_configuration(self) -> bool:
         """
         Check if configuration is valid:  valid country list, valid GEODB or geoname files
         :return: Error - True if error
@@ -928,25 +938,34 @@ class GeoFinder:
 
         return file_error
 
+    def done_count(self):
+        return self.matched_count + self.skip_count + self.review_count
+
+    def get_stats_text(self) -> str:
+        if self.ancestry_file_handler.place_total is not None:
+            remaining = self.ancestry_file_handler.place_total - self.done_count()
+        else:
+            remaining = 0
+        return f'Matched={self.matched_count}   Skipped={self.skip_count}  Needed Review={self.review_count} ' \
+            f'Remaining={remaining} Total={self.ancestry_file_handler.place_total}'
+
     def update_statistics(self):
         """
         Display completion statistics to user:
         Matched, skipped, needed review, remaining
         """
-        done = self.matched_count + self.skip_count + self.review_count
         if self.ancestry_file_handler.place_total is not None:
-            remaining = self.ancestry_file_handler.place_total - done
+            remaining = self.ancestry_file_handler.place_total - self.done_count()
         else:
             remaining = 0
-        self.w.statistics_text.set_text(f'Matched={self.matched_count}   Skipped={self.skip_count}  Needed Review={self.review_count}  '
-                                        f'Remaining={remaining} Total={self.ancestry_file_handler.place_total}')
+        self.w.statistics_text.set_text(self.get_stats_text())
 
         if self.ancestry_file_handler.place_total > 0:
-            self.w.prog.update_progress(100 * done / self.ancestry_file_handler.place_total, " ")
+            self.w.prog.update_progress(100 * self.done_count() / self.ancestry_file_handler.place_total, " ")
         else:
             self.w.prog.update_progress(0, " ")
 
-        return done
+        return self.done_count()
 
     def get_replacement(self, dct, town_entry: str, place):
         """

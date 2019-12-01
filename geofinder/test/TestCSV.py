@@ -48,7 +48,7 @@ class TestCSV(unittest.TestCase):
         # Load test data
         directory = os.path.join(str(Path.home()), "geoname_test")
         csv_path = os.path.join(directory, "test")
-        TestCSV.geodata = Geodata.Geodata(directory_name=directory, progress_bar=None)
+        TestCSV.geodata = Geodata.Geodata(directory_name=directory, progress_bar=None, enable_spell_checker=False)
         error: bool = TestCSV.geodata.read()
         if error:
             TestCSV.logger.error("Missing geodata support Files.")

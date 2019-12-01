@@ -32,7 +32,7 @@ class GeoDB:
     geoname data database.  Add items, look up items, create tables, indices
     """
 
-    def __init__(self, db_path, version, spellcheck: SpellCheck.SpellCheck):
+    def __init__(self, db_path, version, spellcheck: [SpellCheck.SpellCheck,None]):
         self.logger = logging.getLogger(__name__)
         self.start = 0
         self.match = MatchScore.MatchScore()
@@ -46,7 +46,7 @@ class GeoDB:
         else:
             db_exists = False
 
-        self.db = DB.DB(db_path)
+        self.db = DB.DB(db_filename=db_path, show_message=True, exit_on_error=True)
         if self.db.err:
             self.logger.error(f"Error! cannot open database {db_path}.")
             raise ValueError('Cannot open database')
@@ -72,7 +72,8 @@ class GeoDB:
 
         self.db.set_speed_pragmas()
         self.db_limit = 105
-        self.db.set_params(order_str='', limit_str=f'LIMIT {self.db_limit}')
+        self.db.set_order_string  (order_str='')
+        self.db.set_limit_string(limit_str=f'LIMIT {self.db_limit}')
         self.geoid_main_dict = {}  # Key is GEOID, Value is DB ID for entry
         self.geoid_admin_dict = {}  # Key is GEOID, Value is DB ID for entry
         self.place_type = ''
@@ -95,15 +96,15 @@ class GeoDB:
         # Lookup Place based on Place Type
         if place.place_type == Loc.PlaceType.ADMIN1:
             lookup_type = 'ADMIN1'
-            self.select_admin1(place)
+            self.wide_search_admin1(place)
         elif place.place_type == Loc.PlaceType.ADMIN2:
             lookup_type = 'ADMIN1'
             if place.admin1_id == '':
-                self.get_admin1_id(place=place)
-            self.select_admin2(place)
+                self.wide_search_admin1_id(place=place)
+            self.wide_search_admin2(place)
         elif place.place_type == Loc.PlaceType.COUNTRY:
             lookup_type = 'COUNTRY'
-            self.select_country(place)
+            self.wide_search_country(place)
         elif place.place_type == Loc.PlaceType.ADVANCED_SEARCH:
             self.advanced_search(place)
             lookup_type = 'ADVANCED'
@@ -111,79 +112,17 @@ class GeoDB:
             # Lookup as City
             lookup_type = 'CITY'
             if place.admin2_id == '':
-                self.get_admin2_id(place=place)
-            self.select_city(place)
+                self.wide_search_admin2_id(place=place)
+            self.wide_search_city(place)
 
-        self.logger.debug(f'LOOKUP: {len(place.georow_list)} matches for {lookup_type}  targ={place.target} nm=[{place.get_five_part_title()}]\n')
+        if place.georow_list:
+            self.assign_scores(place, target_feature)
+            self.logger.debug(f'LOOKUP: {len(place.georow_list)} matches for {lookup_type}  targ={place.target} nm=[{place.get_five_part_title()}]\n')
+        else:
+            self.logger.debug(f'LOOKUP. No match:for {lookup_type}  targ={place.target} nm=[{place.get_five_part_title()}]\n')
+            place.georow_list = []
 
-        self.assign_scores(place, target_feature)
-
-    def prefix_cleanup(self, pref, result):
-        new_prfx = pref.lower()
-
-        # Remove result words  from prefix
-        for item in re.split('\W+', result.lower()):
-            if len(item) > 1:
-                new_prfx = re.sub(item, '', new_prfx, count=1)
-
-        return new_prfx
-
-    def assign_scores(self, place, target_feature):
-        result_place: Loc = Loc.Loc()
-
-        min_score = 9999
-        original_prefix = place.prefix + ' ' + place.extra + ' ' + place.target
-
-        # Remove redundant terms in prefix by converting it to dictionary (then back to list)
-        prefix_list = list(dict.fromkeys(original_prefix.split(' ')))
-        original_prefix = ' '.join(list(prefix_list))
-
-        # Add search quality score and prefix to each entry
-        for idx, rw in enumerate(place.georow_list):
-            self.copy_georow_to_place(row=rw, place=result_place)
-            result_place.set_place_type()
-            result_place.original_entry = result_place.format_full_nm(None)
-
-            if len(place.prefix) > 0 and result_place.prefix == '':
-                result_place.prefix = ' '
-                result_place.prefix_commas = ','
-            else:
-                result_place.prefix = ''
-
-            # Remove items in prefix that are in result
-            if place.place_type != Loc.PlaceType.ADVANCED_SEARCH:
-                nm = place.format_full_nm(None)
-                place.prefix = self.prefix_cleanup(original_prefix, nm)
-                new_prfx = place.prefix
-
-                if len(new_prfx) > 0:
-                    new_prfx += ', '
-            else:
-                place.updated_entry = place.format_full_nm(None)
-
-            score = self.match.match_score(inp_place=place, res_place=result_place)
-            if result_place.feature == target_feature:
-                score -= 10
-
-            min_score = min(min_score, score)
-
-            # Convert row tuple to list and extend so we can assign score
-            update = list(rw)
-            update.append(1)
-            update[GeoUtil.Entry.SCORE] = score
-            update[GeoUtil.Entry.PREFIX] = place.prefix
-            place.georow_list[idx] = tuple(update)  # Convert back from list to tuple
-
-        if min_score < MatchScore.EXCELLENT + 2:
-            place.result_type = Result.STRONG_MATCH
-
-        # if place.result_type == Result.STRONG_MATCH and len(place.prefix) > 0:
-        #    place.result_type = Result.PARTIAL_MATCH
-
-        #if place.result_type == Result.STRONG_MATCH and min_score > MatchScore.EXCELLENT:
-        #    place.result_type = Result.PARTIAL_MATCH
-
-    def select_city(self, place: Loc):
+    def wide_search_city(self, place: Loc):
         """
         Search for  entry - try the most exact match first, then less exact matches
         """
@@ -195,6 +134,7 @@ class GeoDB:
             pattern = self.spellcheck.fix_spelling(lookup_target)
         else:
             pattern = lookup_target
+        pattern = self.create_wildcard(pattern)
 
         sdx = get_soundex(lookup_target)
         # self.logger.debug(f'CITY lkp targ=[{lookup_target}] adm1 id=[{place.admin1_id}]'
@@ -209,9 +149,16 @@ class GeoDB:
                                         args=(lookup_target,),
                                         result=Result.PARTIAL_MATCH))
             # lookup by wildcard name
-            query_list.append(Query(where="name LIKE ?",
-                                    args=(pattern,),  # quick_pattern,),
-                                    result=Result.WILDCARD_MATCH))
+            if '%' in pattern:
+                query_list.clear()
+                query_list.append(Query(where="name LIKE ?",
+                                        args=(pattern,),
+                                        result=Result.WILDCARD_MATCH))
+            else:
+                query_list.append(Query(where="name LIKE ?",
+                                        args=(pattern,),
+                                        result=Result.WORD_MATCH))
+
             # lookup by soundex
             query_list.append(Query(where="sdx = ?",
                                     args=(sdx,),
@@ -234,37 +181,47 @@ class GeoDB:
                     result=Result.STRONG_MATCH))
 
             # lookup by wildcard name, ADMIN1, country
-            query_list.append(Query(
-                where="name LIKE ? AND country = ? AND admin1_id = ?",
-                args=(pattern, place.country_iso, place.admin1_id),
-                result=Result.WILDCARD_MATCH))
+            if '%' in pattern:
+                query_list.clear()
+
+                query_list.append(Query(
+                    where="name LIKE ? AND country = ? AND admin1_id = ?",
+                    args=(pattern, place.country_iso, place.admin1_id),
+                    result=Result.WILDCARD_MATCH))
+            else:
+                query_list.append(Query(
+                    where="name LIKE ? AND country = ? AND admin1_id = ?",
+                    args=(pattern, place.country_iso, place.admin1_id),
+                    result=Result.WORD_MATCH))
         else:
             # lookup by wildcard  name, country
-            query_list.append(Query(where="name LIKE ? AND country = ?",
-                                    args=(pattern, place.country_iso),
-                                    result=Result.WILDCARD_MATCH))
+            if '%' in pattern:
+                query_list.clear()
+
+                query_list.append(Query(where="name LIKE ? AND country = ?",
+                                        args=(pattern, place.country_iso),
+                                        result=Result.WILDCARD_MATCH))
+            else:
+                query_list.append(Query(where="name LIKE ? AND country = ?",
+                                        args=(pattern, place.country_iso),
+                                        result=Result.WORD_MATCH))
 
         # Lookup by name, country
         query_list.append(Query(where="name = ? AND country = ?",
                                 args=(lookup_target, place.country_iso),
                                 result=Result.PARTIAL_MATCH))
 
-        if False:
-            # lookup by Soundex name, country and admin1
-            query_list.append(Query(where="sdx = ? AND admin1_id = ? AND country = ?",
-                                    args=(sdx, place.admin1_id, place.country_iso),
-                                    result=Result.SOUNDEX_MATCH))
-        else:
-            # lookup by Soundex name, country
-            query_list.append(Query(where="sdx = ? AND country = ?",
-                                    args=(sdx, place.country_iso),
-                                    result=Result.SOUNDEX_MATCH))
+        # lookup by Soundex name, country
+        query_list.append(Query(where="sdx = ? AND country = ?",
+                                args=(sdx, place.country_iso),
+                                result=Result.SOUNDEX_MATCH))
 
         # Try each query in list
         place.georow_list, place.result_type = self.db.process_query_list(select_string=self.select_str, from_tbl='main.geodata',
                                                                           query_list=query_list)
 
-    def select_admin2(self, place: Loc):
+    def wide_search_admin2(self, place: Loc):
+        query_list = []
         """Search for Admin2 entry"""
         lookup_target = place.admin2_name
         if len(lookup_target) == 0:
@@ -274,25 +231,32 @@ class GeoDB:
             pattern = self.spellcheck.fix_spelling(lookup_target)
         else:
             pattern = lookup_target
+        pattern = self.create_wildcard(pattern)
 
-        # Try Admin query until we find a match - each query gets less exact
-        query_list = [
-            Query(where="name = ? AND country = ? AND admin1_id = ? AND f_code=?",
+        # Try Admin queries and find best match
+        query_list.append(Query(where="name = ? AND country = ? AND admin1_id = ? AND f_code=?",
                   args=(lookup_target, place.country_iso, place.admin1_id, 'ADM2'),
-                  result=Result.STRONG_MATCH),
-            Query(where="name = ? AND country = ? AND f_code=?",
+                  result=Result.STRONG_MATCH))
+        query_list.append(Query(where="name = ? AND country = ? AND f_code=?",
                   args=(lookup_target, place.country_iso, 'ADM2'),
-                  result=Result.PARTIAL_MATCH),
-            Query(where="name LIKE ? AND country = ? AND f_code=?",
+                  result=Result.PARTIAL_MATCH))
+        query_list.append(Query(where="name LIKE ? AND country = ? AND f_code=?",
                   args=(lookup_target, place.country_iso, 'ADM2'),
-                  result=Result.PARTIAL_MATCH),
-            Query(where="name = ?  AND f_code=?",
+                  result=Result.PARTIAL_MATCH))
+        query_list.append(Query(where="name = ?  AND f_code=?",
                   args=(lookup_target, 'ADM2'),
-                  result=Result.PARTIAL_MATCH),
-            Query(where="name LIKE ? AND country = ? AND f_code=?",
-                  args=(pattern, place.country_iso, 'ADM2'),
-                  result=Result.WILDCARD_MATCH)
-        ]
+                  result=Result.PARTIAL_MATCH))
+        if '%' in pattern:
+            query_list.clear()
+
+            query_list.append(Query(where="name LIKE ? AND country = ? AND f_code=?",
+                      args=(pattern, place.country_iso, 'ADM2'),
+                      result=Result.WILDCARD_MATCH))
+        else:
+            query_list.append(Query(
+                where="name LIKE ? AND country = ? AND admin1_id = ?",
+                args=(pattern, place.country_iso, place.admin1_id),
+                result=Result.WORD_MATCH))
 
         # self.logger.debug(f'Admin2 lookup=[{lookup_target}] country=[{place.country_iso}]')
         place.georow_list, place.result_type = self.db.process_query_list(select_string=self.select_str, from_tbl='main.admin', query_list=query_list)
@@ -304,7 +268,7 @@ class GeoDB:
             place.admin2_name = ''
             # self.logger.debug(f'Try admin2 as city: [{place.target}]')
 
-            self.select_city(place)
+            self.wide_search_city(place)
 
             if len(place.georow_list) == 0:
                 #  not found.  restore admin
@@ -320,15 +284,15 @@ class GeoDB:
                     place.admin1_name = ''
                 return
 
-    def select_admin1(self, place: Loc):
+    def wide_search_admin1(self, place: Loc):
         """Search for Admin1 entry"""
         lookup_target = place.admin1_name
 
-        # pattern = self.create_wildcard(lookup_target)
         if self.spellcheck:
             pattern = self.spellcheck.fix_spelling(lookup_target)
         else:
             pattern = lookup_target
+        pattern = self.create_wildcard(pattern)
 
         if len(lookup_target) == 0:
             return
@@ -337,20 +301,28 @@ class GeoDB:
         # self.logger.debug(f'sel adm1 patt={pattern} iso={place.country_iso}')
 
         # Try each query until we find a match - each query gets less exact
-        query_list = [
-            Query(where="name = ? AND country = ? AND f_code = ? ",
+        query_list = []
+        query_list.append(Query(where="name = ? AND country = ? AND f_code = ? ",
                   args=(lookup_target, place.country_iso, 'ADM1'),
-                  result=Result.STRONG_MATCH),
-            Query(where="name LIKE ? AND country = ?  AND f_code = ?",
-                  args=(pattern, place.country_iso, 'ADM1'),
-                  result=Result.WILDCARD_MATCH),
-            Query(where="sdx = ? AND country = ? AND f_code=?",
+                  result=Result.STRONG_MATCH))
+        if '%' in pattern:
+            query_list.clear()
+
+            query_list.append(Query(where="name LIKE ? AND country = ?  AND f_code = ?",
+                      args=(pattern, place.country_iso, 'ADM1'),
+                      result=Result.WILDCARD_MATCH))
+        else:
+            query_list.append(Query(where="name LIKE ? AND country = ?  AND f_code = ?",
+                      args=(pattern, place.country_iso, 'ADM1'),
+                      result=Result.WORD_MATCH))
+
+        query_list.append(Query(where="sdx = ? AND country = ? AND f_code=?",
                   args=(sdx, place.country_iso, 'ADM1'),
-                  result=Result.SOUNDEX_MATCH)
-        ]
+                  result=Result.SOUNDEX_MATCH))
+
         place.georow_list, place.result_type = self.db.process_query_list(select_string=self.select_str, from_tbl='main.admin', query_list=query_list)
 
-    def select_country(self, place: Loc):
+    def wide_search_country(self, place: Loc):
         """Search for Admin1 entry"""
         lookup_target = place.country_iso
         if len(lookup_target) == 0:
@@ -370,31 +342,45 @@ class GeoDB:
         place.georow_list, place.result_type = self.db.process_query_list(select_string=self.select_str, from_tbl='main.admin', query_list=query_list)
         # self.build_result_list(place.georow_list, place.event_year)
 
-    def get_admin1_id(self, place: Loc):
+    def wide_search_admin1_id(self, place: Loc):
         """Search for Admin1 entry"""
         lookup_target = place.admin1_name
+        pattern = self.create_wildcard(lookup_target)
         if len(lookup_target) == 0:
             return
 
         query_list = []
 
-        # Try each query until we find a match - each query gets less exact
+        # Try each query then calculate best match - each query gets less exact
         if place.country_iso == '':
             query_list.append(Query(where="name = ?  AND f_code = ? ",
                                     args=(lookup_target, 'ADM1'),
                                     result=Result.STRONG_MATCH))
 
-            query_list.append(Query(where="name LIKE ? AND f_code = ?",
-                                    args=(lookup_target, 'ADM1'),
-                                    result=Result.WILDCARD_MATCH))
+            if '%' in pattern:
+                query_list.clear()
+
+                query_list.append(Query(where="name LIKE ? AND f_code = ?",
+                                        args=(pattern, 'ADM1'),
+                                        result=Result.WILDCARD_MATCH))
+            else:
+                query_list.append(Query(where="name LIKE ? AND f_code = ?",
+                                        args=(lookup_target, 'ADM1'),
+                                        result=Result.WORD_MATCH))
         else:
             query_list.append(Query(where="name = ? AND country = ? AND f_code = ? ",
                                     args=(lookup_target, place.country_iso, 'ADM1'),
                                     result=Result.STRONG_MATCH))
 
-            query_list.append(Query(where="name LIKE ? AND country = ?  AND f_code = ?",
-                                    args=(lookup_target, place.country_iso, 'ADM1'),
-                                    result=Result.WILDCARD_MATCH))
+            if '%' in pattern:
+                query_list.clear()
+                query_list.append(Query(where="name LIKE ? AND country = ?  AND f_code = ?",
+                                        args=(pattern, place.country_iso, 'ADM1'),
+                                        result=Result.WILDCARD_MATCH ))
+            else:
+                query_list.append(Query(where="name LIKE ? AND country = ?  AND f_code = ?",
+                                        args=(lookup_target, place.country_iso, 'ADM1'),
+                                        result=Result.WORD_MATCH))
 
         query_list.append(Query(where="name = ?  AND f_code = ?",
                                 args=(lookup_target, 'ADM1'),
@@ -410,7 +396,7 @@ class GeoDB:
             if place.country_iso == '':
                 place.country_iso = place.georow_list[0][Entry.ISO]
 
-    def get_admin2_id(self, place: Loc):
+    def wide_search_admin2_id(self, place: Loc):
         """Search for Admin1 entry"""
         lookup_target = place.admin2_name
         if len(lookup_target) == 0:
@@ -556,7 +542,7 @@ class GeoDB:
         else:
             return ''
 
-    def lookup_geoid(self, place: Loc) -> None:
+    def get_geoid(self, place: Loc) -> None:
         """Search for GEOID"""
         result_place: Loc = Loc.Loc()
 
@@ -583,11 +569,11 @@ class GeoDB:
             res_nm = result_place.format_full_nm(None)
             score = 0.0
 
-            # Remove items in prefix that are in result
-            tk_list = res_nm.split(",")
-            for item in tk_list:
-                if len(item) > 0:
-                    place.prefix = re.sub(item.strip(' ').lower(), '', place.prefix, count=1)
+            # Remove any words from Prefix that are in result
+            for item in res_nm.split(","):
+                for word in item.split(' '):
+                    if word in place.prefix and '*' not in word:
+                        place.prefix = re.sub(word, '', place.prefix, 1)
 
             update[GeoUtil.Entry.SCORE] = int(score * 100)
             place.georow_list[idx] = tuple(update)
@@ -750,9 +736,9 @@ class GeoDB:
 
     def create_geoid_index(self):
         # Create indices
-        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS geoid_idx ON geodata(geoid )')
-        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS admgeoid_idx ON admin(geoid  )')
-        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS altnamegeoid_idx ON altname(geoid  )')
+        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS geoid_idx ON geodata(geoid)')
+        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS admgeoid_idx ON admin(geoid)')
+        self.db.create_index(create_table_sql='CREATE INDEX IF NOT EXISTS altnamegeoid_idx ON altname(geoid)')
 
     def create_indices(self):
         # Create indices
@@ -784,7 +770,7 @@ class GeoDB:
             return f'%{pattern}%'
 
     @staticmethod
-    def create_quick_wildcard(pattern):
+    def create_quick_wildcardZZZ(pattern):
         # Create SQL wildcard pattern (convert * to %).  Add % on end
         if '*' in pattern:
             return re.sub(r"\*", "%", pattern)
@@ -884,6 +870,65 @@ class GeoDB:
         # No version table, so this is V1
         self.logger.debug('No version table.  Version is 1')
         return 1
+
+    def prefix_cleanup(self, pref, result):
+        new_prfx = pref.lower()
+
+        # Remove result words  from prefix
+        for item in re.split('\W+', result.lower()):
+            if len(item) > 1:
+                new_prfx = re.sub(item, '', new_prfx, count=1)
+
+        return new_prfx
+
+    def assign_scores(self, place, target_feature):
+        result_place: Loc = Loc.Loc()
+
+        min_score = 9999
+        original_prefix = place.prefix + ' ' + place.extra + ' ' + place.target
+
+        # Remove redundant terms in prefix by converting it to dictionary (then back to list)
+        #prefix_list = list(dict.fromkeys(original_prefix.split(' ')))
+        #original_prefix = ' '.join(list(prefix_list))
+
+        # Add search quality score and prefix to each entry
+        for idx, rw in enumerate(place.georow_list):
+            self.copy_georow_to_place(row=rw, place=result_place)
+            result_place.set_place_type()
+            result_place.original_entry = result_place.format_full_nm(None)
+
+            if len(place.prefix) > 0 and result_place.prefix == '':
+                result_place.prefix = ' '
+                result_place.prefix_commas = ','
+            else:
+                result_place.prefix = ''
+
+            # Remove items in prefix that are in result
+            if place.place_type != Loc.PlaceType.ADVANCED_SEARCH:
+                nm = place.format_full_nm(None)
+                place.prefix = self.prefix_cleanup(original_prefix, nm)
+                new_prfx = place.prefix
+
+                if len(new_prfx) > 0:
+                    new_prfx += ', '
+            else:
+                place.updated_entry = place.format_full_nm(None)
+
+            score = self.match.match_score(target_place=place, result_place=result_place)
+            if result_place.feature == target_feature:
+                score -= 10
+
+            min_score = min(min_score, score)
+
+            # Convert row tuple to list and extend so we can assign score
+            update = list(rw)
+            update.append(1)
+            update[GeoUtil.Entry.SCORE] = score
+            update[GeoUtil.Entry.PREFIX] = place.prefix
+            place.georow_list[idx] = tuple(update)  # Convert back from list to tuple
+
+        if min_score < MatchScore.EXCELLENT + 2:
+            place.result_type = GeoUtil.Result.STRONG_MATCH
 
     def create_tables(self):
         # name, country, admin1_id, admin2_id, lat, lon, f_code, geoid

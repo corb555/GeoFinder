@@ -66,7 +66,7 @@ class SetupCountriesFrame(UtilListboxFrame.ListboxFrame):
         self.tree.heading("pre", text="Code", anchor=tk.W)
 
         self.logger.info('geodatafiles loading')
-        self.geoFiles = GeodataFiles.GeodataFiles(dir_name, None)
+        self.geoFiles = GeodataFiles.GeodataFiles(dir_name, None, enable_spell_checker=False)
         self.logger.info('  geodatafiles initialized')
 
         self.load_handler_all()

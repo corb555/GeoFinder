@@ -182,7 +182,7 @@ class Loc:
                 self.place_type = PlaceType.ADMIN1
                 self.target = self.admin1_name
                 # Lookup Admin1
-                geo_files.geodb.get_admin1_id(self)
+                geo_files.geodb.wide_search_admin1_id(self)
                 if self.admin1_id != '':
                     # self.logger.debug(f'Found admin1 {self.admin1_name}')
                     pass
@@ -329,6 +329,16 @@ class Loc:
         if len(self.prefix) > 0:
             self.place_type = PlaceType.PREFIX
         return self.place_type
+
+    def clean_prefix(self):
+        if self.prefix == '':
+            return
+        # Remove any words from Prefix that are in city, admin1 or admin2
+        for item in [self.city1, self.admin2_name, self.admin1_name]:
+            if len(item) > 0:
+                for word in item.split(' '):
+                    if word in self.prefix and '*' not in word:
+                        self.prefix = re.sub(word, '', self.prefix, 1)
 
     def set_place_type(self):
         # Set place type based on parsing results

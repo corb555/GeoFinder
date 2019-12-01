@@ -65,7 +65,7 @@ class Country:
 
         #  Add country names to DB
         for ky, row in country_dict.items():
-            # Localize country names to specified
+            # Localize country names using trans table
             for lang in self.lang_list:
                 # If we have a translation table for this language, then apply it
                 if trans_table.get(lang):
@@ -78,11 +78,7 @@ class Country:
             # Create Geo_row
             # ('paris', 'fr', '07', '012', '12.345', '45.123', 'PPL')
             geo_row = [None] * GeoDB.Entry.MAX
-            #geo_row[GeoDB.Entry.NAME] = GeoUtil.normalize(ky)
-            #sdx = phonetics.dmetaphone(geo_row[GeoDB.Entry.NAME])
-            #geo_row[GeoDB.Entry.SDX] = sdx[0]
             self.geo_files.update_geo_row_name(geo_row=geo_row, name=ky)
-
             geo_row[GeoDB.Entry.ISO] = row[CnRow.ISO].lower()
             geo_row[GeoDB.Entry.ADM1] = ''
             geo_row[GeoDB.Entry.ADM2] = ''
@@ -158,6 +154,7 @@ country_dict = {
     'Cuba': ('CU', 'CUB', '192', '21.5', '-80'),
     'Cyprus': ('CY', 'CYP', '196', '35', '33'),
     'Czech Republic': ('CZ', 'CZE', '203', '49.75', '15.5'),
+    'Czechoslovakia': ('CZ', 'CZE', '203', '49.75', '15.5'),
     'Denmark': ('DK', 'DNK', '208', '56', '10'),
     'Djibouti': ('DJ', 'DJI', '262', '11.5', '43'),
     'Dominica': ('DM', 'DMA', '212', '15.4167', '-61.333'),

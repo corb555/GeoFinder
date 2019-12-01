@@ -25,6 +25,8 @@ from symspellpy.symspellpy import SymSpell, Verbosity
 
 delim = '_'
 
+noise_words = ['died', 'buried', 'executed', 'fatally', 'wounded']
+
 
 class SpellCheck:
     def __init__(self, progress, directory, countries_dict):
@@ -37,11 +39,12 @@ class SpellCheck:
         self.sym_spell = SymSpell()
 
     def insert(self, name, iso):
-        if 'gothland cemetery' not in name:
+        if 'gothland cemetery' not in name and name not in noise_words:
             name_tokens = name.split(' ')
             for word in name_tokens:
                 key = f'{word}'
-                self.spelling_update[key] += 1
+                if len(key) > 2:
+                    self.spelling_update[key] += 1
 
     def write(self):
         # Create blank spelling dictionary
@@ -57,9 +60,6 @@ class SpellCheck:
 
         # Add all words from geonames into spelling dictionary
         for key in self.spelling_update:
-            #items = key.split(delim)
-            #iso = items[0]
-            #name = items[1]
             self.sym_spell.create_dictionary_entry(key=key, count=self.spelling_update[key])
 
         self.logger.info('Writing Spelling Dictionary')
@@ -83,6 +83,8 @@ class SpellCheck:
 
     def lookup(self, input_term):
         #suggestions = [SymSpell.    SuggestItem]
+        if '*' in input_term:
+            return input_term
         res = ''
         if len(input_term) > 1:
             suggestions = self.sym_spell.lookup(input_term, Verbosity.CLOSEST,

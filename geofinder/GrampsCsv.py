@@ -70,7 +70,7 @@ class GrampsCsv:
     def get_csv_key(self, place):
         # Fill in admin2
         if place.admin2_id == '':
-            self.geodata.geo_files.geodb.get_admin2_id(place)
+            self.geodata.geo_files.geodb.wide_search_admin2_id(place)
         if place.admin2_id == '' and len(place.admin2_name.strip(' ')) > 0:
             place.admin2_id = ' '
         if place.place_type == Loc.PlaceType.COUNTRY:

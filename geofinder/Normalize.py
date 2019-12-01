@@ -34,6 +34,7 @@ def normalize_for_scoring(text: str, iso: str) -> str:
 
 def normalize_for_search(text: str, iso) -> str:
     text = normalize(text=text, remove_commas=False)
+
     return text
 
 
@@ -68,8 +69,10 @@ def _phrase_normalize(text: str) -> str:
     text = re.sub(r' co\.', ' county', text)  # Normalize County
     text = re.sub(r'united states of america', 'usa', text)  # Normalize to USA
     text = re.sub(r'united states', 'usa', text)  # Normalize to USA
-    text = re.sub(r'town of ', '', text)  # Normalize - remove town of
-    text = re.sub(r'city of ', '', text)  # Normalize - remove city of
+    text = re.sub(r'town of ', '', text)  #  - remove town of
+    text = re.sub(r'city of ', '', text)  #  - remove city of
+    text = re.sub(r'near ', ' ', text)  #  - remove near
+
 
     if 'amt' not in text:
         text = re.sub(r'^mt ', 'mount ', text)
@@ -77,52 +80,51 @@ def _phrase_normalize(text: str) -> str:
     text = re.sub('  +', ' ', text)  # Strip multiple space
     text = re.sub('county of ([^,]+)', r'\g<1> county', text)  # Normalize 'Township of X' to 'X Township'
     text = re.sub('township of ([^,]+)', r'\g<1> township', text)  # Normalize 'Township of X' to 'X Township'
+
     text = re.sub('cathedral of ([^,]+)', r'\g<1> cathedral', text)  # Normalize 'Township of X' to 'X Township'
+    text = re.sub('palace of ([^,]+)', r'\g<1> palace', text)  # Normalize 'Township of X' to 'X Township'
+    text = re.sub('castle of ([^,]+)', r'\g<1> castle', text)  # Normalize 'Township of X' to 'X Township'
+
+    text = re.sub(r',castle', ' castle', text)  # - castle  - remove extra comma
+    text = re.sub(r',palace', ' palace', text)  # - palace  - remove extra comma
+    text = re.sub(r',cathedral', ' cathedral', text)  # - palace  - remove extra comma
+
+    text = re.sub(r'battle of ', 'battle of ,', text)  #  - battle of - add comma
+    text = re.sub(r'k. at ', ' ', text)  #  - killed at  - remove extra comma
+    text = re.sub(r'killed ', ' ', text)  #  - killed at  - remove extra comma
     return text
 
 
 def _remove_noise_words(text: str):
-    # Calculate score with noise word removal (or normalization)
+    # Calculate score with noise word removal / normalization
     # inp = re.sub('shire', '', inp)
 
     # Clean up odd case for Normandy American cemetery having only English spelling of Normandy in France
     text = re.sub(r"normandy american ", 'normandie american ', text)
     text = re.sub(r'nouveau brunswick', ' ', text)
     text = re.sub(r'westphalia', 'westfalen', text)
-
     text = re.sub(r'city of ', ' ', text)
     text = re.sub(r'citta metropolitana di ', ' ', text)
     text = re.sub(r'town of ', ' ', text)
     text = re.sub(r'kommune', '', text)
-
     text = re.sub(r"politischer bezirk ", ' ', text)
-
     text = re.sub(r'erry', 'ury', text)
     text = re.sub(r'ery', 'ury', text)
-
     text = re.sub(r'borg', 'burg', text)
     text = re.sub(r'bourg', 'burg', text)
     text = re.sub(r'urgh', 'urg', text)
-
     text = re.sub(r'mound', 'mund', text)
     text = re.sub(r'ourne', 'orn', text)
     text = re.sub(r'ney', 'ny', text)
-
     text = re.sub(r' de ', ' ', text)
     text = re.sub(r' di ', ' ', text)
     text = re.sub(r' du ', ' ', text)
     text = re.sub(r' of ', ' ', text)
     text = re.sub(r' departement', ' ', text)
-
-    """
-    res = re.sub(r' county', ' ', res)
-    res = re.sub(r' stadt', ' ', res)
-    res = re.sub(r'regierungsbezirk ', ' ', res)
-    res = re.sub(r' departement', ' ', res)
-    res = re.sub(r'gemeente ', ' ', res)
-    res = re.sub(r'provincia ', ' ', res)
-    res = re.sub(r'provincie ', ' ', res)
-    """
+    text = re.sub(r'battle of ', 'battle of ,', text)  #  - battle of - add comma
+    text = re.sub(r'k. at ', ' ', text)  #  - killed at  - remove extra comma
+    text = re.sub(r'killed ', ' ', text)  #  - killed at  - remove extra comma
+    text = re.sub(r'royal borough of windsor and maidenhead', 'berkshire', text)
 
     return text
 
@@ -133,6 +135,7 @@ def remove_aliase(input_words, res_words) -> (str, str):
         res_words = re.sub('greater london', '', res_words)
     return input_words, res_words
 
+
 alias_list = {
     'norge': ('norway', '', 'ADM0'),
     'sverige': ('sweden', '', 'ADM0'),
@@ -140,6 +143,7 @@ alias_list = {
     'belgie': ('belgium', '', 'ADM0'),
     'brasil': ('brazil', '', 'ADM0'),
     'danmark': ('denmark', '', 'ADM0'),
+    'eire': ('ireland', '', 'ADM0'),
     'magyarorszag': ('hungary', '', 'ADM0'),
     'italia': ('italy', '', 'ADM0'),
     'espana': ('spain', '', 'ADM0'),
@@ -170,8 +174,9 @@ alias_list = {
     'breconshire': ('sir powys', 'gb', 'ADM2'),
 }
 
-def add_aliases(geo_files:GeodataFiles):
-    #  Add country names to DB
+
+def add_aliases(geo_files: GeodataFiles):
+    #  Add alias names to DB
     place = Loc.Loc()
     for ky in alias_list:
         row = alias_list.get(ky)
@@ -206,14 +211,15 @@ def add_aliases(geo_files:GeodataFiles):
         geo_files.geodb.lookup_place(place)
         if place.result_type in GeoUtil.successful_match and len(place.georow_list) > 0:
             geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
-            #place.format_full_nm(geodata.geo_files.output_replace_dct)
+            # place.format_full_nm(geodata.geo_files.output_replace_dct)
 
         geo_row[GeoDB.Entry.ID] = place.geoid
 
         geo_files.geodb.insert(geo_row=geo_row, feat_code=row[2])
 
+
 def admin1_normalize(admin1_name: str, iso):
-    # res = re.sub(r"'", '', res)  # Normalize hyphens
+    """ Normalize historic or colloquial Admin1 names to standard """
     if iso == 'de':
         admin1_name = re.sub(r'bayern', 'bavaria', admin1_name)
         admin1_name = re.sub(r'westphalia', 'westfalen', admin1_name)
@@ -242,16 +248,13 @@ def admin1_normalize(admin1_name: str, iso):
 
 def admin2_normalize(admin2_name: str, iso) -> (str, bool):
     """
-    Some English counties have had Shire removed from name, try doing that
+    Normalize historic or colloquial Admin2 names to standard
     :param admin2_name:
     :return: (result, modified)
     result - new string
     modified - True if modified
     """
     mod = False
-    # if 'shire' in res:
-    #    res = re.sub('shire', '', res)
-    #   mod = True
 
     if iso == 'gb':
         # res = re.sub(r'middlesex', ' ', res)

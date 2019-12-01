@@ -34,7 +34,7 @@ class Entry:
     FEAT = 6
     ID = 7
     SDX = 8
-    PREFIX = 8  # Note - item 8 is overloaded with Soundex in DB and Prefix for result
+    PREFIX = 8  # Note - item 8 is overloaded:  Soundex in DB and Prefix in result
     SCORE = 9
     MAX = 9
     POP = 14
@@ -42,9 +42,10 @@ class Entry:
 
 class Result:
     # Result codes for lookup
-    STRONG_MATCH = 8
-    MULTIPLE_MATCHES = 7
-    PARTIAL_MATCH = 6
+    STRONG_MATCH = 9
+    MULTIPLE_MATCHES = 8
+    PARTIAL_MATCH = 7
+    WORD_MATCH = 6
     WILDCARD_MATCH = 5
     SOUNDEX_MATCH = 4
     DELETE = 3
@@ -54,7 +55,21 @@ class Result:
 
 
 # Result types that are successful matches
-successful_match = [Result.STRONG_MATCH, Result.PARTIAL_MATCH, Result.WILDCARD_MATCH, Result.SOUNDEX_MATCH, Result.MULTIPLE_MATCHES]
+successful_match = [Result.STRONG_MATCH, Result.PARTIAL_MATCH, Result.WILDCARD_MATCH, Result.WORD_MATCH,
+                    Result.SOUNDEX_MATCH, Result.MULTIPLE_MATCHES]
+
+result_text_list = {
+    Result.STRONG_MATCH: 'Matched! Click Save to accept:',
+    Result.MULTIPLE_MATCHES: ' Multiple matches.  Select one and click Verify or Double-Click',
+    Result.NO_MATCH: 'Not found.  Edit and click Verify.',
+    Result.NOT_SUPPORTED: ' Country is not supported. Skip or Add Country in Config',
+    Result.NO_COUNTRY: 'No Country found.',
+    Result.PARTIAL_MATCH: 'Partial match.  Click Save to accept:',
+    Result.DELETE: 'Empty.  Click Save to delete entry.',
+    Result.WORD_MATCH: 'Word match. Click Save to accept:',
+    Result.WILDCARD_MATCH: 'Wildcard match. Click Save to accept:',
+    Result.SOUNDEX_MATCH: 'Soundex match. Click Save to accept:',
+}
 
 Query = collections.namedtuple('Query', 'where args result')
 

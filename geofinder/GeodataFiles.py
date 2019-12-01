@@ -25,7 +25,7 @@ from collections import namedtuple
 from tkinter import messagebox
 from typing import Dict
 
-import SpellCheck
+#import SpellCheck
 from geofinder import CachedDictionary, Country, GeoDB, GeoUtil, Loc, AlternateNames, UtilFeatureFrame, Normalize
 
 
@@ -85,11 +85,13 @@ class GeodataFiles:
         for item in self.languages_list_dct:
             self.lang_list.append(item)
 
+        """
         if self.enable_spell_checker:
             self.spellcheck:SpellCheck.SpellCheck = SpellCheck.SpellCheck(progress=self.progress_bar,directory=sub_dir,
                                                     countries_dict=self.supported_countries_dct)
         else:
-            self.spellcheck = None
+        """
+        self.spellcheck = None
 
         # Read in dictionary listing output text replacements
         self.output_replace_cd = CachedDictionary.CachedDictionary(sub_dir, "output_list.pkl")
@@ -209,6 +211,9 @@ class GeodataFiles:
 
         # Put in country data
         self.country.read()
+
+        # Put in historic data
+        self.read_historic()
 
         start_time = time.time()
 
@@ -369,3 +374,30 @@ class GeodataFiles:
     def close(self):
         if self.geodb:
             self.geodb.close()
+
+    def read_historic(self):
+        #  Add historic names to DB
+        for ky in historic_names:
+            # Create Geo_row
+            # ('paris', 'fr', '07', '012', '12.345', '45.123', 'PPL')
+            row = historic_names[ky]
+            geo_row = [None] * GeoDB.Entry.MAX
+            self.update_geo_row_name(geo_row=geo_row, name=ky)
+            geo_row[GeoDB.Entry.ISO] = row[0].lower()
+            geo_row[GeoDB.Entry.ADM1] = ''
+            geo_row[GeoDB.Entry.ADM2] = ''
+            geo_row[GeoDB.Entry.LAT] = row[3]
+            geo_row[GeoDB.Entry.LON] = row[4]
+            geo_row[GeoDB.Entry.FEAT] = row[1]
+            geo_row[GeoDB.Entry.ID] = 'HIST'
+
+            self.geodb.insert(geo_row=geo_row, feat_code=row[1])
+
+historic_names = {
+        # Name : 0ISO Country, 1Feat, 2num, 3lat, 4lon
+        'Arabia': ('XA', 'PPLL', '4', '25', '45'),
+        'Mecca': ('SA', 'PPL', '4', '25', '45'),
+    'Zion': ('IL', 'PPL', '4', '31.5', '34.75'),
+}
+
+

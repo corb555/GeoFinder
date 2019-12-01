@@ -63,7 +63,6 @@ class AncestryFile:
         self.date = ''
         self.abt_flag = False
 
-
         if self.out_suffix != '':
             # Create an output file with same name with suffix appended
             self.outfile = open(self.out_path, "w",
@@ -164,6 +163,7 @@ class AncestryFile:
         self.infile.close()
         if self.outfile is not None:
             self.outfile.close()
+        self.logger.debug(f'Closed Ancestry input and output files')
 
         #out_path = f"{self.in_path}.{self.out_suffix}"
         #if len (out_path) > 10:

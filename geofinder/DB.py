@@ -20,6 +20,7 @@ import logging
 import sqlite3
 import sys
 import time
+from datetime import timedelta
 from tkinter import messagebox
 
 from geofinder.GeoUtil import Query, Result, Entry
@@ -30,13 +31,22 @@ class DB:
     Sqlite3  helper functions
     """
 
-    def __init__(self, db_filename: str):
+    def __init__(self, db_filename: str, show_message: bool, exit_on_error: bool):
+        """
+
+        :param db_filename: Database filename
+        :param show_message: If true, show messagebox to user on errors
+        :param exit_on_error: If true,  sys exit on significant errors
+        """
         self.logger = logging.getLogger(__name__)
         self.order_str = ''
         self.limit_str = ''
         self.cur = None
         self.total_time = 0
+        self.total_lookups = 0
         self.use_wildcards = True
+        self.show_message = show_message
+        self.exit_on_error = exit_on_error
 
         # create a database connection
         self.conn = self.connect(db_filename=db_filename)
@@ -46,7 +56,6 @@ class DB:
             raise ValueError('Cannot open database')
         else:
             self.err = False
-            self.conn.isolation_level = None
 
     def connect(self, db_filename: str):
         """ create a database connection to the SQLite database
@@ -59,14 +68,18 @@ class DB:
             self.logger.info(f'DB {db_filename} connected')
             return conn
         except Exception as e:
-            messagebox.showwarning('Error', f'Database Connection Error\n {e}')
+            if self.show_message:
+                messagebox.showwarning('Error', f'Database Connection Error\n {e}')
             self.err = True
             self.logger.error(e)
             sys.exit()
 
-    def set_params(self, order_str: str, limit_str: str):
-        # Set values for SELECT, ORDER BY, and LIMIT
+    def set_order_string(self, order_str: str):
+        # Set values for  ORDER BY
         self.order_str = order_str
+
+    def set_limit_string(self, limit_str: str):
+        # Set values for  LIMIT
         self.limit_str = limit_str
 
     def set_pragma(self, pragma: str):
@@ -85,19 +98,20 @@ class DB:
             self.conn.commit()
             self.logger.info(f'Create DB table {create_table_sql[27:36]}')  # Lazy attempt to get table name for logging
         except Exception as e:
-            messagebox.showwarning('Error', e)
+            if self.show_message:
+                messagebox.showwarning('Error', e)
             self.err = True
             self.logger.error(e)
             sys.exit()
 
     def create_index(self, create_table_sql: str):
-        #self.logger.debug(f'Create idx {create_table_sql}')
         try:
             c = self.conn.cursor()
             c.execute(create_table_sql)
             self.conn.commit()
         except Exception as e:
-            messagebox.showwarning('Error', e)
+            if self.show_message:
+                messagebox.showwarning('Error', e)
             self.err = True
             self.logger.error(e)
             sys.exit()
@@ -108,7 +122,8 @@ class DB:
             # noinspection SqlWithoutWhere
             cur.execute(f'DELETE FROM {tbl}')
         except Exception as e:
-            messagebox.showwarning('Error', f'Database delete table error\n {e}')
+            if self.show_message:
+                messagebox.showwarning('Error', f'Database delete table error\n {e}')
             self.err = True
             self.logger.error(e)
             sys.exit()
@@ -125,16 +140,15 @@ class DB:
         self.cur.execute('BEGIN')
 
     def execute(self, sql, args):
-        # try:
-        if True:
+        try:
             self.cur.execute(sql, args)
-        """
         except Exception as e:
-            messagebox.showwarning('Error', f'{DB_CORRUPT_MSG}\n {e}')
+            if self.show_message:
+                messagebox.showwarning('Error', f'Database Error\n {e}')
             self.err = True
             self.logger.error(e)
-            sys.exit()
-        """
+            #sys.exit()
+
         return self.cur.lastrowid
 
     def commit(self):
@@ -142,23 +156,27 @@ class DB:
         self.cur.execute("commit")
 
     def select(self, select_str, where, from_tbl, args):
-        error = False
         cur = self.conn.cursor()
         sql = f"SELECT {select_str} FROM {from_tbl} WHERE {where} {self.order_str} {self.limit_str}"
         try:
             cur.execute(sql, args)
             result_list = cur.fetchall()
         except Exception as e:
-            messagebox.showwarning('Error', f'Database select error\n\n'
+            if self.show_message:
+                messagebox.showwarning('Error', f'Database select error\n\n'
             f'SELECT\n {select_str}\n FROM {from_tbl} WHERE\n {where}\n'
             f'{args}\n\n {e}')
             self.err = True
             self.logger.error(e)
-            error = True
             sys.exit()
         return result_list
 
-    def table_exists(self, table_name):
+    def table_exists(self, table_name)->bool:
+        """
+        Determine if table exists
+        :param table_name:
+        :return: True if table exists
+        """
         # SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';
         where = "type=? AND name=?"
         from_tbl = 'sqlite_master'
@@ -167,16 +185,13 @@ class DB:
 
         cur = self.conn.cursor()
 
-        # See if  Table exists.  If it does not, then the version is 1.0
+        # See if  Table exists.
         sql = f"SELECT {select_str} FROM {from_tbl} WHERE {where} {self.order_str} {self.limit_str}"
 
-        #self.logger.debug(f'{table_name} sql={sql} args=[{args}]')
         try:
             cur.execute(sql, args)
             res = cur.fetchall()
-            #self.logger.debug(f'DB {table_name} tbl: {res}')
             if len(res) > 0:
-                #self.logger.debug(f'{table_name} table exists')
                 return True
             else:
                 self.logger.debug(f'{table_name} table NOT FOUND')
@@ -186,6 +201,11 @@ class DB:
             return False
 
     def test_database(self, from_tbl: str):
+        """
+        Execute a test query on database
+        :param from_tbl:
+        :return:
+        """
         where = 'name = ? AND country = ?'
         args = ('ba', 'fr')
 
@@ -204,15 +224,14 @@ class DB:
 
     def process_query_list(self, select_string, from_tbl: str, query_list: [Query]):
         # Perform each query in list
-        row_list = None
-        #result = None
+        row_list = []
         result_type = Result.NO_MATCH
         for query in query_list:
             # During shutdown, wildcards are turned off since there is no UI to verify results
             if self.use_wildcards == False and (query.result == Result.WILDCARD_MATCH or query.result == Result.SOUNDEX_MATCH):
                 continue
             start = time.time()
-            if query.result == Result.WILDCARD_MATCH:
+            if query.result == Result.WORD_MATCH:
                 result_list = self.word_match(select_string, query.where, from_tbl,
                                          query.args)
             else:
@@ -228,8 +247,10 @@ class DB:
 
             elapsed = time.time() - start
             self.total_time += elapsed
-            if elapsed > 5:
-                self.logger.debug(f'[{elapsed:.4f}] [{self.total_time:.1f}] len {len(row_list)} from {from_tbl} '
+            self.total_lookups += 1
+            if elapsed > .001:
+                self.logger.debug(f'Time={elapsed:.6f} TOT={self.total_time:.1f} '
+                                  f'len {len(row_list)} from {from_tbl} '
                                   f'where {query.where} val={query.args} ')
             if len(row_list) > 50:
                 break
@@ -282,6 +303,7 @@ class DB:
     def set_speed_pragmas(self):
         # Set DB pragmas for speed.  These can lead to corruption!
         self.logger.info('Database pragmas set for speed')
+        self.conn.isolation_level = None
         for txt in ['PRAGMA temp_store = memory',
                     'PRAGMA journal_mode = off',
                     'PRAGMA locking_mode = exclusive',

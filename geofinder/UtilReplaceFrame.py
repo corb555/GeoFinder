@@ -37,7 +37,7 @@ class SetupReplaceFrame(UtilListboxFrame.ListboxFrame):
 
     def __init__(self, frame, title: str, dir_name: str, cache_filename: str):
         # Initialize GEO database
-        self.geodb = GeoDB.GeoDB(os.path.join(dir_name, 'geodata.db'), None)
+        self.geodb = GeoDB.GeoDB(db_path=os.path.join(dir_name, 'geodata.db'), version=None, spellcheck=None)
 
         # Read in dictionary listing output text replacements
         self.output_replace_cd = CachedDictionary(dir_name, "output_list.pkl")
@@ -61,7 +61,7 @@ class SetupReplaceFrame(UtilListboxFrame.ListboxFrame):
                 self.logger.debug(f'blank item=[{item}] rep=[{replacement}]')
                 continue
             place.target = rep_token[GEOID_TOKEN]
-            self.geodb.lookup_geoid(place=place)
+            self.geodb.get_geoid(place=place)
 
             if len(place.georow_list) > 0:
                 # Copy geo row to Place
