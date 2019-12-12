@@ -23,7 +23,7 @@ import time
 import unittest
 from pathlib import Path
 
-from geofinder import Geodata, GeoUtil, Loc, SpellCheck
+from geodata import GeoUtil, Geodata, Loc
 
 halifax_lat = 44.646
 bruce_cty_lat = 44.50009
@@ -51,7 +51,8 @@ class TestGeodata(unittest.TestCase):
         # Load test data
         directory = os.path.join(str(Path.home()), "geoname_test")
         cache_directory = os.path.join(directory, 'cache')
-        TestGeodata.geodata = Geodata.Geodata(directory_name=directory, progress_bar=None, enable_spell_checker = True)
+        TestGeodata.geodata = Geodata.Geodata(directory_name=directory, progress_bar=None, enable_spell_checker = True,
+                                              show_message=True, exit_on_error=False)
         error: bool = TestGeodata.geodata.read()
         if error:
             logger.error("Missing geodata support Files.")
@@ -86,9 +87,9 @@ class TestGeodata(unittest.TestCase):
             TestGeodata.geodata.process_result(place=self.place, flags=flags)
             self.place.set_place_type()
 
-            nm = f'{self.place.format_full_nm(TestGeodata.geodata.geo_files.output_replace_dct)}'
+            nm = f'{self.place.get_long_name(TestGeodata.geodata.geo_files.output_replace_dct)}'
             print(f'Found pre=[{self.place.prefix}{self.place.prefix_commas}] Nam=[{nm}]')
-            return float(lat), GeoUtil.capwords(self.place.prefix)+self.place.prefix_commas+nm
+            return float(lat), GeoUtil.capwords(self.place.prefix) + self.place.prefix_commas + nm
         else:
             return float(lat), 'NO MATCH'
 

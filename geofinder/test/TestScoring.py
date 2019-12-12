@@ -24,7 +24,7 @@ import time
 import unittest
 from pathlib import Path
 
-from geofinder import Loc, MatchScore, Geodata, GeoUtil
+from geodata import GeoUtil, Geodata, Loc, MatchScore
 
 
 class TestScoring(unittest.TestCase):
@@ -92,7 +92,8 @@ class TestScoring(unittest.TestCase):
 
         # Load test data
         directory = os.path.join(str(Path.home()), "geoname_test")
-        TestScoring.geodata = Geodata.Geodata(directory_name=directory, progress_bar=None, enable_spell_checker=False)
+        TestScoring.geodata = Geodata.Geodata(directory_name=directory, progress_bar=None, enable_spell_checker=False,
+                                              show_message=True, exit_on_error=False)
         error: bool = TestScoring.geodata.read()
         if error:
             TestScoring.logger.error("Missing geodata support Files.")

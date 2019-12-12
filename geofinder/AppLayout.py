@@ -25,8 +25,8 @@ from typing import List
 import pkg_resources
 
 import geofinder.AppStyle as GFStyle
-import geofinder.TKHelper
-from geofinder import Progress, Tooltip
+from tk_helper import TKHelper
+from util import Tooltip
 
 # Columns for widgets:
 # [0 PADDING]  [1 TEXT    with span 2]  [3 Buttons]
@@ -72,11 +72,12 @@ class AppLayout:
 
     def create_initialization_widgets(self):
         """ Create the  widgets for display during initialization  (File open)  """
-        self.pad: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
-        self.title: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="GEO FINDER", width=30, style='Large.TLabel')
-        self.original_entry: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text=" ", width=50, style='Info.TLabel')
-        self.status: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
-        self.prog: Progress.Progress = Progress.Progress(self.root, bar_color=GFStyle.HIGH_COLOR, trough_color=GFStyle.LT_GRAY, status=self.status)
+        self.pad: TKHelper.CLabel = TKHelper.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
+        self.title: TKHelper.CLabel = TKHelper.CLabel(self.root, text="GEO FINDER", width=30, style='Large.TLabel')
+        self.original_entry: TKHelper.CLabel = TKHelper.CLabel(self.root, text=" ", width=50, style='Info.TLabel')
+        self.status: TKHelper.CLabel = TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
+        self.prog: TKHelper.Progress = TKHelper.Progress(self.root, bar_color=GFStyle.HIGH_COLOR, trough_color=GFStyle.LT_GRAY,
+                                                         status=self.status, length=400)
         self.quit_button: ttk.Button = ttk.Button(self.root, text="quit", command=self.main.shutdown,
                                                   width=GFStyle.BTN_WID_WD, image=self.images['exit'], compound="left")
         self.load_button: ttk.Button = ttk.Button(self.root, text="open", command=self.main.load_handler,
@@ -108,15 +109,14 @@ class AppLayout:
 
         self.initialization_buttons: List[ttk.Button] = [self.quit_button, self.load_button, self.choose_button, self.config_button]
         # disable all buttons and the app will enable appropriate ones
-        geofinder.TKHelper.TKHelper.disable_buttons(button_list=self.initialization_buttons)
+        TKHelper.disable_buttons(button_list=self.initialization_buttons)
+        self.config_button.config(state="normal")
 
     def remove_initialization_widgets(self):
-        #self.w.original_entry.set_text("")
         self.original_entry.destroy()
         self.title.destroy()
         self.prog.bar.destroy()
         self.status.destroy()
-
         self.load_button.destroy()
         self.choose_button.destroy()
         self.quit_button.destroy()
@@ -124,28 +124,27 @@ class AppLayout:
 
     def create_review_widgets(self):
         """ Create all the buttons and entry fields for normal running """
-        self.root.protocol("WM_DELETE_WINDOW", self.main.quit_handler)
+        self.root.protocol("WM_DELETE_WINDOW", self.main.quit_handler)   # Handle close window event
 
-        self.pad: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
-        self.title: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="GEO FINDER", width=40, style='Large.TLabel')
+        self.pad: TKHelper.CLabel = TKHelper.CLabel(self.root, text=" ", width=2, style='Light.TLabel')
+        self.title: TKHelper.CLabel = TKHelper.CLabel(self.root, text="GEO FINDER", width=40, style='Large.TLabel')
 
-        self.original_entry: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="   ", width=GFStyle.TXT_WID, style='Light.TLabel')
-        self.user_entry: geofinder.TKHelper.CEntry = geofinder.TKHelper.CEntry(self.root, text="   ",
+        self.original_entry: TKHelper.CLabel = TKHelper.CLabel(self.root, text="   ", width=GFStyle.TXT_WID, style='Light.TLabel')
+        self.user_entry: TKHelper.CEntry = TKHelper.CEntry(self.root, text="   ",
                         width=GFStyle.TXT_WID, font=(GFStyle.FNT_NAME, 14))
-        self.status: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
-        self.prefix: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Highlight.TLabel')
+        self.status: TKHelper.CLabel = TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Good.TLabel')
+        self.prefix: TKHelper.CLabel = TKHelper.CLabel(self.root, width=GFStyle.TXT_WID, style='Highlight.TLabel')
 
         # User fix statistics
-        self.statistics_text: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="",
+        self.statistics_text: TKHelper.CLabel = TKHelper.CLabel(self.root, text="",
                                                                                     width=GFStyle.TXT_WID,
                                                                                   style='Light.TLabel')
 
         # Treeview (list box)
         self.tree_scrollbar = ttk.Scrollbar(self.root)
 
-        self.tree = ttk.Treeview(self.root, style="Plain.Treeview", selectmode="browse")
-        self.tree.tag_configure('odd', background=GFStyle.ODD_ROW_COLOR)
-        self.tree.tag_configure('even', background='white')
+        self.tree = TKHelper.CTreeView(root=self.root, styl="Plain.Treeview", mode="browse",
+                                                 odd_background=GFStyle.ODD_ROW_COLOR, even_background='white')
 
         self.tree["columns"] = ("pre","id","score", "feat")
         self.tree["displaycolumns"] = ("pre","score", "feat")
@@ -169,11 +168,12 @@ class AppLayout:
         self.tree_scrollbar.config(command=self.tree.yview)
         self.tree.bind("<Double-1>", self.main.doubleclick_handler)
 
-        self.ged_event_info: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text=" ", width=GFStyle.TXT_WID, style='Light.TLabel')
-        self.footnote: geofinder.TKHelper.CLabel = geofinder.TKHelper.CLabel(self.root, text="Data is from GeoNames.org.",
+        self.ged_event_info: TKHelper.CLabel = TKHelper.CLabel(self.root, text=" ", width=GFStyle.TXT_WID, style='Light.TLabel')
+        self.footnote: TKHelper.CLabel = TKHelper.CLabel(self.root, text="Data is from GeoNames.org.",
                                                                              width=GFStyle.TXT_WID, style='Light.TLabel')
 
-        self.prog: Progress.Progress = Progress.Progress(self.root, bar_color=GFStyle.HIGH_COLOR, trough_color=GFStyle.LT_GRAY, status=self.status)
+        self.prog: TKHelper.Progress = TKHelper.Progress(self.root, bar_color=GFStyle.HIGH_COLOR, trough_color=GFStyle.LT_GRAY,
+                                                         status=self.status, length=400)
 
         self.search_button: ttk.Button = ttk.Button(self.root, text="search", command=self.main.search_handler,
                                                     width=GFStyle.BTN_WID, image=self.images['search'], compound="left")
@@ -189,7 +189,6 @@ class AppLayout:
                                                   width=GFStyle.BTN_WID, image=self.images['help'], compound="left")
         self.quit_button: ttk.Button = ttk.Button(self.root, text=" quit", command=self.main.quit_handler,
                                                   width=GFStyle.BTN_WID, image=self.images['exit'], compound="left")
-
 
         # Set grid layout for padding column widget - just pads out left column
         self.pad.grid(column=PAD_COL, row=0, padx=GFStyle.PAD_PADX, pady=0, sticky="EW")
@@ -214,8 +213,6 @@ class AppLayout:
         self.search_button.grid(column=BTN_COL, row=1, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
         self.verify_button.grid(column=BTN_COL, row=2, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
         self.save_button.grid(column=BTN_COL, row=4, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
-
-
         self.skip_button.grid(column=BTN_COL, row=10, padx=GFStyle.BTN_PADX, pady=6, sticky="E")
         self.help_button.grid(column=BTN_COL, row=11, padx=GFStyle.BTN_PADX, pady=5, sticky="E")
         self.quit_button.grid(column=BTN_COL, row=12, padx=GFStyle.BTN_PADX, pady=6, sticky="SE")
@@ -245,5 +242,3 @@ class AppLayout:
                                                  self.skip_button, self.map_button, self.help_button]
 
         self.root.update()
-
-

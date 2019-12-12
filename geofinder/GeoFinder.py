@@ -19,8 +19,8 @@
 import argparse
 import copy
 import glob
-import logging
 import os
+import re
 import sys
 import time
 import webbrowser
@@ -29,12 +29,16 @@ from pathlib import Path
 from tkinter import filedialog
 from tkinter import messagebox
 
-from geofinder import Geodata, GeoUtil, Config, Gedcom, Loc, AppLayout, UtilLayout, GrampsXml, Normalize
+from tk_helper import TKHelper
+from geofinder import AppLayout
+from util import Config
+from ancestry import Gedcom, GrampsXml
+from util_menu import UtilLayout
+from geodata import Geodata, GeoUtil, Loc, Normalize
 from geofinder import __version__
-from geofinder.CachedDictionary import CachedDictionary
-from geofinder.Geodata import ResultFlags
-from geofinder.IniHandler import IniHandler
-from geofinder.TKHelper import TKHelper
+from util.CachedDictionary import CachedDictionary
+from geodata.Geodata import ResultFlags
+from util.IniHandler import IniHandler
 
 MISSING_FILES = 'Missing Files.  Please select Config and correct errors in Errors Tab'
 file_types = 'GEDCOM / Gramps XML'
@@ -89,7 +93,6 @@ class GeoFinder:
         self.matched_count = 0
         self.review_count = 0
         self.skip_count = 0
-        self.odd = False
         self.ancestry_file_handler = None
         self.place = None
         self.skiplist = None
@@ -100,46 +103,18 @@ class GeoFinder:
         self.in_diag_file = None
         self.enable_spell_checker = False
 
-        # initiate the parser
-        parser = argparse.ArgumentParser()
-        parser.add_argument("--logging", help="info - Enable quiet logging")
-        parser.add_argument("--diagnostics", help="on - Create xx.input.txt and xx.output.txt diagnostics files")
-        parser.add_argument("--spellcheck", help="on - Enable spellchecker")
-
-        # read arguments from the command line
-        args = parser.parse_args()
-
-        # check for --verbose switch
-        if args.logging == 'info':
-            self.logger = self.setup_logging_info('geofinder Init')
-            self.logger.info(f"--logging set to INFO logging {args.logging}")
-        else:
-            self.logger = self.setup_logging('geofinder Init')
-
-        # check for --diagnostics switch
-        if args.diagnostics == 'on':
-            self.logger.info(f"--diagnostics files enabled {args.diagnostics}")
-            self.diagnostics = True
-        else:
-            self.diagnostics = False
-
-        # check for --spellcheck switch
-        if args.spellcheck == 'on':
-            self.logger.info(f"--spellchecking enabled {args.spellcheck}")
-            self.enable_spell_checker = True
-        else:
-            self.enable_spell_checker = False
+        # get command line arguments
+        self.get_command_line_arguments()
 
         # Create App window and configure  window buttons and widgets
         self.w: AppLayout.AppLayout = AppLayout.AppLayout(self)
         self.w.create_initialization_widgets()
-        self.w.config_button.config(state="normal")
 
         # Get our base directory path from INI file.  Create INI if it doesnt exist
         home_path = str(Path.home())
-        self.directory = Path(os.path.join(home_path, GeoUtil.get_directory_name()))
-        self.ini_handler = IniHandler(home_path=home_path, ini_name='geofinder.ini')
-        self.directory = self.ini_handler.get_directory_from_ini()
+        self.directory = Path(os.path.join(home_path, str(GeoUtil.get_directory_name())))
+        self.ini_handler = IniHandler(base_path=home_path, ini_name='geofinder.ini')
+        self.directory = self.ini_handler.get_directory_from_ini("GeoFinder", GeoUtil.get_directory_name())
 
         self.cache_dir = GeoUtil.get_cache_directory(self.directory)
         self.logger.info(f'Cache directory {self.cache_dir}')
@@ -171,7 +146,7 @@ class GeoFinder:
             if err:
                 # Missing files
                 self.logger.warning('Missing files')
-                self.w.status.set_text("Click Config to set up Geo Finder")
+                self.w.status.text = "Click Config to set up Geo Finder"
                 TKHelper.set_preferred_button(self.w.config_button, self.w.initialization_buttons, "Preferred.TButton")
                 self.w.load_button.config(state="disabled")
             else:
@@ -181,28 +156,28 @@ class GeoFinder:
                 if err:
                     self.logger.warning('error reading {} config.pkl'.format(self.cache_dir))
 
-                self.w.original_entry.set_text(self.cfg.get("gedcom_path"))
+                self.w.original_entry.text = self.cfg.get("gedcom_path")
                 TKHelper.enable_buttons(self.w.initialization_buttons)
                 if os.path.exists(self.cfg.get("gedcom_path")):
                     #  file is valid.  Prompt user to click Open for  file
-                    self.w.status.set_text(f"Click Open to load {file_types} file")
+                    self.w.status.text = f"Click Open to load {file_types} file"
                     TKHelper.set_preferred_button(self.w.load_button, self.w.initialization_buttons, "Preferred.TButton")
                 else:
                     # No file.  prompt user to select a  file - GEDCOM file name isn't valid
-                    self.w.status.set_text(f"Choose a {file_types} file")
+                    self.w.status.text = f"Choose a {file_types} file"
                     self.w.load_button.config(state="disabled")
                     TKHelper.set_preferred_button(self.w.choose_button, self.w.initialization_buttons, "Preferred.TButton")
         else:
             # Missing directories
             self.logger.warning('Directories not found: {} '.format(self.cache_dir))
-            self.w.status.set_text("Click Config to set up Geo Finder")
+            self.w.status.text = "Click Config to set up Geo Finder"
             self.w.load_button.config(state="disabled")
             TKHelper.set_preferred_button(self.w.config_button, self.w.initialization_buttons, "Preferred.TButton")
 
         # Flag to indicate whether we are in startup or in Window loop.  Determines how window idle is called
-        self.startup = False
+        self.starting = False
 
-        self.w.title.set_text(f'GEO FINDER v{__version__.__version__}')
+        self.w.title.text = f'GEO FINDER v{__version__.__version__}'
         self.w.root.mainloop()  # ENTER MAIN LOOP and Wait for user to click on load button
 
     def load_data_files(self) -> bool:
@@ -227,7 +202,8 @@ class GeoFinder:
 
         # Initialize geo data
         self.geodata = Geodata.Geodata(directory_name=self.directory, progress_bar=self.w.prog,
-                                       enable_spell_checker=self.enable_spell_checker)
+                                       enable_spell_checker=self.enable_spell_checker,
+                                       show_message=True, exit_on_error=True)
         error = self.geodata.read()
         if error:
             TKHelper.fatal_error(MISSING_FILES)
@@ -247,11 +223,11 @@ class GeoFinder:
 
     def load_handler(self):
         """
-        User pressed LOAD button to load an Ancestry file. Switch app display to the Review Widgets layout
+        The User pressed the LOAD button to load an Ancestry file. Switch app display to the Review Widgets layout
         Load in file name and call handle_place_entry()
         :return:
         """
-        self.w.original_entry.set_text("")
+        self.w.original_entry.text = ""
         self.w.remove_initialization_widgets()  # Remove old widgets
         self.w.create_review_widgets()  # Switch display from Initial widgets to main review widgets
 
@@ -259,7 +235,7 @@ class GeoFinder:
 
         ged_path = self.cfg.get("gedcom_path")  # Get saved config setting for  file
 
-        # Load appropriate handler based on file type
+        # Load appropriate handler based on file type (Gramps XML or GEDCOM)
         if ged_path is not None:
             if '.ged' in ged_path:
                 # GEDCOM
@@ -279,7 +255,7 @@ class GeoFinder:
         self.out_diag_file = open(ged_path + '.output.txt', 'wt')
         self.in_diag_file = open(ged_path + '.input.txt', 'wt')
         miss_diag_fname = ged_path + '.miss.txt'
-        self.geodata.open_diag_fname(miss_diag_fname)
+        self.geodata.open_diag_file(miss_diag_fname)
 
         if self.ancestry_file_handler.error:
             TKHelper.fatal_error(f"File {ged_path} not found.")
@@ -290,15 +266,15 @@ class GeoFinder:
 
         # Add  filename to Title
         path_parts = os.path.split(ged_path)  # Extract filename from full path
-        self.w.title.set_text(f'GEO FINDER v{__version__.__version__} - {path_parts[1]}')
+        self.w.title.text = f'GEO FINDER v{__version__.__version__} - {path_parts[1]}'
 
         # Read  file, find each place entry and handle it.
-        self.w.user_entry.set_text("Scanning to previous position...")
+        self.w.user_entry.text = "Scanning to previous position..."
         self.handle_place_entry()
 
     def handle_place_entry(self):
         """ Get next PLACE in users  File.  Replace it, skip it, or have user correct it. """
-        self.w.original_entry.set_text("")
+        self.w.original_entry.text = ""
 
         if self.w.prog.shutdown_requested:
             self.periodic_update("Shutting down...")
@@ -307,12 +283,13 @@ class GeoFinder:
         self.clear_detail_text(self.place)
 
         while True:
+            # Keep reading place entries until we need User review or reach End Of File
             self.update_counter += 1  # Counter is used to periodically update
             # Update statistics
             self.update_statistics()
 
             # Find the next PLACE entry in  file
-            # Process it and keep looping until we need user input
+            # Process it and keep looping until we need user review
             self.place.clear()
             town_entry, eof, rec_id = self.ancestry_file_handler.get_next_place()
             self.place.updated_entry = town_entry
@@ -327,7 +304,7 @@ class GeoFinder:
             replacement_geoid = self.get_replacement(self.global_replace, town_entry, self.place)
 
             if replacement_geoid is not None:
-                # In GLOBAL REPLACE LIST - There is a already a global change that we can apply to this line.
+                # There is a already a global change that we can apply to this entry.
                 self.matched_count += 1
 
                 if self.place.result_type == GeoUtil.Result.STRONG_MATCH:
@@ -345,10 +322,11 @@ class GeoFinder:
                 elif self.place.result_type == GeoUtil.Result.DELETE:
                     continue
                 else:
+                    # We previously found an update, but the GEOID for replacement can no longer be found
                     self.logger.warning(f'***ERROR looking up GEOID=[{replacement_geoid}] for [{town_entry}] ')
                     self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
-                    self.w.original_entry.set_text(f'** DATABASE ERROR FOR GEOID=[{replacement_geoid}] for [{town_entry}]')
-                    self.w.user_entry.set_text(f'{town_entry}')
+                    self.w.original_entry.text = f'** DATABASE ERROR FOR GEOID=[{replacement_geoid}] for [{town_entry}]'
+                    self.w.user_entry.text = f'{town_entry}'
                     self.geodata.find_location(town_entry, self.place, self.w.prog.shutdown_requested)
                     break
                 continue
@@ -359,13 +337,13 @@ class GeoFinder:
                 self.ancestry_file_handler.write_asis(town_entry)
                 continue
             else:
-                # Found a  PLACE entry that we don't have a global replace or skip for
-                # See if it is in our place database
+                # Found a  PLACE entry that we don't already have a global replace or skip for
+                # See if it is in the place database
                 self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
                 self.geodata.find_location(town_entry, self.place, self.w.prog.shutdown_requested)
 
                 if self.place.result_type in GeoUtil.successful_match:
-                    # FOUND A MATCH in database
+                    # FOUND A MATCH
                     if self.place.result_type == GeoUtil.Result.STRONG_MATCH:
                         # FOUND STRONG MATCH - no user verification needed
                         self.matched_count += 1
@@ -393,7 +371,7 @@ class GeoFinder:
                             # User requested shutdown - so no user interaction.  Write this item out as-is
                             self.review_count += 1
                             self.periodic_update("Creating Import...")
-                            self.w.original_entry.set_text(" ")
+                            self.w.original_entry.text = " "
                             self.ancestry_file_handler.write_asis(town_entry)
                             continue
                         else:
@@ -401,8 +379,8 @@ class GeoFinder:
                             self.logger.debug(f'user review for {town_entry} res= [{self.place.result_type}] ')
 
                             self.w.status.configure(style="Good.TLabel")
-                            self.w.original_entry.set_text(self.place.original_entry)  # Display place
-                            self.w.user_entry.set_text(self.place.updated_entry)  # Display place
+                            self.w.original_entry.text = self.place.original_entry  # Display place
+                            self.w.user_entry.text = self.place.updated_entry  # Display place
                             # Break out of loop and have user review the match
                             break
                 else:
@@ -411,16 +389,15 @@ class GeoFinder:
                         # User requested shutdown.  Write this item out as-is
                         self.review_count += 1
                         self.periodic_update("Creating Import...")
-                        self.w.original_entry.set_text(" ")
+                        self.w.original_entry.text = " "
                         self.ancestry_file_handler.write_asis(town_entry)
                         continue
                     else:
                         # Have user review entry
                         # self.logger.debug(f'User2 review for {town_entry}. status ={self.place.status}')
-
                         self.w.status.configure(style="Good.TLabel")
-                        self.w.original_entry.set_text(self.place.original_entry)  # Display place
-                        self.w.user_entry.set_text(self.place.original_entry)  # Display place
+                        self.w.original_entry.text = self.place.original_entry  # Display place
+                        self.w.user_entry.text = self.place.original_entry  # Display place
                         # Break out of loop and have user review the item
                         break
 
@@ -449,7 +426,7 @@ class GeoFinder:
         # self.logger.debug(f'selected pref=[{pref}] [{town_entry}] id={dbid} id={self.place.geoid}')
 
         # Update the user edit widget with the List selection item
-        self.w.user_entry.set_text(town_entry)
+        self.w.user_entry.text = town_entry
 
         # Since we are verifying users choice, Get exact match by geoid
         self.geodata.find_geoid(self.place.geoid, self.place)
@@ -463,7 +440,6 @@ class GeoFinder:
         self.save_handler()
 
     def verify_handler(self):
-        # self.logger.debug('Verify Handler')
         self.verify_item(from_user=True)
 
     def verify_item(self, from_user: bool):
@@ -489,7 +465,11 @@ class GeoFinder:
     def display_result(self, place: Loc.Loc):
         """ Display result details for an item  """
         # Enable buttons so user can either click Skip, or edit the item and Click Verify.
-        place.safe_strings()
+        place.set_string_type()
+        place.status = f'{place.result_type_text}  {self.result_text_list.get(place.result_type)} '
+
+        #if flags.filtered:
+        #    place.status = f'{place.result_type_text}  {self.result_text_list.get(place.result_type)} '
 
         TKHelper.enable_buttons(self.w.review_buttons)
 
@@ -534,30 +514,15 @@ class GeoFinder:
             self.display_one_georow(place.status_detail, place.geoid, score=9999, feat='')
 
         # Display GEDCOM person and event that this location refers to
-        self.w.ged_event_info.set_text(
-            f'{self.ancestry_file_handler.get_name(self.ancestry_file_handler.id)}: '
-            f'{self.ancestry_file_handler.event_name} {self.ancestry_file_handler.date}')
+        self.w.ged_event_info.text = f'{self.ancestry_file_handler.get_name(self.ancestry_file_handler.id)}: ' \
+            f'{self.ancestry_file_handler.event_name} {self.ancestry_file_handler.date}'
         self.w.root.update_idletasks()
-
-    def list_insert(self, text, prefix, rec_id, score, feature):
-        # Tags to alternate colors in lists
-        self.odd = not self.odd
-        if self.odd:
-            tag = ('odd',)
-        else:
-            tag = ('even',)
-        self.w.tree.insert(parent='', index="end", iid=None, text=text, values=(prefix, rec_id, score, feature), tags=tag)
-
-    def clear_display_list(self):
-        self.odd = False
-        for row in self.w.tree.get_children():
-            self.w.tree.delete(row)
 
     def display_georow_list(self, place: Loc.Loc):
         """ Display list of matches in listbox (tree) """
 
         # Clear listbox
-        self.clear_display_list()
+        self.w.tree.clear_display_list()
 
         temp_place = copy.copy(place)
         min_score = 100000
@@ -568,16 +533,16 @@ class GeoFinder:
             temp_place.set_place_type()
 
             self.geodata.geo_files.geodb.set_display_names(temp_place)
-            nm = temp_place.format_full_nm(self.geodata.geo_files.output_replace_dct)
+            nm = temp_place.get_long_name(self.geodata.geo_files.output_replace_dct)
             valid = self.geodata.valid_year_for_location(event_year=place.event_year, iso=temp_place.country_iso,
                                                          admin1=temp_place.admin1_id, padding=0)
             if valid:
                 # Get prefix
-                self.list_insert(nm, GeoUtil.capwords(geo_row[GeoUtil.Entry.PREFIX]), geo_row[GeoUtil.Entry.ID],
+                self.w.tree.list_insert(nm, GeoUtil.capwords(geo_row[GeoUtil.Entry.PREFIX]), geo_row[GeoUtil.Entry.ID],
                                  f'{int(geo_row[GeoUtil.Entry.SCORE]):d}',
                                  geo_row[GeoUtil.Entry.FEAT])
             else:
-                self.list_insert(nm, "VERIFY DATE", geo_row[GeoUtil.Entry.ID], f'{int(geo_row[GeoUtil.Entry.SCORE]):d}',
+                self.w.tree.list_insert(nm, "VERIFY DATE", geo_row[GeoUtil.Entry.ID], f'{int(geo_row[GeoUtil.Entry.SCORE]):d}',
                                  geo_row[GeoUtil.Entry.FEAT])
 
         self.w.root.update_idletasks()
@@ -588,8 +553,8 @@ class GeoFinder:
 
         # self.logger.debug(f'Skip for {self.w.original_entry.get_text()}  Updating SKIP dict')
 
-        self.skiplist.set(self.w.original_entry.get_text(), " ")
-        self.ancestry_file_handler.write_asis(self.w.original_entry.get_text())
+        self.skiplist.set(self.w.original_entry.text, " ")
+        self.ancestry_file_handler.write_asis(self.w.original_entry.text)
 
         # Save Skip info for future runs
         self.skiplist.write()
@@ -602,7 +567,7 @@ class GeoFinder:
         self.matched_count += 1
         # self.geodata.set_last_iso(self.place.country_iso)
 
-        ky = self.w.original_entry.get_text()
+        ky = self.w.original_entry.text
         if self.place.result_type == GeoUtil.Result.DELETE:
             # Put in a blank as replacement
             self.place.geoid = ''
@@ -622,11 +587,10 @@ class GeoFinder:
             self.write_updated_place(self.place, ky)
 
         # Get next error
-        self.w.user_entry.set_text('')
+        self.w.user_entry.text = ''
         self.handle_place_entry()
 
-    @staticmethod
-    def help_handler():
+    def help_handler(self):
         """ Bring up browser with help text """
         help_base = "https://github.com/corb555/GeoFinder/wiki/User-Guide"
         webbrowser.open(help_base)
@@ -634,7 +598,7 @@ class GeoFinder:
     def search_handler(self):
         """ Bring up browser with Google search with this item """
         base = "https://www.google.com/search?q="
-        loc = self.w.user_entry.get_text()
+        loc = self.w.user_entry.text
         webbrowser.open(f"{base}{loc}")
 
     def map_handler(self):
@@ -668,13 +632,13 @@ class GeoFinder:
 
             TKHelper.disable_buttons(button_list=self.w.review_buttons)
             self.w.quit_button.config(state="disabled")
-            self.w.prog.startup = True
+            self.w.prog.full_update = True
             self.w.statistics_text.configure(style="Good.TLabel")
 
-            self.w.user_entry.set_text("Creating Import File...")
+            self.w.user_entry.text = "Creating Import File..."
             self.start_time = time.time()
             # Write out the item we are on
-            self.ancestry_file_handler.write_asis(self.w.original_entry.get_text())
+            self.ancestry_file_handler.write_asis(self.w.original_entry.text)
 
             # We will still continue to go through file, but only handle global replaces
             self.handle_place_entry()
@@ -701,8 +665,8 @@ class GeoFinder:
         if len(fname) > 1:
             self.cfg.set("gedcom_path", fname)  # Add filename to dict
             self.cfg.write()  # Write out config file
-            self.w.status.set_text(f"Click Open to load {file_types} file")
-            self.w.original_entry.set_text(self.cfg.get("gedcom_path"))
+            self.w.status.text = f"Click Open to load {file_types} file"
+            self.w.original_entry.text = self.cfg.get("gedcom_path")
             TKHelper.set_preferred_button(self.w.load_button, self.w.initialization_buttons, "Preferred.TButton")
 
     def event_handler_for_return_key(self, _):
@@ -728,15 +692,14 @@ class GeoFinder:
         return "break"
 
     def clear_detail_text(self, place):
-        self.odd = False
-        self.clear_display_list()
+        self.w.tree.clear_display_list()
         place.georow_list.clear()
 
     def display_one_georow(self, txt, geoid, score, feat):
         # self.logger.debug(f'DISP ONE ROW {txt}')
-        self.clear_display_list()
+        self.w.tree.clear_display_list()
         # self.w.scrollbar.grid_remove()  # Just one item, so hide scrollbar
-        self.list_insert(txt, '', geoid, score=score, feature=feat)
+        self.w.tree.list_insert(txt, '', geoid, score=score, feature=feat)
 
     def display_country_note(self) -> int:
         """ display warning if only a small number of countries are enabled """
@@ -750,22 +713,6 @@ class GeoFinder:
         #                                f"\n\n{country_list}\n\nUse Config Country Tab to change country list\n")
         return supported_countries
 
-    @staticmethod
-    def setup_logging(msg):
-        logger = logging.getLogger(__name__)
-        fmt = "%(levelname)s %(name)s.%(funcName)s %(lineno)d: %(message)s"
-        logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, format=fmt)
-        logger.info(msg)
-        return logger
-
-    @staticmethod
-    def setup_logging_info(msg):
-        logger = logging.getLogger(__name__)
-        fmt = "%(levelname)s %(name)s.%(funcName)s %(lineno)d: %(message)s"
-        logging.basicConfig(level=logging.INFO, stream=sys.stdout, format=fmt)
-        logger.info(msg)
-        return logger
-
     def write_updated_place(self, place: Loc.Loc, original_entry):
         """
         Write out this updated location and lat/lon to ancestry file output
@@ -776,7 +723,7 @@ class GeoFinder:
         :return:
         """
         self.geodata.geo_files.geodb.set_display_names(place)
-        place.original_entry = place.format_full_nm(self.geodata.geo_files.output_replace_dct)
+        place.original_entry = place.get_long_name(self.geodata.geo_files.output_replace_dct)
         prefix = GeoUtil.capwords(self.place.prefix)
         if self.diagnostics:
             self.in_diag_file.write(f'{GeoUtil.capwords(original_entry)}\n')
@@ -815,7 +762,7 @@ class GeoFinder:
     def set_status_text(self, txt):
         """ Update status text """
         self.w.status.state(["!readonly"])
-        self.w.status.set_text(txt)
+        self.w.status.text = txt
         self.w.status.state(["readonly"])
 
     def end_of_file_shutdown(self):
@@ -827,8 +774,8 @@ class GeoFinder:
         TKHelper.disable_buttons(button_list=self.w.review_buttons)
         # self.start_time = time.time()
         # self.logger.debug(f'COMPLETED time={int((time.time() - self.start_time) / 60)} minutes')
-        self.w.status.set_text("Done.  Shutting Down...")
-        self.w.original_entry.set_text(" ")
+        self.w.status.text = "Done.  Shutting Down..."
+        self.w.original_entry.text = " "
         path = self.cfg.get("gedcom_path")
         self.ancestry_file_handler.close()
 
@@ -854,9 +801,9 @@ class GeoFinder:
         """
         # self.w.root.update_idletasks()
         if self.geodata:
-            self.logger.info(f'TOTAL DATABASE LOOKUP TIME: {str(timedelta(seconds=self.geodata.geo_files.geodb.db.total_time))}')
-            self.logger.info(f'Lookups per second {self.geodata.geo_files.geodb.db.total_lookups / self.geodata.geo_files.geodb.db.total_time:.0f}')
-            self.logger.info(self.get_stats_text())
+            self.logger.info(f'TOTAL DATABASE LOOKUP TIME: {str(timedelta(seconds=self.geodata.geo_files.geodb.total_time))}')
+            self.logger.info(f'Lookups per second {self.geodata.geo_files.geodb.total_lookups / self.geodata.geo_files.geodb.total_time:.0f}')
+            self.logger.info(self.get_stats_text)
             self.geodata.geo_files.geodb.close()
             self.geodata.close_diag_file()
         if self.skiplist:
@@ -885,9 +832,9 @@ class GeoFinder:
         """
         if self.update_counter % 50 == 0:
             if not self.w.prog.shutdown_requested:
-                self.w.status.set_text(msg)
+                self.w.status.text = msg
                 self.w.status.configure(style="Good.TLabel")
-                self.w.original_entry.set_text(self.place.original_entry)  # Display place
+                self.w.original_entry.text = self.place.original_entry  # Display place
             self.w.root.update_idletasks()  # Let GUI update
 
     def check_configuration(self) -> bool:
@@ -938,12 +885,14 @@ class GeoFinder:
 
         return file_error
 
+    @property
     def done_count(self):
         return self.matched_count + self.skip_count + self.review_count
 
+    @property
     def get_stats_text(self) -> str:
         if self.ancestry_file_handler.place_total is not None:
-            remaining = self.ancestry_file_handler.place_total - self.done_count()
+            remaining = self.ancestry_file_handler.place_total - self.done_count
         else:
             remaining = 0
         return f'Matched={self.matched_count}   Skipped={self.skip_count}  Needed Review={self.review_count} ' \
@@ -955,17 +904,17 @@ class GeoFinder:
         Matched, skipped, needed review, remaining
         """
         if self.ancestry_file_handler.place_total is not None:
-            remaining = self.ancestry_file_handler.place_total - self.done_count()
+            remaining = self.ancestry_file_handler.place_total - self.done_count
         else:
             remaining = 0
-        self.w.statistics_text.set_text(self.get_stats_text())
+        self.w.statistics_text.text = self.get_stats_text
 
         if self.ancestry_file_handler.place_total > 0:
-            self.w.prog.update_progress(100 * self.done_count() / self.ancestry_file_handler.place_total, " ")
+            self.w.prog.update_progress(100 * self.done_count / self.ancestry_file_handler.place_total, " ")
         else:
             self.w.prog.update_progress(0, " ")
 
-        return self.done_count()
+        return self.done_count
 
     def get_replacement(self, dct, town_entry: str, place):
         """
@@ -999,6 +948,62 @@ class GeoFinder:
 
         return geoid
 
+    def get_command_line_arguments(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--logging", help="info - Enable quiet logging")
+        parser.add_argument("--diagnostics", help="on - Create xx.input.txt and xx.output.txt diagnostics files")
+        parser.add_argument("--spellcheck", help="on - Enable spellchecker")
+
+        # read arguments from the command line
+        args = parser.parse_args()
+
+        # check for --verbose switch
+        if args.logging == 'info':
+            self.logger =  GeoUtil.set_info_logging('geofinder Init')
+        else:
+            self.logger = GeoUtil.set_debug_logging('geofinder Init')
+
+        # check for --diagnostics switch
+        if args.diagnostics == 'on':
+            self.logger.info(f"--diagnostics files enabled {args.diagnostics}")
+            self.diagnostics = True
+        else:
+            self.diagnostics = False
+
+        # check for --spellcheck switch
+        if args.spellcheck == 'on':
+            self.logger.info(f"--spellchecking enabled {args.spellcheck}")
+            self.enable_spell_checker = True
+        else:
+            self.enable_spell_checker = False
+
+    result_text_list = {
+        GeoUtil.Result.STRONG_MATCH: 'Matched! Click Save to accept:',
+        GeoUtil.Result.MULTIPLE_MATCHES: ' Multiple matches.  Select one and click Verify or Double-Click',
+        GeoUtil.Result.NO_MATCH: 'Not found.  Edit and click Verify.',
+        GeoUtil.Result.NOT_SUPPORTED: ' Country is not supported. Skip or Add Country in Config',
+        GeoUtil.Result.NO_COUNTRY: 'No Country found.',
+        GeoUtil.Result.PARTIAL_MATCH: 'Partial match.  Click Save to accept:',
+        GeoUtil.Result.DELETE: 'Empty.  Click Save to delete entry.',
+        GeoUtil.Result.WORD_MATCH: 'Word match. Click Save to accept:',
+        GeoUtil.Result.WILDCARD_MATCH: 'Wildcard match. Click Save to accept:',
+        GeoUtil.Result.SOUNDEX_MATCH: 'Soundex match. Click Save to accept:',
+    }
+
+def lowercase_match_group(matchobj):
+    return matchobj.group().lower()
+
+def capwords(nm):
+    # Change from lowercase to Title Case but fix the title() apostrophe bug
+    if nm is not None:
+        # Use title(), then fix the title() apostrophe defect
+        nm = nm.title()
+
+        # Fix handling for contractions not handled correctly by title()
+        poss_regex = r"(?<=[a-z])[\']([A-Z])"
+        nm = re.sub(poss_regex, lowercase_match_group, nm)
+
+    return nm
 
 def entry():
     GeoFinder()

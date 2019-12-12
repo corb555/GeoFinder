@@ -22,7 +22,8 @@ import os
 import unittest
 from pathlib import Path
 
-from geofinder import Geodata, Loc, GrampsXml, GrampsCsv
+from ancestry import GrampsCsv, GrampsXml
+from geodata import Loc, Geodata
 
 
 #             ('12 Privet Drive,Dover, ,England,United Kingdom', "PPL", 'P0006', 'gb'),
@@ -48,7 +49,8 @@ class TestCSV(unittest.TestCase):
         # Load test data
         directory = os.path.join(str(Path.home()), "geoname_test")
         csv_path = os.path.join(directory, "test")
-        TestCSV.geodata = Geodata.Geodata(directory_name=directory, progress_bar=None, enable_spell_checker=False)
+        TestCSV.geodata = Geodata.Geodata(directory_name=directory, progress_bar=None, enable_spell_checker=False,
+                                          show_message=True, exit_on_error=False)
         error: bool = TestCSV.geodata.read()
         if error:
             TestCSV.logger.error("Missing geodata support Files.")
@@ -106,7 +108,7 @@ class TestCSV(unittest.TestCase):
         place = Loc.Loc()
         place.parse_place(entry, TestCSV.geodata.geo_files )
         self.geodata.find_first_match(place.original_entry, place)
-        place.original_entry = place.format_full_nm(None)
+        place.original_entry = place.get_long_name(None)
         TestCSV.csv.set_CSV_place_type(place)
         place.id = TestCSV.csv.get_csv_key(place)
 
