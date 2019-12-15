@@ -22,7 +22,8 @@ import os
 import unittest
 from pathlib import Path
 
-from ancestry import GrampsCsv, GrampsXml
+from ancestry import GrampsXml
+import GrampsCsv
 from geodata import Loc, Geodata
 
 
@@ -92,13 +93,13 @@ class TestCSV(unittest.TestCase):
             # Lookup record
             TestCSV.geodata.find_first_match(place.original_entry, place)
             place.id = row[RowEntry.PLACE_ID]
-            TestCSV.csv.set_CSV_place_type(place)
+            GrampsCsv._set_CSV_place_type(place)
             #TestCSV.geodata.set_place_type_text(place)
             #place.name = TestCSV.ancestry.get_csv_name(place).title()
 
-            TestCSV.csv.create_csv_node(place)
+            TestCSV.csv.add_place(place)
 
-        TestCSV.csv.complete_csv()
+        TestCSV.csv.write_csv_file()
 
     def setUp(self) -> None:
         self.place: Loc.Loc = Loc.Loc()
@@ -109,8 +110,8 @@ class TestCSV(unittest.TestCase):
         place.parse_place(entry, TestCSV.geodata.geo_files )
         self.geodata.find_first_match(place.original_entry, place)
         place.original_entry = place.get_long_name(None)
-        TestCSV.csv.set_CSV_place_type(place)
-        place.id = TestCSV.csv.get_csv_key(place)
+        GrampsCsv._set_CSV_place_type(place)
+        place.id = TestCSV.csv._get_hierarchy_key(place)
 
         TestCSV.logger.debug(f'type={place.place_type}')
 

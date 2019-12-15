@@ -25,10 +25,10 @@ class FileReader:
     def __init__(self, directory: str, filename: str, progress_bar):
         """
         Read a file and call a handler for each line
-
-        :param directory: Directory of file
-        :param filename: Filename
-        :param progress_bar: Progress Bar or None
+        #Args:
+            directory:
+            filename:
+            progress_bar: Progress Bar or None
         """
         self.logger = logging.getLogger(__name__)
         self.directory: str = directory

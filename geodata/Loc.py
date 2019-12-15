@@ -99,7 +99,7 @@ class Loc:
                 args.append(tkn.strip(' '))
 
         # Parse options in place name
-        parser = ArgumentParserNoExit(description="Parses command.")
+        parser = ArgumentParserNoExit.ArgumentParserNoExit(description="Parses command.")
         parser.add_argument("-f", "--feature", help=argparse.SUPPRESS)
         parser.add_argument("-i", "--iso", help=argparse.SUPPRESS)
         parser.add_argument("-c", "--country", help=argparse.SUPPRESS)
@@ -151,7 +151,7 @@ class Loc:
         # self.logger.debug(f'***** PLACE [{place_name}] *****')
 
         if '--' in place_name:
-            # Pull out filter flags if present
+            # Advanced Search - Pull out filter flags if present
             self.logger.debug('filter')
             self.filter(place_name, geo_files)
             return
@@ -188,7 +188,7 @@ class Loc:
                 # Lookup Admin1
                 geo_files.geodb.wide_search_admin1_id(self)
                 if self.admin1_id != '':
-                    # self.logger.debug(f'Found admin1 {self.admin1_name}')
+                    self.logger.debug(f'Found admin1 {self.admin1_name}')
                     pass
                 else:
                     # Last token is not Admin1 - append blank

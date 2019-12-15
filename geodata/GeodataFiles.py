@@ -18,6 +18,7 @@
 import csv
 import logging
 import os
+import sys
 import time
 from collections import namedtuple
 from tkinter import messagebox
@@ -33,29 +34,38 @@ class GeodataFiles:
 
     The files must be downloaded from geonames.org and used according to their usage rules.
     
-    geoname_data - Any of the following: gb.TXT (or other country), allCountries.txt, cities500.txt, etc.
+    geoname files: allCountries.txt,  alternateNamesV2.txt
 
-    The geoname file is filtered to only include the countries and feature codes specified in the country_list
-    dictionary (stored in a pickle file) and the feature_list dictionary (also from a pickle)
+    The geoname file is filtered to only include the countries and feature codes specified in the country_list,
+      the feature_list, and the language list
     """
 
     def __init__(self, directory: str, progress_bar, enable_spell_checker,
-                 show_message, exit_on_error):
+                 show_message, exit_on_error, languages_list_dct, feature_code_list_dct, supported_countries_dct):
         """
-        Read in datafiles needed for geodata
-        Args:
+        Read in datafiles needed for geodata.
+        The entry found can have a Regex transform applied on output if dictionary pickle file,output_list.pkl
+        is present.  Format is {'pattern':'replacement'}
+        Examples:
+            languages_list_dct={'fr','de'}
+            feature_code_list_dct={'PPL', 'ADM1', 'CSTL'}
+            supported_countries_dct = {'us','gb','at'}
+        #Args:
             directory: base directory
             progress_bar: TKHelper progress bar or None
             enable_spell_checker: True for spell checker. NOT CURRENTLY SUPPORTED
             show_message: True to show message boxes to user on errors
             exit_on_error:  True to exit on serious errors
+            languages_list_dct: dictionary containing the ISO-2 languages we want to load from alternateNames
+            feature_code_list_dct: dictionary containing the Geonames.org feature codes we want to load
+            supported_countries_dct: dictionary containing the ISO-2 countries we want to load
         """
         self.logger = logging.getLogger(__name__)
         self.geodb = None
         self.show_message = show_message
         self.exit_on_error = exit_on_error
         self.required_db_version = 2
-        # Message to user upgrading from DB version earlier than 2
+        # Message to user upgrading from DB version earlier than current (2)
         self.db_upgrade_text = 'Adding support for non-English output'
         self.directory: str = directory
         self.progress_bar = progress_bar
@@ -65,27 +75,10 @@ class GeodataFiles:
         self.country = None
         self.enable_spell_checker: bool = enable_spell_checker
 
-        # Read in dictionary listing Geoname features we should include
-        self.feature_code_list_cd = CachedDictionary.CachedDictionary(sub_dir, "feature_list.pkl")
-        self.feature_code_list_cd.read()
-        self.feature_code_list_dct: Dict[str, str] = self.feature_code_list_cd.dict
-        if len(self.feature_code_list_dct) < 3:
-            self.logger.warning('Feature list is empty.')
-            # self.feature_code_list_dct.clear()
-            # feature_list = UtilFeatureFrame.default
-            # for feat in feature_list:
-            # self.feature_code_list_dct[feat] = ''
-            # self.feature_code_list_cd.write()
+        self.languages_list_dct = languages_list_dct
+        self.feature_code_list_dct = feature_code_list_dct
+        self.supported_countries_dct = supported_countries_dct
 
-        # Read in dictionary listing countries (ISO2) we should include
-        self.supported_countries_cd = CachedDictionary.CachedDictionary(sub_dir, "country_list.pkl")
-        self.supported_countries_cd.read()
-        self.supported_countries_dct: Dict[str, str] = self.supported_countries_cd.dict
-
-        # Read in dictionary listing languages (ISO2) we should include
-        self.languages_list_cd = CachedDictionary.CachedDictionary(sub_dir, "languages_list.pkl")
-        self.languages_list_cd.read()
-        self.languages_list_dct: Dict[str, str] = self.languages_list_cd.dict
         self.lang_list = []
 
         for item in self.languages_list_dct:
@@ -100,7 +93,14 @@ class GeodataFiles:
         """
         self.spellcheck = None
 
-        # Read in dictionary listing output text replacements
+        if not os.path.exists(sub_dir):
+            self.logger.warning(f'Directory] {sub_dir} NOT FOUND')
+            if self.show_message:
+                messagebox.showwarning('Folder not found', f'Directory\n\n {sub_dir}\n\n NOT FOUND')
+            if exit_on_error:
+                sys.exit()
+
+        # Read in Replacement dictionary pickle - this has output text replacements
         self.output_replace_cd = CachedDictionary.CachedDictionary(sub_dir, "output_list.pkl")
         self.output_replace_cd.read()
         self.output_replace_dct: Dict[str, str] = self.output_replace_cd.dict
@@ -119,25 +119,10 @@ class GeodataFiles:
 
     def read(self) -> bool:
         """
-        Read in dictionary for supported countries and features
+        Read in data - does nothing
         Returns:
             True if error
         """
-        # Read list of Supported countries and features - only these countries/features will be loaded from geoname data
-        err = self.feature_code_list_cd.read()
-        self.feature_code_list_dct = self.feature_code_list_cd.dict
-        if err:
-            self.logger.error('Error reading features list')
-            return True
-
-        err = self.supported_countries_cd.read()
-        self.supported_countries_dct = self.supported_countries_cd.dict
-        if err:
-            self.logger.error('Error reading  supported countries')
-            return True
-
-        self.logger.debug('done loading geodata')
-
         return False
 
     def read_geoname(self) -> bool:
@@ -177,7 +162,7 @@ class GeodataFiles:
                 #cache_time = os.path.getmtime(db_path)
                 # if cache_time > dir_time:
                 if True:
-                    self.logger.info(f'DB is up to date')
+                    #self.logger.info(f'DB is up to date')
                     # Ensure DB has reasonable number of records
                     count = self.geodb.get_row_count()
                     self.logger.info(f'Geoname entries = {count:,}')
@@ -215,7 +200,6 @@ class GeodataFiles:
                                  show_message=self.show_message, exit_on_error=self.exit_on_error)
         self.country = Country.Country(progress=self.progress_bar, geo_files=self, lang_list=self.lang_list)
 
-        # walk thru list of files ending in .txt e.g US.txt, FR.txt, all_countries.txt, etc
         file_count = 0
 
         # Put in country data
@@ -226,7 +210,7 @@ class GeodataFiles:
 
         start_time = time.time()
 
-        # Set DB version as -1 for incomplete
+        # Initialize DB version as -1 for incomplete
         self.geodb.insert_version(-1)
 
         # Put in geonames file data
@@ -257,7 +241,8 @@ class GeodataFiles:
         # Write out spelling file
         if self.enable_spell_checker:
             self.progress('Creating Spelling dictionary', 88)
-            self.spellcheck.write()
+            if self.spellcheck:
+                self.spellcheck.write()
 
         start_time = time.time()
         self.progress("3) Final Step: Creating Indices for Database...", 95)

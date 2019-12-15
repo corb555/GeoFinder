@@ -24,8 +24,8 @@ from typing import Union
 
 from tk_helper import TKHelper
 
-from ancestry import GrampsCsv
-#from tk_helper import TKHelper
+#todo pull out dependency on grampsCsv
+import GrampsCsv
 from ancestry.AncestryFile import AncestryFile
 
 # 0Place (ID), 1Title, 2Name, 3Type, 4latitude, 5longitude, enclosed_by
@@ -34,8 +34,9 @@ from ancestry.AncestryFile import AncestryFile
 # State Machine
 class State:
     PASS_THROUGH = 0
-    COLLECT_PLACE_XML = 1
+    COLLECT_PLACE_TREE = 1
     WALK_PLACE_TREE = 2
+    REACHED_TREE_END = 3
 
 
 class GrampsXml(AncestryFile):
@@ -64,10 +65,10 @@ class GrampsXml(AncestryFile):
     """
 
     def __init__(self, in_path: str, out_suffix: str, cache_d, progress: Union[None, TKHelper.Progress], geodata):
-        super().__init__(in_path, out_suffix, cache_d, progress, geodata)
+        super().__init__(in_path, out_suffix, cache_d, progress)
         self.xml_tree = None
         self.collect_lines = False
-        self.place_xml_lines = b''
+        self.xml_places_buffer = b''
         self.place = None
         self.child = None
         self.state = State.PASS_THROUGH  # Write out each line as-is unless we are in Place section
@@ -87,18 +88,18 @@ class GrampsXml(AncestryFile):
         # Set State
         if '<places>' in line:
             # Reached the start of Places XML section.  Accumulate XML text until end of section
-            self.state = State.COLLECT_PLACE_XML
+            self.state = State.COLLECT_PLACE_TREE
             self.logger.debug('XML places section - start')
         elif '</places>' in line:
             # Reached the end of Places section
             # TODO - Handle case where there is additional data on </places> line, such as '</places> <objects>'
             line += '\n'
-            self.place_xml_lines += bytes(line, "utf8")
-            self.logger.debug(f'XML Places section - complete.  len={len(self.place_xml_lines)}')
+            self.xml_places_buffer += bytes(line, "utf8")
+            self.logger.debug(f'XML Places section - complete.  len={len(self.xml_places_buffer)}')
 
             # Build tree from XML string
             try:
-                self.xml_tree = Tree.parse(BytesIO(self.place_xml_lines))
+                self.xml_tree = Tree.parse(BytesIO(self.xml_places_buffer))
             except TypeError:
                 self.logger.warning(f'XML parse error')
                 self.xml_tree = None
@@ -106,20 +107,17 @@ class GrampsXml(AncestryFile):
             self.logger.info(f'XML Parse complete. PLACE COUNT={self.place_total}')
 
             self.state = State.WALK_PLACE_TREE
-            self.more_available = True
 
         # Handle line based on State
         self.tag = 'OTHER'
 
-        if self.state == State.COLLECT_PLACE_XML:
+        if self.state == State.COLLECT_PLACE_TREE:
             # Collect lines
             # Convert all placeobj tags to placeobject tag
             # As each is processed we convert it back to placeobj
             # This allows us to keep track of which Place Objects we have processed.
-            #if 'placeobj' in line:
-            #    self.place_total += 1
             line = re.sub('placeobj', 'placeobject', line)
-            self.place_xml_lines += bytes(line, "utf8")
+            self.xml_places_buffer += bytes(line, "utf8")
             #self.logger.debug(f'Collect XML [{line}]')
             self.tag = 'IGNORE'
         elif self.state == State.PASS_THROUGH:
@@ -129,12 +127,12 @@ class GrampsXml(AncestryFile):
         elif self.state == State.WALK_PLACE_TREE:
             # Set self.value with next place
             self.find_xml_place()
-
-            if not self.more_available:
-                # Got to END OF TREE.  WRITE XML tree
-                self.logger.debug('End of XML tree')
-                self.write_out_tree()
-                self.csv.complete_csv()
+        elif self.state == State.REACHED_TREE_END:
+            # Got to END OF TREE.  WRITE XML tree
+            self.logger.debug('End of XML tree')
+            self.write_out_tree()
+            self.csv.create_enclosures()
+            self.csv.write_csv_file()
 
         return self.id
 
@@ -233,11 +231,11 @@ class GrampsXml(AncestryFile):
         else:
             # Tree completed.  No more place objects available
             self.logger.debug('XML tree complete')
-            self.more_available = False
+            self.state = State.REACHED_TREE_END
 
     def write_updated(self, txt, place):
         # Update place entry in tree.  Tree will be written out later when entire XML tree is written out
-        self.csv.create_csv_node(place)
+        self.csv.add_place(place)
         if self.child.text is not None:
             self.child.text = txt.strip(', ')
         else:

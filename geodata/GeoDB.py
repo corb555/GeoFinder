@@ -23,10 +23,9 @@ import sys
 import time
 from tkinter import messagebox
 
-from geodata import GeoUtil, Loc, Country, MatchScore, Normalize
+from geodata import GeoUtil, Loc, Country, MatchScore, Normalize, DB
 from geodata.GeoUtil import Query, Result, Entry, get_soundex
 from util import SpellCheck
-from sqlhelper import DB
 
 
 class GeoDB:
@@ -110,7 +109,7 @@ class GeoDB:
             lookup_type = 'ADMIN1'
             self.wide_search_admin1(place)
         elif place.place_type == Loc.PlaceType.ADMIN2:
-            lookup_type = 'ADMIN1'
+            lookup_type = 'ADMIN2'
             if place.admin1_id == '':
                 self.wide_search_admin1_id(place=place)
             self.wide_search_admin2(place)
@@ -129,9 +128,10 @@ class GeoDB:
 
         if place.georow_list:
             self.assign_scores(place, target_feature)
-            self.logger.debug(f'LOOKUP: {len(place.georow_list)} matches for {lookup_type}  targ={place.target} nm=[{place.get_five_part_title()}]\n')
+            self.logger.debug(f'LOOKUP: {len(place.georow_list)} matches for type={lookup_type}  '
+                              f'targ={place.target} nm=[{place.get_five_part_title()}]\n')
         else:
-            self.logger.debug(f'LOOKUP. No match:for {lookup_type}  targ={place.target} nm=[{place.get_five_part_title()}]\n')
+            #self.logger.debug(f'LOOKUP. No match:for {lookup_type}  targ={place.target} nm=[{place.get_five_part_title()}]\n')
             place.georow_list = []
 
     def wide_search_city(self, place: Loc):

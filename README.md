@@ -12,5 +12,6 @@ GeoFinder reads the place names in a GEDCOM or Gramps XML genealogy file, valida
 * Wildcard search
 * Phonetic search
 * Highlights locations in the US and Canada where the event date is before European settlement
+  
    
 [See User Guide Wiki for details](https://github.com/corb555/GeoFinder/wiki/User-Guide)

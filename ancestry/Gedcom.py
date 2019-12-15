@@ -29,21 +29,26 @@ PLACE_TOTAL_KEY = 'PLACE_TOTAL'
 
 class Gedcom(AncestryFile):
     """
-    Class for Gedcom file handler - based on AncestryFile handler
-    Basic routines to Read/Parse and Write GEDCOM ancestry files focused on place entries.
-    Scan - Read through  file, find Place entry.
-    Write out all other entries as-is if out_path is not None
+    Routines to Read/Parse and Write GEDCOM ancestry files (focused on PLACE entries).
     """
 
-    def __init__(self, in_path: str, out_suffix: str, cache_d, progress: Union[None, TKHelper.Progress],geodata):
-        super().__init__(in_path, out_suffix, cache_d, progress, geodata)
+    def __init__(self, in_path: str, out_suffix: str, cache_d, progress: Union[None, TKHelper.Progress]):
+        """
+        Routines to Read/Parse and Write GEDCOM ancestry files focused on place entries.
+
+        #Args:
+            in_path:
+            out_suffix:
+            cache_d:
+            progress:
+        """
+        super().__init__(in_path, out_suffix, cache_d, progress)
 
         # Sections of a GEDCOM line - Level, label, tag, value
         self.level: int = 0
         self.label: str = ""
 
         # Build dictionary of name/id pairs and write to pickle cache file.  If pickle file already there, just read it.
-        # When we display a location, we use this to display the name the event is tied to
         parts = os.path.split(in_path)
         filename = parts[1] + '.pkl'
         self.person_cd = CachedDictionary(cache_d, filename)
@@ -51,7 +56,7 @@ class Gedcom(AncestryFile):
         # Try to read pickle file of IDs for this GEDCOM file
         err = self.person_cd.read()
         if err:
-            # File is not there.  Build it - it is a dictionary of GED Name_IDs to Names
+            # ID Dictionary File is not there.  Build it - it is a dictionary of GED Name_IDs to Names
             self.build_person_dictionary()
         else:
             # Get Place count from person dictionary
@@ -60,9 +65,14 @@ class Gedcom(AncestryFile):
             self.logger.debug(f'Place Total ={self.place_total}')
 
     def parse_line(self, line: str):
-        # Called by read_and_parse_line for each line in file.  Parse line
-        # and returns each place entry in self.value with self.tag set to PLAC
-
+        """
+        Called by read_and_parse_line for each line in file.  Parse line
+        and returns each place entry in self.value with self.tag set to PLAC
+        #Args:
+            line: GEDCOM line
+        #Returns:
+            Sets tag, level, value and label based on GEDCOM line contents
+        """
         # Gedcom file regex:          Digits for level,   @  for label,   text for tag,   text for value
         regex = re.compile(r"^(?P<level>\d+)\s+(?P<label>@\S+@)?\s*(?P<tag>\S+)\s+(?P<value>.*)")
 
@@ -89,18 +99,27 @@ class Gedcom(AncestryFile):
 
         return self.id
 
-    def write_updated(self, txt: str, place):
-        """ Write out a place line with updated value.  Put together the pieces:  level, Label, tag, value """
+    def write_updated(self, value: str, place):
+        """
+        Write out a  line with updated values.  Put together the pieces:  level, Label, tag, value
+        #Args:
+            value: The new item value to write out
+            place: Not used
+        """
         if self.outfile is not None:
             if self.label is not None:
-                res = f"{self.level} {self.label} {self.tag} {txt.strip(', ')}\n"
+                line = f"{self.level} {self.label} {self.tag} {value.strip(', ')}\n"
             else:
-                res = f"{self.level} {self.tag} {txt.strip(', ')}\n"
+                line = f"{self.level} {self.tag} {value.strip(', ')}\n"
 
-            self.outfile.write(res)
+            self.outfile.write(line)
 
     def write_asis(self, entry):
-        """ Write out a place line as-is.  Put together the pieces:  level, Label, tag, value """
+        """
+        Write out a  line as-is.  Put together the pieces:  level, Label, tag, value
+        #Args:
+            entry: not used
+        """
         if self.outfile is not None:
             if self.label is not None:
                 res = f"{self.level} {self.label} {self.tag} {self.value}\n"
@@ -110,7 +129,12 @@ class Gedcom(AncestryFile):
             self.outfile.write(res)
 
     def write_lat_lon(self, lat: float, lon: float):
-        """ Write out a GEDCOM PLACE MAP entry with latitude and longitude. """
+        """
+        Write out a GEDCOM PLACE MAP entry with latitude and longitude.
+        #Args:
+            lat:
+            lon:
+        """
         if self.output_latlon is False:
             return
 
@@ -148,12 +172,14 @@ class Gedcom(AncestryFile):
                 self.outfile.write(f"{str(lati_level)} LONG {lon}\n")
 
     def collect_event_details(self):
-        """ Collect details for event - last name, event date, and tag in GEDCOM file."""
+        """ Collect details for events with places - last name, event date, and tag in GEDCOM file."""
 
-        # Text names for event tags
-        event_names = {'DEAT': 'Death', 'CHR': 'Christening', 'BURI': 'Burial', 'BIRT': 'Birth',
-                       'CENS': 'Census', 'MARR': 'Marriage', 'RESI': 'Residence', 'IMMI': 'Immigration', 'EMMI': 'Emmigration',
-                       'OCCU': 'Occupation'}
+        # Text names for event tags that have Places associated
+        place_events = {
+            'DEAT': 'Death', 'CHR': 'Christening', 'BURI': 'Burial', 'BIRT': 'Birth',
+            'CENS': 'Census', 'MARR': 'Marriage', 'RESI': 'Residence', 'IMMI': 'Immigration', 'EMMI': 'Emmigration',
+            'OCCU': 'Occupation'
+            }
 
         # Level of 0 indicates a new record - reset values
         if self.level == 0:
@@ -176,8 +202,8 @@ class Gedcom(AncestryFile):
                 # We cheat on the Family tag and just use the Husbands name
                 self.name = self.value
             # Store name of events that have Locations
-            if self.tag in event_names:
-                self.event_name = event_names[self.tag]
+            if self.tag in place_events:
+                self.event_name = place_events[self.tag]
                 self.clear_date()
             elif self.tag == 'TYPE':
                 self.event_name = self.value
@@ -252,7 +278,7 @@ class Gedcom(AncestryFile):
         nm = self.person_cd.dict.get(nam)
         if nm is not None:
             if nm[0] == '@' and depth < 4:
-                # Recursively call to get through the '@' indirect values.  make sure we don't go too deep
+                # Recursively call to get through the '@' indirect values.  Make sure we don't go too deep
                 nm = self.get_name(nm, depth + 1)
         else:
             nm = self.name

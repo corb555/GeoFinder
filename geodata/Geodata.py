@@ -30,7 +30,7 @@ class Geodata:
     """
 
     def __init__(self, directory_name: str, progress_bar, enable_spell_checker,
-                 show_message, exit_on_error):
+                 show_message, exit_on_error, languages_list_dct, feature_code_list_dct, supported_countries_dct):
         """
         Provide a place lookup gazeteer based on datafiles from geonames.org read in by GeodataFiles.py
         The lookup returns whether a place exists and its lat/long.
@@ -46,7 +46,10 @@ class Geodata:
         self.progress_bar = progress_bar  # progress_bar
         self.geo_files = GeodataFiles.GeodataFiles(self.directory, progress_bar=self.progress_bar,
                                                    enable_spell_checker=enable_spell_checker,
-                                                   show_message=show_message, exit_on_error=exit_on_error)
+                                                   show_message=show_message, exit_on_error=exit_on_error,
+                                                   languages_list_dct=languages_list_dct,
+                                                   feature_code_list_dct=feature_code_list_dct,
+                                                   supported_countries_dct=supported_countries_dct)
         self.save_place: Loc = Loc.Loc()
         self.match = MatchScore.MatchScore()
         self.miss_diag_file = None
@@ -78,14 +81,14 @@ class Geodata:
             self.geo_files.geodb.db.use_wildcards = False
 
         place.parse_place(place_name=location, geo_files=self.geo_files)
-        self.logger.debug(f"    ==== PARSE: [{location}]\n    Pref=[{place.prefix}] City=[{place.city1}] Adm2=[{place.admin2_name}]"
-                          f" Adm1 [{place.admin1_name}] adm1_id [{place.admin1_id}] Ctry [{place.country_name}]"
-                          f" type_id={place.place_type}")
-
         # Successful find of Admin1 will also fill in country_iso
         # Use ISO to fill in country name if missing
         if place.country_name == '' and place.country_iso != '':
             place.country_name = self.geo_files.geodb.get_country_name(place.country_iso)
+
+        self.logger.debug(f"    ==== PARSE: [{location}]\n    Pref=[{place.prefix}] City=[{place.city1}] Adm2=[{place.admin2_name}]"
+                          f" Adm1 [{place.admin1_name}] adm1_id [{place.admin1_id}] Ctry [{place.country_name}]"
+                          f" type_id={place.place_type}")
 
         # Add comma if prefix present
         if len(place.prefix) > 0:
@@ -118,7 +121,7 @@ class Geodata:
 
         # 1) Try lookup as determined by standard parsing:  city, county, state/province, country
         place.standard_parse = True
-        self.logger.debug(f'  1) Standard, based on parsing.  pref [{place.prefix}] type={place.place_type}')
+        self.logger.debug(f'  1) Try standard, based on parsing.  pref [{place.prefix}] type={place.place_type}')
 
         self.geo_files.geodb.lookup_place(place=place)
         if place.georow_list:
@@ -137,7 +140,7 @@ class Geodata:
             self.lookup_by_type(place, result_list, ty, self.save_place)
 
         # 3) Try city as Admin2
-        self.logger.debug(f'  3) Lkp w Cit as Adm2. Target={place.city1}  pref [{place.prefix}] ')
+        self.logger.debug(f'  3) Try lookup with City as Adm2. Target={place.city1}  pref [{place.prefix}] ')
         self.lookup_as_admin2(place=place, result_list=result_list, save_place=self.save_place)
 
         #  Move result list into place georow list
@@ -192,7 +195,7 @@ class Geodata:
             self.logger.warning(f'Unknown TYPE {typ}')
 
         if typ_name != '':
-            self.logger.debug(f'2) Lookup by {typ_name} Target={place.city1}  pref [{place.prefix}] ')
+            self.logger.debug(f'2) Try {typ_name} as City.  Target={place.city1}  pref [{place.prefix}] ')
 
             place.target = place.city1
             place.place_type = Loc.PlaceType.CITY
@@ -228,10 +231,19 @@ class Geodata:
         place.set_place_type_text()
 
     def build_result_list(self, place: Loc):
-        # Create a sorted version of result_list without any duplicates (same name, similar lat/lon)
-        # In case of duplicate, keep the one with best match score
-        # Add flag if we hit the lookup limit
-        # Discard location names that didnt exist at time of event (update result flag if this occurs)
+        """
+        Create a version of place.result_list without any duplicates (same name, similar lat/lon) and
+        sorted by match score
+        In case of duplicate, keep the one with best match score
+        Add flag if we hit the lookup limit
+        Discard location names that didnt exist at time of event (update result flag if this occurs)
+        #Args:
+            place:
+
+        #Returns:
+            ResultFlags(limited=limited_flag, filtered=date_filtered)
+        """
+
         date_filtered = False  # Flag to indicate whether we dropped locations due to event date
         event_year = place.event_year
 
@@ -360,6 +372,9 @@ class Geodata:
 
         # Lookup location
         self.geo_files.geodb.lookup_place(place=place)
+
+        # Sort by match score
+        self.build_result_list(place)
 
         # Clear to a single entry
         if len(place.georow_list) > 1:

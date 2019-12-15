@@ -33,7 +33,14 @@ class AncestryFile:
     Write out all other entries as-is if out_path is not None
     """
 
-    def __init__(self, in_path: str, out_sufix: str, cache_d, progress: Union[None, TKHelper.Progress], geodata):
+    def __init__(self, in_path: str, out_sufix: str, cache_d, progress: Union[None, TKHelper.Progress]):
+        """
+        #Args:
+            in_path:
+            out_sufix:
+            cache_d:
+            progress:
+        """
         self.build = False
         self.logger = logging.getLogger(__name__)
         self.progress_bar = progress
@@ -44,7 +51,6 @@ class AncestryFile:
         self.infile = None
         self.error = False
         self.out_path = self.in_path + '.' + self.out_suffix
-        self.geodata = geodata
         self.temp_suffix = '.tmp'
 
         self.more_available = False
