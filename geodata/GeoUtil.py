@@ -39,7 +39,6 @@ class Entry:
     PREFIX = 8  # Note - item 8 is overloaded:  Soundex in DB and Prefix in result
     SCORE = 9
     MAX = 9
-    POPZZZZZ = 14
 
 
 class Result:

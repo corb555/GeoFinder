@@ -27,6 +27,8 @@ from typing import Dict
 # import SpellCheck
 from geodata import GeoUtil, Loc, Country, GeoDB, Normalize, CachedDictionary, AlternateNames
 
+DB_MINIMUM_RECORDS = 1000
+
 
 class GeodataFiles:
     """
@@ -117,15 +119,7 @@ class GeodataFiles:
                                                              progress_bar=self.progress_bar,filename='alternateNamesV2.txt',
                                                              lang_list=self.lang_list)
 
-    def read(self) -> bool:
-        """
-        Read in data - does nothing
-        Returns:
-            True if error
-        """
-        return False
-
-    def read_geoname(self) -> bool:
+    def open_geodb(self, repair_database:bool) -> bool:
         """
          Read Geoname DB file - this is the db of geoname.org city files and is stored in cache directory under geonames_data
          The db only contains important fields and only for supported countries
@@ -146,77 +140,84 @@ class GeodataFiles:
 
         # Validate Database setup
         if os.path.exists(db_path):
-            # See if db is fresh (newer than other files)
+            # DB Found
             self.logger.debug(f'DB found at {db_path}')
             self.geodb = GeoDB.GeoDB(db_path=db_path, version=self.required_db_version, spellcheck=self.spellcheck,
-                                     show_message=self.show_message, exit_on_error=self.exit_on_error)
+                                     show_message=self.show_message, exit_on_error=self.exit_on_error,
+                                     set_speed_pragmas=True,db_limit=105)
 
             # Make sure DB is correct version
             ver = self.geodb.get_db_version()
             if ver != self.required_db_version:
+                # Wrong version
                 err_msg = f'Database version will be upgraded:\n\n{self.db_upgrade_text}\n\n' \
                     f'Upgrading database from V{ver} to V{self.required_db_version}.'
             else:
-                # Correct Version.  Make sure DB is not stale
-                #dir_time = os.path.getmtime(self.directory)
-                #cache_time = os.path.getmtime(db_path)
-                # if cache_time > dir_time:
-                if True:
-                    #self.logger.info(f'DB is up to date')
-                    # Ensure DB has reasonable number of records
-                    count = self.geodb.get_row_count()
-                    self.logger.info(f'Geoname entries = {count:,}')
-                    if count < 1000:
-                        # Error if DB has under 1000 records
-                        err_msg = f'Geoname Database is too small.\n\n {db_path}\n\nRebuilding DB '
+                # Correct Version.  Make sure DB has reasonable number of records
+                count = self.geodb.get_row_count()
+                self.logger.info(f'Geoname entries = {count:,}')
+                if count < DB_MINIMUM_RECORDS:
+                    # Error if DB has under 1000 records
+                    err_msg = f'Geoname Database is too small.\n\n {db_path}\n\nRebuilding DB '
         else:
             err_msg = f'Database not found at\n\n{db_path}.\n\nBuilding DB'
 
         self.logger.debug(f'{err_msg}')
         if err_msg == '':
             # No DB errors detected
-            self.geodb.create_indices()
-            self.geodb.create_geoid_index()
-            if self.enable_spell_checker:
-                if self.spellcheck:
-                    self.logger.debug(f'Reading spelling dictionary')
-                    self.spellcheck.read()
-            return False
+            pass
+            #self.geodb.create_indices()
+            #self.geodb.create_geoid_index()
+            #if self.enable_spell_checker:
+            #    if self.spellcheck:
+            #        self.logger.debug(f'Reading spelling dictionary')
+            #        self.spellcheck.add_country_names_to_db()
+        else:
+            # DB error detected - rebuild database
+            self.logger.debug('message box')
+            messagebox.showinfo('Database Error', err_msg)
+            self.logger.debug(err_msg)
 
-        # DB error detected - rebuild database
-        self.logger.debug('message box')
-        messagebox.showinfo('Database Error', err_msg)
-        self.logger.debug('message box done')
+            if repair_database:
+                if os.path.exists(db_path):
+                    self.geodb.close()
+                    os.remove(db_path)
+                    self.logger.debug('Database deleted')
 
-        # DB  error.  Rebuild it from geoname files
-        self.logger.debug(err_msg)
+                self.geodb = GeoDB.GeoDB(db_path=db_path, version=self.required_db_version, spellcheck=self.spellcheck,
+                                         show_message=self.show_message, exit_on_error=self.exit_on_error,
+                                         set_speed_pragmas=True, db_limit=105)
 
-        if os.path.exists(db_path):
-            self.geodb.close()
-            os.remove(db_path)
-            self.logger.debug('Database deleted')
+                self.create_database()
 
-        self.geodb = GeoDB.GeoDB(db_path=db_path, version=self.required_db_version, spellcheck=self.spellcheck,
-                                 show_message=self.show_message, exit_on_error=self.exit_on_error)
+                # Create spell check file
+                if self.enable_spell_checker:
+                    self.progress('Creating Spelling dictionary', 88)
+                    if self.spellcheck:
+                        self.spellcheck.write()
+
+        return False
+
+    def create_database(self):
         self.country = Country.Country(progress=self.progress_bar, geo_files=self, lang_list=self.lang_list)
 
         file_count = 0
 
+        # Set DB version to -1 for invalid (until build completed)
+        self.geodb.insert_version(-1)
+
         # Put in country data
-        self.country.read()
+        self.country.add_country_names_to_db(geodb=self.geodb)
 
         # Put in historic data
-        self.read_historic()
+        self.add_historic_names_to_db(self.geodb, historic_names=historic_names)
 
         start_time = time.time()
 
-        # Initialize DB version as -1 for incomplete
-        self.geodb.insert_version(-1)
-
-        # Put in geonames file data
+        # Put in  data from geonames.org files
         for fname in ['allCountries.txt', 'ca.txt', 'gb.txt', 'de.txt', 'fr.txt', 'nl.txt']:
-            # Read all geoname files
-            error = self.read_geoname_file(fname)  # Read in info (lat/long) for all places from
+            # Read  geoname files
+            error = self.add_geoname_file_to_db(fname)  # Read in info (lat/long) for all places from
 
             if error:
                 self.logger.error(f'Error reading geoname file {fname}')
@@ -227,33 +228,28 @@ class GeodataFiles:
             self.logger.error(f'No geonames files found in {os.path.join(self.directory, "*.txt")}')
             return True
 
-        # Put in alias names
-        self.logger.info(f'geonames files done.  Elapsed ={time.time() - start_time}')
+        self.logger.info(f'Geonames.org files done.  Elapsed ={time.time() - start_time}')
 
+        # Put in geonames.org alternate names
         start_time = time.time()
-        self.alternate_names.read()
+        self.alternate_names.add_alternate_names_to_db()
         self.logger.info(f'Alternate names done.  Elapsed ={time.time() - start_time}')
         self.logger.info(f'Geonames entries = {self.geodb.get_row_count():,}')
 
         # Add aliases
-        Normalize.add_aliases(self)
+        Normalize.add_aliases_to_database(self)
 
-        # Write out spelling file
-        if self.enable_spell_checker:
-            self.progress('Creating Spelling dictionary', 88)
-            if self.spellcheck:
-                self.spellcheck.write()
-
+        # Create Indices
         start_time = time.time()
         self.progress("3) Final Step: Creating Indices for Database...", 95)
         self.geodb.create_geoid_index()
         self.geodb.create_indices()
         self.logger.debug(f'Indices done.  Elapsed ={time.time() - start_time}')
+
+        # Set Database Version
         self.geodb.insert_version(self.required_db_version)
 
-        return False
-
-    def read_geoname_file(self, file) -> bool:  # , g_dict
+    def add_geoname_file_to_db(self, file) -> bool:  # , g_dict
         """Read in geonames files and build lookup structure
 
         Read a geoname.org places file and create a db of all the places.
@@ -273,7 +269,7 @@ class GeodataFiles:
 
         if os.path.exists(path):
             fsize = os.path.getsize(path)
-            bytes_per_line = 128
+            bytes_per_line = 128   # Approximate bytes per line for progress indicator
             with open(path, 'r', newline="", encoding='utf-8', errors='replace') as geofile:
                 self.progress("Building Database from {}".format(file), 2)  # initialize progress bar
                 reader = csv.reader(geofile, delimiter='\t')
@@ -376,7 +372,7 @@ class GeodataFiles:
         if self.geodb:
             self.geodb.close()
 
-    def read_historic(self):
+    def add_historic_names_to_db(self, geodb, historic_names):
         #  Add historic names to DB
         for ky in historic_names:
             # Create Geo_row
@@ -392,7 +388,7 @@ class GeodataFiles:
             geo_row[GeoDB.Entry.FEAT] = row[1]
             geo_row[GeoDB.Entry.ID] = 'HIST'
 
-            self.geodb.insert(geo_row=geo_row, feat_code=row[1])
+            geodb.insert(geo_row=geo_row, feat_code=row[1])
 
 
 historic_names = {

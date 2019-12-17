@@ -34,7 +34,7 @@ class GeoDB:
     """
 
     def __init__(self, db_path, version, spellcheck: [SpellCheck.SpellCheck, None],
-                 show_message, exit_on_error):
+                 show_message:bool, exit_on_error:bool, set_speed_pragmas:bool, db_limit:int):
         """
         geoname data database init - open database if present otherwise create with specified version number
         :param db_path: full path to database file
@@ -65,24 +65,29 @@ class GeoDB:
         # If DB exists
         if db_exists:
             # Run sanity test on DB
-            res = self.db.test_database('main.geodata', where='name = ? AND country = ?', args=('ba', 'fr'))
+            err = self.db.test_database('main.geodata', where='name = ? AND country = ?', args=('ba', 'fr'))
 
-            if res:
+            if err:
+                # DB failed sanity test
                 self.logger.warning(f'DB error for {db_path}')
-                if messagebox.askyesno('Error',
-                                       f'Geoname database is empty or corrupt:\n\n {db_path} \n\nDo you want to delete it and rebuild?'):
-                    messagebox.showinfo('', 'Deleting Geoname database')
-                    self.db.conn.close()
-                    os.remove(db_path)
-                sys.exit()
+
+                if show_message:
+                    if messagebox.askyesno('Error',
+                                           f'Geoname database is empty or corrupt:\n\n {db_path} \n\nDo you want to delete it and rebuild?'):
+                        messagebox.showinfo('', 'Deleting Geoname database')
+                        self.db.conn.close()
+                        os.remove(db_path)
+                if exit_on_error:
+                    sys.exit()
         else:
             # DB didnt exist.  Create tables.
             self.create_tables()
             if version:
                 self.insert_version(version)
 
-        self.db.set_speed_pragmas()
-        self.db_limit = 105
+        if set_speed_pragmas:
+            self.db.set_speed_pragmas()
+        self.db_limit = db_limit
         self.db.order_string = ''
         self.db.limit_string = f'LIMIT {self.db_limit}'
         self.geoid_main_dict = {}  # Key is GEOID, Value is DB ID for entry
@@ -583,14 +588,16 @@ class GeoDB:
             update = list(rw)
             update.append(1)  # Extend list row and assign score
             result_place.prefix = ''
-            res_nm = result_place.get_long_name(None)
+            result_name = result_place.get_long_name(None)
             score = 0.0
 
-            # Remove any words from Prefix that are in result
-            for item in res_nm.split(","):
-                for word in item.split(' '):
-                    if word in place.prefix and '*' not in word:
-                        place.prefix = re.sub(word, '', place.prefix, 1)
+            # Remove any words from Prefix that are in result name
+            place.prefix = self.prefix_cleanup(place.prefix, result_name)
+
+            #for item in res_nm.split(","):
+            #    for word in item.split(' '):
+            #        if word in place.prefix and '*' not in word:
+            #            place.prefix = re.sub(word, '', place.prefix, 1)
 
             update[GeoUtil.Entry.SCORE] = int(score * 100)
             place.georow_list[idx] = tuple(update)
@@ -1039,7 +1046,7 @@ class GeoDB:
         return result
 
     @staticmethod
-    def prefix_cleanup(pref, result):
+    def prefix_cleanup(pref:str, result:str)->str:
         """
 
         :param pref:
@@ -1048,10 +1055,15 @@ class GeoDB:
         """
         new_prfx = pref.lower()
 
-        # Remove result words  from prefix
+        # Remove words in result from prefix
         for item in re.split(r'\W+', result.lower()):
             if len(item) > 1:
                 new_prfx = re.sub(item, '', new_prfx, count=1)
+
+        # Remove wildcard char from prefix
+        new_prfx = re.sub(r'\*','',new_prfx)
+
+        new_prfx = new_prfx.strip(' ')
 
         return new_prfx
 

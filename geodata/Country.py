@@ -48,7 +48,7 @@ class Country:
         else:
             return 'en'
 
-    def read(self) -> bool:
+    def add_country_names_to_db(self, geodb) -> bool:
         """
            Read in list of country names and ISO codes
         """
@@ -57,7 +57,7 @@ class Country:
 
         # list of all countries and their ISO codes
         # This also includes some common aliases
-        self.geo_files.geodb.db.begin()
+        geodb.db.begin()
 
         self.logger.debug(self.lang_list)
 
@@ -85,9 +85,9 @@ class Country:
             geo_row[GeoDB.Entry.FEAT] = 'ADM0'
             geo_row[GeoDB.Entry.ID] = row[CnRow.ISO].lower()
 
-            self.geo_files.geodb.insert(geo_row=geo_row, feat_code='ADM0')
+            geodb.insert(geo_row=geo_row, feat_code='ADM0')
 
-        self.geo_files.geodb.db.commit()
+        geodb.db.commit()
         return False
 
 

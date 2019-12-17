@@ -72,7 +72,6 @@ def _phrase_normalize(text: str) -> str:
     text = re.sub(r'city of ', '', text)  #  - remove city of
     text = re.sub(r'near ', ' ', text)  #  - remove near
 
-
     if 'amt' not in text:
         text = re.sub(r'^mt ', 'mount ', text)
 
@@ -174,7 +173,7 @@ alias_list = {
 }
 
 
-def add_aliases(geo_files: GeodataFiles):
+def add_aliases_to_database(geo_files: GeodataFiles):
     #  Add alias names to DB
     place = Loc.Loc()
     for ky in alias_list:

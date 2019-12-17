@@ -26,19 +26,23 @@ from geodata import GeoUtil, GeodataFiles, Loc, MatchScore
 
 class Geodata:
     """
-    Provide a place lookup gazeteer based on datafiles from geonames.org read in by GeodataFiles.py
+        Provide a place lookup gazeteer based on datafiles from geonames.org read in by GeodataFiles.py
     """
 
     def __init__(self, directory_name: str, progress_bar, enable_spell_checker,
                  show_message, exit_on_error, languages_list_dct, feature_code_list_dct, supported_countries_dct):
         """
-        Provide a place lookup gazeteer based on datafiles from geonames.org read in by GeodataFiles.py
-        The lookup returns whether a place exists and its lat/long.
-        :param directory_name:
-        :param progress_bar: tkhelper progress bar or None
-        :param enable_spell_checker: If True then use SpellChecker (CURRENTLY NOT SUPPORTED)
-        :param show_message - show TKInter message dialog on error
-        :param exit_on_error - exit on significant error
+            Init
+
+        # Args:
+            directory_name:
+            progress_bar: tkhelper progress bar or None
+            enable_spell_checker: If True then use SpellChecker (CURRENTLY NOT SUPPORTED)
+            show_message: show TKInter message dialog on error
+            exit_on_error: exit on significant error
+            languages_list_dct: Dictionary of ISO-2 languages to import from AlternateNamesV2.txt
+            feature_code_list_dct: Dictionary of Geoname Feature codes to import into DB
+            supported_countries_dct: Dictionary of ISO-2 Country codes to import into DB
         """
         self.logger = logging.getLogger(__name__)
         self.status = "geoname file error"
@@ -56,14 +60,16 @@ class Geodata:
 
     def find_location(self, location: str, place: Loc, plain_search) -> GeoUtil.Result:
         """
-        Find a location in the geoname database.  On successful match, place.georow_list will contain
-        list of georows that matched the name.  Each georow can be copied to a Loc structure by
-        calling geodb.copy_georow_to_place
+            Find a location in the geoname database.  On successful match, place.georow_list will contain
+            list of georows that matched the name.  Each georow can be copied to a Loc structure by
+            calling geodb.copy_georow_to_place
 
-        :param location: comma separated name of location to find, e.g. 'Los Angeles, California, USA'
-        :param place: Loc structure
-        :param plain_search: If True then don't do wildcard searches
-        :return: GeoUtil.Result code.
+        # Args:
+            location: comma separated name of location to find, e.g. 'Los Angeles, California, USA'
+            place: Loc structure
+            plain_search: If True then don't do wildcard searches
+        # Returns:
+            GeoUtil.Result code
         """
 
         """
@@ -98,6 +104,7 @@ class Geodata:
 
         # Create full entry text
         place.updated_entry = GeoUtil.capwords(prfx) + place.get_long_name(self.geo_files.output_replace_dct)
+        place.standard_parse = True
 
         flags = ResultFlags(limited=False, filtered=False)
         result_list = []  # We will do different search types and append all results into result_list
@@ -120,7 +127,6 @@ class Geodata:
             return place.result_type
 
         # 1) Try lookup as determined by standard parsing:  city, county, state/province, country
-        place.standard_parse = True
         self.logger.debug(f'  1) Try standard, based on parsing.  pref [{place.prefix}] type={place.place_type}')
 
         self.geo_files.geodb.lookup_place(place=place)
@@ -128,22 +134,21 @@ class Geodata:
             result_list.extend(place.georow_list)
 
         # Restore items
-        place.city1 = self.save_place.city1
-        place.admin2_name = self.save_place.admin2_name
-        place.prefix = self.save_place.prefix
-        place.extra = self.save_place.extra
+        self.restore_fields(place, self.save_place)
 
         # Try alternatives since parsing can be wrong
         # 2)  a) Try Prefix as city, b) Try Admin2  as city
-        place.standard_parse = False
         for ty in [Loc.PlaceType.PREFIX, Loc.PlaceType.ADMIN2]:
-            self.lookup_by_type(place, result_list, ty, self.save_place)
+            self.lookup_by_type(place, ty)
+            if place.georow_list:
+                result_list.extend(place.georow_list)
+            self.restore_fields(place, self.save_place)
 
         # 3) Try city as Admin2
         self.logger.debug(f'  3) Try lookup with City as Adm2. Target={place.city1}  pref [{place.prefix}] ')
-        self.lookup_as_admin2(place=place, result_list=result_list, save_place=self.save_place)
+        self.lookup_city_as_admin2(place=place, result_list=result_list)
 
-        #  Move result list into place georow list
+        #  Move result_list into place georow list
         place.georow_list.clear()
         place.georow_list.extend(result_list)
 
@@ -155,7 +160,6 @@ class Geodata:
         if len(place.georow_list) == 0:
             # NO MATCH
             self.logger.debug(f'Not found.')
-            # place = self.save_place
             if place.result_type != GeoUtil.Result.NO_COUNTRY and place.result_type != GeoUtil.Result.NOT_SUPPORTED:
                 place.result_type = GeoUtil.Result.NO_MATCH
         elif len(place.georow_list) > 1:
@@ -167,7 +171,24 @@ class Geodata:
         # self.logger.debug(f'Status={place.status}')
         return place.result_type
 
-    def lookup_by_type(self, place: Loc, result_list, typ, save_place: Loc):
+    def restore_fields(self, place, save_place):
+        place.city1 = save_place.city1
+        place.admin2_name = save_place.admin2_name
+        place.prefix = save_place.prefix
+        place.extra = save_place.extra
+        place.standard_parse = save_place.standard_parse
+
+    def lookup_by_type(self, place: Loc, typ):
+        """
+            Use field from specified type as City target
+        # Args:
+            place: Loc - place to lookup
+            typ: Type of field to use as target for lookup
+
+        Returns:
+            place.georow_list is updated with matches
+        """
+        place.standard_parse = False
         typ_name = ''
         if typ == Loc.PlaceType.CITY:
             # Try City as city (do as-is)
@@ -184,12 +205,10 @@ class Geodata:
             # Try Prefix as City
             if place.prefix != '':
                 place.city1 = place.prefix
-                place.prefix = save_place.city1
                 typ_name = 'Prefix'
         elif typ == Loc.PlaceType.ADVANCED_SEARCH:
             # Advanced Search
             self.geo_files.geodb.lookup_place(place=place)
-            result_list.extend(place.georow_list)
             return
         else:
             self.logger.warning(f'Unknown TYPE {typ}')
@@ -199,16 +218,147 @@ class Geodata:
 
             place.target = place.city1
             place.place_type = Loc.PlaceType.CITY
-
             self.geo_files.geodb.lookup_place(place=place)
-            result_list.extend(place.georow_list)
-            # self.calculate_prefixes_for_rows(place=place)
 
-            # Restore items
-            place.city1 = save_place.city1
-            place.admin2_name = save_place.admin2_name
-            place.prefix = save_place.prefix
-            place.extra = save_place.extra
+    def find_best_match(self, location: str, place: Loc):
+        """
+            Find the first match for this location in the geoname dictionary.
+        Args:
+            location:
+            place:
+        Returns:
+            Update place with -- lat, lon, district, city, country_iso, result code
+        """
+
+        #  First parse the location into <prefix>, city, <district2>, district1, country.
+        #  Then look it up in the place db
+        place.parse_place(place_name=location, geo_files=self.geo_files)
+        place.country_name = self.geo_files.geodb.get_country_name(place.country_iso)
+        place.country_iso = place.country_iso
+
+        # Lookup location
+        self.geo_files.geodb.lookup_place(place=place)
+
+        # Sort by match score
+        self.build_result_list(place)
+
+        # Clear to just best entry
+        if len(place.georow_list) > 1:
+            row = copy.copy(place.georow_list[0])
+            place.georow_list.clear()
+            place.georow_list.append(row)
+            place.result_type = GeoUtil.Result.STRONG_MATCH
+
+        self.process_result(place=place, flags=ResultFlags(limited=False, filtered=False))
+
+    def find_geoid(self, geoid: str, place: Loc):
+        place.target = geoid
+        place.georow_list.clear()
+        self.geo_files.geodb.get_geoid(place=place)
+        if len(place.georow_list) > 0:
+            # Copy geo row to Place
+            self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
+            place.original_entry = place.get_long_name(None)
+            place.result_type = GeoUtil.Result.STRONG_MATCH
+        else:
+            place.result_type = GeoUtil.Result.NO_MATCH
+
+    def lookup_geoid(self, place: Loc):
+        flags = ResultFlags(limited=False, filtered=False)
+        self.geo_files.geodb.get_geoid(place)
+        self.process_result(place=place, flags=flags)
+
+    def search_city(self, place: Loc):
+        place.target = place.city1
+        place.prefix = f' {place.admin2_name.title()}'
+        self.logger.debug(f' Try city [{place.target}] as city')
+        self.geo_files.geodb.lookup_place(place=place)
+
+    def lookup_city_as_admin2(self, place: Loc, result_list):
+        # Try City as ADMIN2
+        place.standard_parse = False
+        place.extra = place.admin2_name
+        place.target = place.city1
+        place.admin2_name = place.city1
+        place.city1 = ''
+        place.place_type = Loc.PlaceType.ADMIN2
+        self.logger.debug(f'  Try admin2  [{place.target}] as city [{place.get_five_part_title()}]')
+        self.geo_files.geodb.lookup_place(place=place)
+        result_list.extend(place.georow_list)
+
+    def advanced_search(self, place, result_list):
+        # Lookup location with advanced search params
+        self.logger.debug('Advanced Search')
+        self.lookup_by_type(place, place.place_type)
+
+        if len(place.georow_list) > 0:
+            # Build list - sort and remove duplicates
+            # self.logger.debug(f'Match {place.georow_list}')
+            flags = ResultFlags(limited=False, filtered=False)
+            self.process_result(place=place, flags=flags)
+            self.build_result_list(place)
+
+    def read_geonames(self):
+        self.progress("Reading Geoname files...", 70)
+        return self.geo_files.open_geodb(repair_database=True)
+
+    def progress(self, msg: str, percent: int):
+        if self.progress_bar is not None:
+            self.progress_bar.update_progress(percent, msg)
+        else:
+            self.logger.debug(msg)
+
+    def is_country_valid(self, place: Loc) -> bool:
+        # See if COUNTRY is present and is in the supported country list
+        if place.country_iso == '':
+            place.result_type = GeoUtil.Result.NO_COUNTRY
+            is_valid = False
+        elif place.country_iso not in self.geo_files.supported_countries_dct:
+            self.logger.debug(f'[{place.country_iso}] not supported')
+            place.result_type = GeoUtil.Result.NOT_SUPPORTED
+            place.place_type = Loc.PlaceType.COUNTRY
+            place.target = place.country_name
+            is_valid = False
+        else:
+            is_valid = True
+
+        return is_valid
+
+    @staticmethod
+    def valid_year_for_location(event_year: int, iso: str, admin1: str, padding: int) -> bool:
+        # See if this location name was valid at the time of the event
+        # Try looking up start year by state/province
+        place_year = admin1_name_start_year.get(f'{iso}.{admin1.lower()}')
+        if place_year is None:
+            # Try looking up start year by country
+            place_year = country_name_start_year.get(iso)
+        if place_year is None:
+            place_year = -1
+
+        if event_year + padding < place_year and event_year != 0:
+            # self.logger.debug(f'Invalid year:  incorporation={place_year}  event={event_year} loc={admin1},{iso} pad={padding}')
+            return False
+        else:
+            return True
+
+    @staticmethod
+    def get_priority(feature):
+        # Returns 0-100 for feature priority.  Lowest is best
+        f_prior = feature_priority.get(feature)
+        if f_prior is None:
+            f_prior = feature_priority.get('DEFAULT')
+        # print(f'Geodata Feat [{feature}] raw ={f_prior}')
+
+        return 100.0 - float(f_prior)
+
+    def open_diag_file(self, miss_diag_fname: str):
+        # Open diagnostic file
+        self.miss_diag_file = open(miss_diag_fname, 'wt')
+
+    def close_diag_file(self):
+        # Close diagnostic file
+        if self.miss_diag_file:
+            self.miss_diag_file.close()
 
     def process_result(self, place: Loc, flags) -> None:
         """
@@ -223,24 +373,23 @@ class Geodata:
 
         if place.result_type in GeoUtil.successful_match and len(place.georow_list) > 0:
             self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
-        elif len(place.georow_list) > 0:
+        elif len(place.georow_list) > 0 and place.result_type != GeoUtil.Result.NOT_SUPPORTED:
             # self.logger.debug(f'***RESULT={place.result_type} Setting to Partial')
             place.result_type = GeoUtil.Result.PARTIAL_MATCH
 
-        place.prefix = place.prefix.strip(' ')
         place.set_place_type_text()
 
     def build_result_list(self, place: Loc):
         """
-        Create a version of place.result_list without any duplicates (same name, similar lat/lon) and
-        sorted by match score
-        In case of duplicate, keep the one with best match score
-        Add flag if we hit the lookup limit
-        Discard location names that didnt exist at time of event (update result flag if this occurs)
-        #Args:
+            Create a version of place.result_list without any duplicates (same name, similar lat/lon) and
+            sorted by match score
+            In case of duplicate, keep the one with best match score
+            Add flag if we hit the lookup limit
+            Discard location names that didnt exist at time of event (update result flag if this occurs)
+        # Args:
             place:
 
-        #Returns:
+        # Returns:
             ResultFlags(limited=limited_flag, filtered=date_filtered)
         """
 
@@ -349,7 +498,7 @@ class Geodata:
 
         self.logger.debug(f'min={min_score:.1f}, gap2={gap_threshold2:.1f}')
 
-        if min_score <= MatchScore.EXCELLENT and len(place.georow_list) == 1:
+        if min_score <= MatchScore.EXCELLENT and len(place.georow_list) == 1 and place.result_type != GeoUtil.Result.NOT_SUPPORTED:
             place.result_type = GeoUtil.Result.STRONG_MATCH
         else:
             # Log item that we couldnt match
@@ -357,157 +506,6 @@ class Geodata:
                 self.miss_diag_file.write(f'{place.original_entry}\n   MIN {min_match}\n   2ND {sec_match}\n\n')
 
         return ResultFlags(limited=limited_flag, filtered=date_filtered)
-
-    def find_first_match(self, location: str, place: Loc):
-        """
-        Find the first match for this location in the geoname dictionary.
-        First parse the location into <prefix>, city, <district2>, district1, country.
-        Then look it up in the place db
-        Update place with -- lat, lon, district, city, country_iso, result code
-        """
-        place.parse_place(place_name=location, geo_files=self.geo_files)
-        place.country_name = self.geo_files.geodb.get_country_name(place.country_iso)
-
-        place.country_iso = place.country_iso
-
-        # Lookup location
-        self.geo_files.geodb.lookup_place(place=place)
-
-        # Sort by match score
-        self.build_result_list(place)
-
-        # Clear to a single entry
-        if len(place.georow_list) > 1:
-            row = copy.copy(place.georow_list[0])
-            place.georow_list.clear()
-            place.georow_list.append(row)
-            place.result_type = GeoUtil.Result.STRONG_MATCH
-
-        self.process_result(place=place, flags=ResultFlags(limited=False, filtered=False))
-
-    def find_geoid(self, geoid: str, place: Loc):
-        place.target = geoid
-        place.georow_list.clear()
-        self.geo_files.geodb.get_geoid(place=place)
-        if len(place.georow_list) > 0:
-            # Copy geo row to Place
-            self.geo_files.geodb.copy_georow_to_place(row=place.georow_list[0], place=place)
-            place.original_entry = place.get_long_name(None)
-            place.result_type = GeoUtil.Result.STRONG_MATCH
-        else:
-            place.result_type = GeoUtil.Result.NO_MATCH
-
-    def lookup_geoid(self, place: Loc):
-        flags = ResultFlags(limited=False, filtered=False)
-        self.geo_files.geodb.get_geoid(place)
-        self.process_result(place=place, flags=flags)
-
-    def search_city(self, place: Loc):
-        place.target = place.city1
-        place.prefix = f' {place.admin2_name.title()}'
-        self.logger.debug(f' Try city [{place.target}] as city')
-        self.geo_files.geodb.lookup_place(place=place)
-
-    def lookup_as_admin2(self, place: Loc, result_list, save_place: Loc):
-        # Try City as ADMIN2
-        place.extra = place.admin2_name
-        place.target = place.city1
-        place.admin2_name = place.city1
-        place.city1 = ''
-        place.place_type = Loc.PlaceType.ADMIN2
-        self.logger.debug(f'  Try admin2  [{place.target}] as city [{place.get_five_part_title()}]')
-        self.geo_files.geodb.lookup_place(place=place)
-        result_list.extend(place.georow_list)
-
-        # Restore items
-        place.city1 = save_place.city1
-        place.admin2_name = save_place.admin2_name
-        place.admin1_name = save_place.admin1_name
-        place.prefix = save_place.prefix
-
-    def advanced_search(self, place, result_list):
-        # Lookup location with advanced search params
-        self.logger.debug('Advanced Search')
-        self.lookup_by_type(place, result_list, place.place_type, self.save_place)
-        place.georow_list.clear()
-        place.georow_list.extend(result_list)
-
-        if len(place.georow_list) > 0:
-            # Build list - sort and remove duplicates
-            # self.logger.debug(f'Match {place.georow_list}')
-            flags = ResultFlags(limited=False, filtered=False)
-            self.process_result(place=place, flags=flags)
-            self.build_result_list(place)
-
-    def read(self) -> bool:
-        """ Read in geo name files which contain place names and their lat/lon.
-            Return True if error
-        """
-        err = self.geo_files.read()
-        if err:
-            return True
-
-    def read_geonames(self):
-        self.progress("Reading Geoname files...", 70)
-        return self.geo_files.read_geoname()
-
-    def progress(self, msg: str, percent: int):
-        if self.progress_bar is not None:
-            self.progress_bar.update_progress(percent, msg)
-        else:
-            self.logger.debug(msg)
-
-    def is_country_valid(self, place: Loc) -> bool:
-        # See if COUNTRY is present and is in the supported country list
-        if place.country_iso == '':
-            place.result_type = GeoUtil.Result.NO_COUNTRY
-            is_valid = False
-        elif place.country_iso not in self.geo_files.supported_countries_dct:
-            self.logger.debug(f'[{place.country_iso}] not supported')
-            place.result_type = GeoUtil.Result.NOT_SUPPORTED
-            place.place_type = Loc.PlaceType.COUNTRY
-            place.target = place.country_name
-            is_valid = False
-        else:
-            is_valid = True
-
-        return is_valid
-
-    @staticmethod
-    def valid_year_for_location(event_year: int, iso: str, admin1: str, padding: int) -> bool:
-        # See if this location name was valid at the time of the event
-        # Try looking up start year by state/province
-        place_year = admin1_name_start_year.get(f'{iso}.{admin1.lower()}')
-        if place_year is None:
-            # Try looking up start year by country
-            place_year = country_name_start_year.get(iso)
-        if place_year is None:
-            place_year = -1
-
-        if event_year + padding < place_year and event_year != 0:
-            # self.logger.debug(f'Invalid year:  incorporation={place_year}  event={event_year} loc={admin1},{iso} pad={padding}')
-            return False
-        else:
-            return True
-
-    @staticmethod
-    def get_priority(feature):
-        # Returns 0-100 for feature priority.  Lowest is best
-        f_prior = feature_priority.get(feature)
-        if f_prior is None:
-            f_prior = feature_priority.get('DEFAULT')
-        # print(f'Geodata Feat [{feature}] raw ={f_prior}')
-
-        return 100.0 - float(f_prior)
-
-    def open_diag_file(self, miss_diag_fname: str):
-        # Open diagnostic file
-        self.miss_diag_file = open(miss_diag_fname, 'wt')
-
-    def close_diag_file(self):
-        # Close diagnostic file
-        if self.miss_diag_file:
-            self.miss_diag_file.close()
 
 
 # Default geonames.org feature types to load

@@ -48,7 +48,7 @@ class AlternateNames(FileReader.FileReader):
         self.lang_list = lang_list
         self.loc = Loc.Loc()
 
-    def read(self) -> bool:
+    def add_alternate_names_to_db(self) -> bool:
         """
         Read file into database
         :return: True if error

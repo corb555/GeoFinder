@@ -35,6 +35,11 @@ class RowEntry:
     ISO = 3
 
 
+features = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ", "HSP","FT",
+           "HSTS", "ISL", "MSQE", "MSTY", "MT", "MUS", "PAL", "PPL", "PPLA", "PPLA2", "PPLA3", "PPLA4",
+           "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "PRSH", "RUIN", "RLG", "STG", "SQR", "SYG", "VAL"]
+
+
 class TestCSV(unittest.TestCase):
     geodata = None
     ancestry = None
@@ -51,11 +56,14 @@ class TestCSV(unittest.TestCase):
         directory = os.path.join(str(Path.home()), "geoname_test")
         csv_path = os.path.join(directory, "test")
         TestCSV.geodata = Geodata.Geodata(directory_name=directory, progress_bar=None, enable_spell_checker=False,
-                                          show_message=True, exit_on_error=False)
-        error: bool = TestCSV.geodata.read()
-        if error:
-            TestCSV.logger.error("Missing geodata support Files.")
-            raise ValueError('Cannot open database')
+                                          show_message=True, exit_on_error=False,
+                                          languages_list_dct={'en'},
+                                          feature_code_list_dct=features,
+                                          supported_countries_dct={'fr', 'gb', 'ca', 'de', 'nl'})
+        #error: bool = TestCSV.geodata.read()
+        #if error:
+            #TestCSV.logger.error("Missing geodata support Files.")
+            #raise ValueError('Cannot open database')
 
         # Read in Geoname Gazeteer file - city names, lat/long, etc.
         error = TestCSV.geodata.read_geonames()
@@ -91,7 +99,7 @@ class TestCSV(unittest.TestCase):
             place.feature = row[RowEntry.FEAT]
             place.parse_place(place_name=place.original_entry, geo_files=TestCSV.geodata.geo_files)
             # Lookup record
-            TestCSV.geodata.find_first_match(place.original_entry, place)
+            TestCSV.geodata.find_best_match(place.original_entry, place)
             place.id = row[RowEntry.PLACE_ID]
             GrampsCsv._set_CSV_place_type(place)
             #TestCSV.geodata.set_place_type_text(place)
@@ -108,7 +116,7 @@ class TestCSV(unittest.TestCase):
         print("*****TEST: {}".format(title))
         place = Loc.Loc()
         place.parse_place(entry, TestCSV.geodata.geo_files )
-        self.geodata.find_first_match(place.original_entry, place)
+        self.geodata.find_best_match(place.original_entry, place)
         place.original_entry = place.get_long_name(None)
         GrampsCsv._set_CSV_place_type(place)
         place.id = TestCSV.csv._get_hierarchy_key(place)
