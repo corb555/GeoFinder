@@ -25,7 +25,7 @@ from typing import Dict
 
 
 class CachedDictionary:
-    """ Use a Python Pickle file to maintain a cached dictionary """
+    """ Write/read dictionary to Python Pickle file """
 
     def __init__(self, cache_directory, fname):
         self.logger = logging.getLogger(__name__)

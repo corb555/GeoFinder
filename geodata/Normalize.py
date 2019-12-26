@@ -190,7 +190,7 @@ def add_aliases_to_database(geo_files: GeodataFiles):
         geo_row[GeoDB.Entry.ADM1] = ''
         geo_row[GeoDB.Entry.ADM2] = ''
 
-        geo_files.update_geo_row_name(geo_row=geo_row, name=ky)
+        geo_files._update_geo_row_name(geo_row=geo_row, name=ky)
         if row[2] == 'ADM1':
             geo_row[GeoDB.Entry.ADM1] = ky
             place.place_type = Loc.PlaceType.ADMIN1

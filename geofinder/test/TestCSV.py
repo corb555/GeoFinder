@@ -66,7 +66,7 @@ class TestCSV(unittest.TestCase):
             #raise ValueError('Cannot open database')
 
         # Read in Geoname Gazeteer file - city names, lat/long, etc.
-        error = TestCSV.geodata.read_geonames()
+        error = TestCSV.geodata.open()
 
         if error:
             TestCSV.logger.info("Missing geoname Files.")

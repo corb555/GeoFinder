@@ -24,6 +24,7 @@ from geodata import GeoDB
 
 
 class CnRow:
+    """ Elements in country row """
     ISO = 0
     ISO3 = 1
     NUM = 2
@@ -33,6 +34,13 @@ class CnRow:
 
 class Country:
     def __init__(self, progress, geo_files, lang_list):
+        """
+
+        # Args:
+            progress: TkHelper Progress or None
+            geo_files: GeodataFiles instance
+            lang_list: ISO codes for additional languages.  Only Dutch and German currently supported
+        """
         self.logger = logging.getLogger(__name__)
         self.geo_files = geo_files
         self.progress = progress
@@ -50,7 +58,12 @@ class Country:
 
     def add_country_names_to_db(self, geodb) -> bool:
         """
-           Read in list of country names and ISO codes
+               Add country names and ISO codes to database
+        # Args:
+            geodb: GeoDB instance
+
+        # Returns:
+            True if error
         """
         if self.progress is not None:
             self.progress.update_progress(100, "Read ISO countries...")
@@ -66,8 +79,8 @@ class Country:
             # Localize country names using trans table
             for lang in self.lang_list:
                 # If we have a translation table for this language, then apply it
-                if trans_table.get(lang):
-                    tbl = trans_table.get(lang)
+                if translation_table.get(lang):
+                    tbl = translation_table.get(lang)
                     # Look up the country translation
                     if tbl.get(ky):
                         ky = tbl.get(ky)
@@ -76,7 +89,7 @@ class Country:
             # Create Geo_row
             # ('paris', 'fr', '07', '012', '12.345', '45.123', 'PPL')
             geo_row = [None] * GeoDB.Entry.MAX
-            self.geo_files.update_geo_row_name(geo_row=geo_row, name=ky)
+            self.geo_files._update_geo_row_name(geo_row=geo_row, name=ky)
             geo_row[GeoDB.Entry.ISO] = row[CnRow.ISO].lower()
             geo_row[GeoDB.Entry.ADM1] = ''
             geo_row[GeoDB.Entry.ADM2] = ''
@@ -90,8 +103,39 @@ class Country:
         geodb.db.commit()
         return False
 
+    def add_historic_names_to_db(self, geodb):
+        """
+        Add historic names to DB
+
+        Args:
+            geodb: GeoDB instance
+        """
+        for ky in historic_names:
+            # Create Geo_row
+            # ('paris', 'fr', '07', '012', '12.345', '45.123', 'PPL')
+            row = historic_names[ky]
+            geo_row = [None] * GeoDB.Entry.MAX
+            self.geo_files._update_geo_row_name(geo_row=geo_row, name=ky)
+            geo_row[GeoDB.Entry.ISO] = row[0].lower()
+            geo_row[GeoDB.Entry.ADM1] = ''
+            geo_row[GeoDB.Entry.ADM2] = ''
+            geo_row[GeoDB.Entry.LAT] = row[3]
+            geo_row[GeoDB.Entry.LON] = row[4]
+            geo_row[GeoDB.Entry.FEAT] = row[1]
+            geo_row[GeoDB.Entry.ID] = 'HIST'
+
+            geodb.insert(geo_row=geo_row, feat_code=row[1])
+
+
+historic_names = {
+    # Name : 0ISO Country, 1Feat, 2num, 3lat, 4lon
+    'Arabia': ('XA', 'PPLL', '4', '25', '45'),
+    'Mecca': ('SA', 'PPL', '4', '25', '45'),
+    'Zion': ('IL', 'PPL', '4', '31.5', '34.75'),
+    }
 
 country_dict = {
+    # Name : ISO-2, ISO-3, val, Lat, long
     'Afghanistan': ('AF', 'AFG', '4', '33', '65'),
     'Albania': ('AL', 'ALB', '8', '41', '20'),
     'Algeria': ('DZ', 'DZA', '12', '28', '3'),
@@ -348,10 +392,10 @@ country_dict = {
     'Yemen': ('YE', 'YEM', '887', '15', '48'),
     'Zambia': ('ZM', 'ZMB', '894', '-15', '30'),
     'Zimbabwe': ('ZW', 'ZWE', '716', '-20', '30')
-}
+    }
 
-# Country code to Lang
 country_lang = {
+    # ISO Country code to Language code (primary)
     "AF": "ps",
     "AL": "sq",
     "DZ": "ar",
@@ -471,12 +515,12 @@ country_lang = {
     "VN": "vi",
     "YE": "ar",
     "ZW": "en",
-}
+    }
 
-# Non English Country Name tables
+# Tables for Non English Country Name
 
-# Dutch
-nl_trans = {
+# Dutch country translations
+_nl_trans = {
     "Afghanistan": "Afghanistan",
     "Albania": "Albanië",
     "Algeria": "Algerije",
@@ -672,10 +716,10 @@ nl_trans = {
     "Yemen": "Jemen",
     "Zambia": "Zambia",
     "Zimbabwe": "Zimbabwe",
-}
+    }
 
-# German
-de_trans = {
+# German country translations
+_de_trans = {
     "Afghanistan": "Afghanistan",
     "Albania": "Albanien",
     "Algeria": "Algerien",
@@ -872,9 +916,9 @@ de_trans = {
     "Zambia": "Sambia",
     "Zimbabwe": "Simbabwe",
 
-}
+    }
 
-trans_table = {
-    'nl': nl_trans,
-    # 'de': de_trans,
-}
+translation_table = {
+    'nl': _nl_trans,
+    'de': _de_trans,
+    }

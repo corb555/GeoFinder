@@ -89,47 +89,15 @@ class Loc:
 
         self.georow_list.clear()
 
-    def filter(self, place_name, geo_files):
-        # Advanced search parameters
-        # Separate out arguments
-        tokens = place_name.split(",")
-        args = []
-        for tkn in tokens:
-            if '--' in tkn:
-                args.append(tkn.strip(' '))
-
-        # Parse options in place name
-        parser = ArgumentParserNoExit.ArgumentParserNoExit(description="Parses command.")
-        parser.add_argument("-f", "--feature", help=argparse.SUPPRESS)
-        parser.add_argument("-i", "--iso", help=argparse.SUPPRESS)
-        parser.add_argument("-c", "--country", help=argparse.SUPPRESS)
-        try:
-            options = parser.parse_args(args)
-            self.city1 = Normalize.normalize_for_search(tokens[0], self.country_iso)
-            self.target = self.city1
-            if options.iso:
-                self.country_iso = options.iso.lower()
-            if options.country:
-                self.country_iso = options.country.lower()
-            if options.feature:
-                self.feature = options.feature.upper()
-            self.place_type = PlaceType.ADVANCED_SEARCH
-        except Exception as e:
-            self.logger.debug(e)
-        self.logger.debug(f'ADV SEARCH: targ={self.city1} iso={self.country_iso} feat={self.feature} typ={self.place_type}')
-
     def parse_place(self, place_name: str, geo_files):
         """
-        Givn a comma separated place name,
-        parse into its city, adminID, country_iso and type of entity (city, country etc)
-        Mechanism - attempt to extract Country and Admin1 from last 2 items.
-        The remaining items could be prefix, city, or Admin2 (county).
-        self.status has Result status code
+            Given a comma separated place name,
+            parse into its city, adminID, country_iso and type of entity (city, country etc)
         Args:
             place_name: The place name to parse
             geo_files: Geo_files
         Returns:
-            Fields in Loc (city, adm1, adm2, iso) are updated based on parsing.
+            Fields in Loc (city, adm1, adm2, iso) are updated based on parsing. self.status has Result status code
         """
         self.clear()
         self.original_entry = place_name
@@ -147,13 +115,15 @@ class Loc:
         self.place_type = PlaceType.CITY
 
         # Parse City, Admin2, Admin2, Country scanning from the right.  When there are more tokens, we capture more fields
+        # Try to verify Country and State/Province.  Remaining tokens are placed unverified
         # Place type is the leftmost item we found - either City, Admin2, Admin2, or Country
+        # Extract advanced search options (--xyz) if present
         # self.logger.debug(f'***** PLACE [{place_name}] *****')
 
         if '--' in place_name:
             # Advanced Search - Pull out filter flags if present
             self.logger.debug('filter')
-            self.filter(place_name, geo_files)
+            self.get_filter_parameters(place_name)
             return
         elif token_count > 0:
             #  COUNTRY - right-most token should be country
@@ -177,7 +147,7 @@ class Loc:
                 self.country_name = ''
 
         if token_count > 1:
-            #  Format: Admin1, Country.
+            #  ADMIN1
             #  See if 2nd to last token is Admin1
             self.admin1_name = Normalize.normalize_for_search(tokens[-2], self.country_iso)
             self.admin1_name = Normalize.admin1_normalize(self.admin1_name, self.country_iso)
@@ -205,6 +175,7 @@ class Loc:
                 self.place_type = PlaceType.CITY
                 self.target = self.city1
         elif token_count > 2:
+            # ADMIN2
             #  Format: Admin2, Admin1, Country
             #  Admin2 is 3rd to last.  Note -  if Admin2 isnt found, it will look it up as city
             self.admin2_name = Normalize.normalize_for_search(tokens[-3], self.country_iso)
@@ -215,7 +186,7 @@ class Loc:
                 self.target = self.admin2_name
 
         if token_count > 3:
-            # Other tokens go into Prefix
+            # CITY.  And any remaining tokens go into Prefix
             self.city1 = Normalize.normalize_for_search(tokens[-4], self.country_iso)
             if len(self.city1) > 0:
                 self.place_type = PlaceType.CITY
@@ -233,6 +204,42 @@ class Loc:
         #                  f" Adm1 [{self.admin1_name}] adm1_id [{self.admin1_id}] Cntry [{self.country_name}] Pref=[{self.prefix}]"
         #                  f" type_id={self.place_type}")
         return
+
+    def get_filter_parameters(self, place_name):
+        """
+            Parse search parameters from place_name and place in appropriate fields.
+            Place_name format is:  town, --feature=XXX,--iso=XXX
+        # Args:
+            place_name: town, --feature=XXX,--iso=XXX
+        # Returns:
+            Loc fields updated: country_iso, and feature are updated
+        """
+        # Separate out arguments
+        tokens = place_name.split(",")
+        args = []
+        for tkn in tokens:
+            if '--' in tkn:
+                args.append(tkn.strip(' '))
+
+        # Parse options in place name
+        parser = ArgumentParserNoExit.ArgumentParserNoExit(description="Parses command.")
+        parser.add_argument("-f", "--feature", help=argparse.SUPPRESS)
+        parser.add_argument("-i", "--iso", help=argparse.SUPPRESS)
+        parser.add_argument("-c", "--country", help=argparse.SUPPRESS)
+        try:
+            options = parser.parse_args(args)
+            self.city1 = Normalize.normalize_for_search(tokens[0], self.country_iso)
+            self.target = self.city1
+            if options.iso:
+                self.country_iso = options.iso.lower()
+            if options.country:
+                self.country_iso = options.country.lower()
+            if options.feature:
+                self.feature = options.feature.upper()
+            self.place_type = PlaceType.ADVANCED_SEARCH
+        except Exception as e:
+            self.logger.debug(e)
+        self.logger.debug(f'ADV SEARCH: targ={self.city1} iso={self.country_iso} feat={self.feature} typ={self.place_type}')
 
     def get_status(self) -> str:
         self.logger.debug(f'status=[{self.status}]')
@@ -255,10 +262,14 @@ class Loc:
             self.need_commas = True
             return f'{txt}, '
 
-    def get_long_name(self, replace_dct):
+    def get_long_name(self, replace_dct)->str:
         """
-        Take the parts of a Place and build name.  e.g.  city,adm2,adm1,country name
-        Prefix is NOT included
+        Take the fields in a Place and build full name.  e.g.  city,adm2,adm1,country name
+        Prefix is NOT included.  Text also has replacement dictionary applied
+        Args:
+            replace_dct: Dictionary of text replacements.  'Regex':'replacement'
+        Returns:
+            long name
         """
         self.need_commas = False
 
@@ -297,7 +308,6 @@ class Loc:
                 nm = re.sub(key, replace_dct[key], nm)
 
         return nm
-
 
     @staticmethod
     def lowercase_match_group(matchobj):
@@ -357,10 +367,11 @@ class Loc:
         if self.prefix == '':
             return
         # Remove any words from Prefix that are in city, admin1 or admin2
-        for item in [self.city1, self.admin2_name, self.admin1_name]:
+        for term in [self.city1, self.admin2_name, self.admin1_name]:
+            item = re.sub(r"'", " ", term)
             if len(item) > 0:
                 for word in item.split(' '):
-                    if word in self.prefix and '*' not in word:
+                    if word in self.prefix and '*' not in word and len(word) > 1:
                         self.prefix = re.sub(word, '', self.prefix, 1)
 
     def set_place_type(self):
@@ -374,6 +385,21 @@ class Loc:
             self.place_type = PlaceType.ADMIN2
         if len(self.city1) > 0:
             self.place_type = PlaceType.CITY
+
+    def set_place_type_text(self):
+        # Set result_type_text based on place type
+        if self.result_type == GeoUtil.Result.NO_COUNTRY:
+            self.result_type_text = 'Country'
+        elif self.place_type == PlaceType.COUNTRY:
+            self.result_type_text = 'Country'
+        elif self.place_type == PlaceType.ADMIN1:
+            self.result_type_text = self.get_district1_type(self.country_iso)
+        elif self.place_type == PlaceType.ADMIN2:
+            self.result_type_text = 'County'
+        elif self.place_type == PlaceType.CITY:
+            self.result_type_text = self.get_type_name(self.feature)
+        elif self.place_type == PlaceType.PREFIX:
+            self.result_type_text = 'Place'
 
     def remove_old_fields(self):
         # Remove fields that are unused by this place type
@@ -391,20 +417,6 @@ class Loc:
             self.city1 = ''
         elif self.place_type == PlaceType.CITY:
             self.prefix = ''
-
-    def set_place_type_text(self):
-        if self.result_type == GeoUtil.Result.NO_COUNTRY:
-            self.result_type_text = 'Country'
-        elif self.place_type == PlaceType.COUNTRY:
-            self.result_type_text = 'Country'
-        elif self.place_type == PlaceType.ADMIN1:
-            self.result_type_text = self.get_district1_type(self.country_iso)
-        elif self.place_type == PlaceType.ADMIN2:
-            self.result_type_text = 'County'
-        elif self.place_type == PlaceType.CITY:
-            self.result_type_text = self.get_type_name(self.feature)
-        elif self.place_type == PlaceType.PREFIX:
-            self.result_type_text = 'Place'
 
     @staticmethod
     def get_district1_type(iso) -> str:

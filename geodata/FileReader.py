@@ -24,7 +24,7 @@ class FileReader:
 
     def __init__(self, directory: str, filename: str, progress_bar):
         """
-        Read a file and call a handler for each line
+        Read a file and call a handler for each line.
         #Args:
             directory:
             filename:
@@ -55,6 +55,7 @@ class FileReader:
                         if self.progress_bar.shutdown_requested:
                             # User requested cancel
                             self.cancel()
+                            return True
                     line_num += 1
                     file_pos += len(row)
                     self.handle_line(line_num, row)

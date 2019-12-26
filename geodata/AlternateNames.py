@@ -27,20 +27,20 @@ ALT_NAME = 3
 
 class AlternateNames(FileReader.FileReader):
     """
-    Read in Alternate names V2 file and add appropriate entries to geoname DB altnames table
-    Each row in file contains a geoname ID, an alternative name for that entity, and the language
+    Read in Geonames.org Alternate names V2 file and add appropriate entries to the altnames table.
+    Each row in file contains a geoname ID, an alternative name for that entity, and the language.
     If the lang is in lang_list and the ID is ALREADY in our geonames dictionary, we add this as an alternative name
-    FileReader calls handle_line every time it reads a line
     """
 
     def __init__(self, directory: str, filename: str, progress_bar, geo_files: GeodataFiles, lang_list):
         """
-        Read in geonames alternate names file and add to geodata database in alt_names table
-        :param directory: base directory for alternate names file
-        :param filename: filename of geonames alternate_namesV2.txt file
-        :param progress_bar: tkhelper progress bar or None
-        :param geo_files: GeodataFiles
-        :param lang_list: List of ISO languages we want to support, e.g. ['fr', 'es']
+            Read in geonames alternate names file and add to geodata database in alt_names table
+        # Args:
+            directory: base directory for alternate names file
+            filename: filename of geonames alternate_namesV2.txt file
+            progress_bar: tkhelper progress bar or None
+            geo_files: GeodataFiles instance
+            lang_list: List of ISO languages we want to support, e.g. ['fr', 'es']
         """
         super().__init__(directory, filename, progress_bar)
         self.sub_dir = GeoUtil.get_cache_directory(directory)
@@ -50,8 +50,9 @@ class AlternateNames(FileReader.FileReader):
 
     def add_alternate_names_to_db(self) -> bool:
         """
-        Read file into database
-        :return: True if error
+        Read alternate names file into database
+        # Returns:
+            True if error
         """
         self.geo_files.geodb.db.begin()
         # Read in file.  This will call handle_line for each line in file
@@ -101,7 +102,7 @@ class AlternateNames(FileReader.FileReader):
 
                 # Make sure this entry has a different name from existing entry
                 if update[ALT_NAME] != alt_tokens[ALT_NAME]:
-                    self.geo_files.update_geo_row_name(geo_row=update, name=alt_tokens[ALT_NAME])
+                    self.geo_files._update_geo_row_name(geo_row=update, name=alt_tokens[ALT_NAME])
                     new_row = tuple(update)  # Convert back to tuple
 
                     if alt_tokens[ALT_LANG] != 'en' or 'ADM' not in update[GeoDB.Entry.FEAT]:
@@ -116,9 +117,9 @@ class AlternateNames(FileReader.FileReader):
 
     def cancel(self):
         """
-        User requested cancel of database build
-        Abort DB build.  Clear out partial DB
+        User requested cancel of database build.
+        Quit DB build.
         :return: None
         """
         self.geo_files.geodb.db.commit()
-        self.geo_files.geodb.clear_geoname_data()
+        #self.geo_files.geodb.clear_geoname_data()

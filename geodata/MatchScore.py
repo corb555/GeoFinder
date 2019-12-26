@@ -22,59 +22,79 @@ import re
 
 from geodata import GeoUtil, Geodata, Loc, Normalize
 
-EXCELLENT = 10
-GOOD = 30
-POOR = 50
-VERY_POOR = 70
-TERRIBLE = 90
-NO_MATCH = 110
+class Score:
+    VERY_GOOD = 19
+    GOOD = 40
+    POOR = 60
+    VERY_POOR = 120
 
 
 class MatchScore:
     """
-    Calculate how close the text of the database result place name is to the users input place name.
-    1) Recursively remove the largest text sequence in both to end up with just unmatched text in both
-    2) Calculate the percent that didnt match in each comma separated term of user input
-    3) Score is based on percent mismatch weighted for each term (City is higher, county is lower)
-
-    A standard text difference, such as Levenstein, was not used because those treat both strings as equal, whereas this
-    treats the User text as more important than DB result text and also weights each token.  A user's text might commonly be something
-    like: Paris, France and a DB result of Paris, Paris, Ile De France, France.  The Levenstein distance would be large, but
-    with this heuristic, the middle terms can have lower weights, and having all the input matched can be weighted higher than mismatches
-    on the county and province.
-
+    Calculate a heuristic score for how well a result place name matches a target place name. The score is based on percent
+    of characters that didnt match plus other items - described in match_score()
     """
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-        # Weighting for each token - prefix, city, adm2, adm1, country
+        # Weighting for each input term match - prefix, city, adm2, adm1, country
         self.token_weight = [0.0, 1.0, 0.6, 0.8, 0.9, 0, 0, 0]
 
-        self.prefix_weight = 1.9
+        # Weighting for each part of score
         self.wildcard_penalty = -41.0
         self.first_token_match_bonus = 40.0
         self.wrong_order_penalty = -3.0
+        self.prefix_weight = 1.9
+
         self.feature_weight = 0.12
-
-        # weight for match score of Result name
-        self.out_weight = 0.17
-
-        # Weight for match score of user input name
-        self.in_weight = 1.0 - self.out_weight - self.feature_weight
+        self.result_weight = 0.17  # weight for match score of Result name
+        self.input_weight = 1.0 - self.result_weight - self.feature_weight  # Weight for match score of user input name
 
         # Out weight + Feature weight must be less than 1.0.
-        if self.out_weight + self.feature_weight > 1.0:
+        if self.result_weight + self.feature_weight > 1.0:
             self.logger.error('Out weight + Feature weight must be less than 1.0')
-        self.in_score = 99
-        self.out_score = 99
+
+        self.in_score = 99.0
+        self.out_score = 99.0
 
     def match_score(self, target_place: Loc, result_place: Loc) -> float:
         """
-        :param target_place: Target Location  with users entry
-        :param result_place: Result Location  with DB result
-        :return: score -10-100 reflecting the difference between the user input and the result.  -10 is perfect match, 100 is no match
-        Score is also adjusted based on Feature type.  More important features (large city) get lower result
+            Calculate a heuristic score for how well a result place name matches a target place name.  The score is based on
+            percent of characters that didnt match in input and output (plus other items described below).
+            Mismatch score is 0-100% reflecting the percent mismatch between the user input and the result.  This is then
+            adjusted by Feature type (large city gives best score) plus other items to give a final heuristic where
+            -10 is perfect match of a large city and 100 is no match.
+
+            A) Heuristic:
+            1) Create 5 part title (prefix, city, county, state/province, country)
+            2) Normalize text - Normalize.normalize_for_scoring()
+            3) Remove sequences over 3 chars that match in target and result
+            4) Calculate inscore - percent of characters in input that didn't match output.  Weighted by term (county is lower weight)
+                    Exact match of city term gets a bonus
+            5) Calculate outscore - percent of characters in output that didn't match input
+
+            B) Score components (All are weighted except Prefix and Parse):
+            in_score - percent of characters in input that didnt match output
+            out_score - percent of characters in output that didnt match input
+            feature_score - Geodata.feature_priority().  adjustment based on Feature type.  More important features (larger city)
+            get lower result
+            wildcard_penalty - score is raised by 41 if it includes a wildcard
+            prefix_penalty -  score is raised by length of Prefix
+            parse_penalty - score is raised by 3 if lookup was done with terms out of order
+
+            C) A standard text difference, such as Levenstein, was not used because those treat both strings as equal,
+            whereas this treats the User text as more important than DB result text and also weights each token.  A user's
+            text might commonly be something like: Paris, France and a DB result of Paris, Paris, Ile De France, France.
+            The Levenstein distance would be large, but with this heuristic, the middle terms can have lower weights, and
+            having all the input matched can be weighted higher than mismatches on the county and province.  This heuristic gives
+            a score of -9 for Paris, France.
+
+        # Args:
+            target_place:  Loc  with users entry.
+            result_place:  Loc with DB result.
+        # Returns:
+            score
         """
         target_tkn_len = [0] * 20
 
@@ -99,14 +119,14 @@ class MatchScore:
             target_tokens[it] = target_tokens[it].strip(' ')
             target_tkn_len[it] = len(target_tokens[it])
 
-        # Remove any sequences that match in target  and result
+        # Remove sequences that match in target  and result
         result_words, target_words = GeoUtil.remove_matching_sequences(text1=result_words, text2=target_words, min_len=3)
 
         # Calculate score for input match
-        self.in_score = self.calculate_input_score(target_tkn_len, target_tokens, target_words, res_tokens)
+        self.in_score = self._calculate_input_score(target_tkn_len, target_tokens, target_words, res_tokens)
 
         # Calculate score for output match
-        self.out_score = self.calculate_output_score(result_words, result_place.original_entry)
+        self.out_score = self._calculate_output_score(result_words, result_place.original_entry)
 
         if not target_place.standard_parse:
             # If Tokens were not in hierarchical order, give penalty
@@ -126,11 +146,11 @@ class MatchScore:
         else:
             prefix_penalty = 0
 
-        # Feature score is to ensure "important" places  get  higher rank (large city, etc)
-        feature_score = Geodata.Geodata.get_priority(result_place.feature)
+        # Feature score is to ensure "important" places get higher rank (large city, etc)
+        feature_score = Geodata.Geodata.feature_priority(result_place.feature)
 
         # Add up scores - Each item is appx 0-100 and weighted
-        score: float = self.in_score * self.in_weight + self.out_score * self.out_weight + feature_score * self.feature_weight + \
+        score: float = self.in_score * self.input_weight + self.out_score * self.result_weight + feature_score * self.feature_weight + \
                        wildcard_penalty + prefix_penalty * self.prefix_weight + parse_penalty
 
         #self.logger.debug(f'SCORE {score:.1f} res=[{result_place.original_entry}] pref=[{target_place.prefix}]\n'
@@ -141,7 +161,7 @@ class MatchScore:
 
         return score
 
-    def calculate_input_score(self, inp_len: [], inp_tokens: [], input_words, res_tokens: []) -> float:
+    def _calculate_input_score(self, inp_len: [], inp_tokens: [], input_words, res_tokens: []) -> float:
         num_inp_tokens = 0.0
         in_score = 0
 
@@ -181,11 +201,11 @@ class MatchScore:
         else:
             in_score = 0
 
-        return in_score + match_bonus
+        return in_score + match_bonus + 10
 
-    def calculate_output_score(self, unmatched_result: str, original_result:str) -> float:
+    def _calculate_output_score(self, unmatched_result: str, original_result:str) -> float:
         """
-        Calculate score for output (DB result).   filtered = [c.lower() for c in text if c.isalnum()]
+        Calculate score for output (DB result).
         :param unmatched_result: The text of the DB result that didnt match the user's input
         :param original_result: The original DB result
         :return: 0=strong match, 100=no match
@@ -206,11 +226,11 @@ class MatchScore:
 
             out_score = out_score_1 * 0.1 + out_score_2 * 0.9
         else:
-            out_score = 0
+            out_score = 0.0
 
         self.score_diags += f'\noutrem=[{unmatched}]'
 
         return out_score
 
-    def adjust_adm_score(self, score, feat):
+    def _adjust_adm_score(self, score, feat):
         return score

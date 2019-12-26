@@ -24,7 +24,6 @@ import re
 import sys
 import time
 import webbrowser
-from datetime import timedelta
 from pathlib import Path
 from tkinter import filedialog
 from tkinter import messagebox
@@ -229,16 +228,13 @@ class GeoFinder:
                                        languages_list_dct=languages_list_dct,
                                        feature_code_list_dct=feature_code_list_dct,
                                        supported_countries_dct=supported_countries_dct)
-        error = self.geodata.read()
-        if error:
-            TKHelper.fatal_error(MISSING_FILES)
 
         # If the list of supported countries is unusually short, display note to user
         num = self.display_country_note()
         self.logger.info('{} countries will be loaded'.format(num))
 
-        # Read in Geoname Gazeteer file - city names, lat/long, etc.
-        error = self.geodata.read_geonames()
+        # open Geoname Gazeteer DB - city names, lat/long, etc.
+        error = self.geodata.open()
         if error:
             TKHelper.fatal_error(MISSING_FILES)
 
@@ -485,7 +481,7 @@ class GeoFinder:
                 self.place.clear()
                 self.place.result_type = GeoUtil.Result.DELETE
                 self.logger.debug('Blank: DELETE')
-                self.geodata.process_result(self.place, ResultFlags(limited=False, filtered=False))
+                self.geodata.process_resultxxx(self.place, ResultFlags(limited=False, filtered=False))
 
         self.display_result(self.place)
 
@@ -558,8 +554,8 @@ class GeoFinder:
 
             self.geodata.geo_files.geodb.set_display_names(temp_place)
             nm = temp_place.get_long_name(self.geodata.geo_files.output_replace_dct)
-            valid = self.geodata.valid_year_for_location(event_year=place.event_year, iso=temp_place.country_iso,
-                                                         admin1=temp_place.admin1_id, padding=0)
+            valid = self.geodata.valid_year_for_location(event_year=place.event_year, country_iso=temp_place.country_iso,
+                                                         admin1=temp_place.admin1_id, pad_years=0)
             if valid:
                 # Get prefix
                 self.w.tree.list_insert(nm, GeoUtil.capwords(geo_row[GeoUtil.Entry.PREFIX]), geo_row[GeoUtil.Entry.ID],
@@ -824,8 +820,6 @@ class GeoFinder:
         """
         # self.w.root.update_idletasks()
         if self.geodata:
-            self.logger.info(f'TOTAL DATABASE LOOKUP TIME: {str(timedelta(seconds=self.geodata.geo_files.geodb.total_time))}')
-            self.logger.info(f'Lookups per second {self.geodata.geo_files.geodb.total_lookups / self.geodata.geo_files.geodb.total_time:.0f}')
             self.logger.info(self.get_stats_text)
             self.geodata.geo_files.geodb.close()
             self.geodata.close_diag_file()
@@ -916,12 +910,12 @@ class GeoFinder:
 
     @property
     def get_stats_text(self) -> str:
-        if self.ancestry_file_handler.place_total is not None:
+        if self.ancestry_file_handler is not None:
             remaining = self.ancestry_file_handler.place_total - self.done_count
+            return f'Matched={self.matched_count}   Skipped={self.skip_count}  Needed Review={self.review_count} ' \
+                f'Remaining={remaining} Total={self.ancestry_file_handler.place_total}'
         else:
-            remaining = 0
-        return f'Matched={self.matched_count}   Skipped={self.skip_count}  Needed Review={self.review_count} ' \
-            f'Remaining={remaining} Total={self.ancestry_file_handler.place_total}'
+            return ''
 
     def update_statistics(self):
         """

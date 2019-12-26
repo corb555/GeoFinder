@@ -52,7 +52,7 @@ class GeodataFiles:
             languages_list_dct={'fr','de'}
             feature_code_list_dct={'PPL', 'ADM1', 'CSTL'}
             supported_countries_dct = {'us','gb','at'}
-        #Args:
+        # Args:
             directory: base directory
             progress_bar: TKHelper progress bar or None
             enable_spell_checker: True for spell checker. NOT CURRENTLY SUPPORTED
@@ -76,18 +76,16 @@ class GeodataFiles:
         sub_dir = GeoUtil.get_cache_directory(self.directory)
         self.country = None
         self.enable_spell_checker: bool = enable_spell_checker
-
         self.languages_list_dct = languages_list_dct
         self.feature_code_list_dct = feature_code_list_dct
         self.supported_countries_dct = supported_countries_dct
-
         self.lang_list = []
 
         for item in self.languages_list_dct:
             self.lang_list.append(item)
 
         """
-        REMOVED spell check code.  It works and finds some additional locations but significantly reduces performance
+        REMOVED spell check.  Although it works and finds some additional locations it significantly reduces performance.
         if self.enable_spell_checker:
             self.spellcheck:SpellCheck.SpellCheck = SpellCheck.SpellCheck(progress=self.progress_bar,directory=sub_dir,
                                                     countries_dict=self.supported_countries_dct)
@@ -102,7 +100,7 @@ class GeodataFiles:
             if exit_on_error:
                 sys.exit()
 
-        # Read in Replacement dictionary pickle - this has output text replacements
+        # Read in Text Replacement dictionary pickle - this has output text replacements
         self.output_replace_cd = CachedDictionary.CachedDictionary(sub_dir, "output_list.pkl")
         self.output_replace_cd.read()
         self.output_replace_dct: Dict[str, str] = self.output_replace_cd.dict
@@ -121,17 +119,16 @@ class GeodataFiles:
 
     def open_geodb(self, repair_database:bool) -> bool:
         """
-         Read Geoname DB file - this is the db of geoname.org city files and is stored in cache directory under geonames_data
-         The db only contains important fields and only for supported countries
-         This file is much smaller and faster to read than the geoname files
-         If the db doesn't exist, read the geonames.org files and build it.
-         the UtilMain.py allows user changes to config parameters and then requires rebuild of db
-         if the user loads a new geonames.org file, we also need to rebuild the db
-        Return:
+         Read Geoname DB file - this is the db of geoname.org city files and is stored in cache directory under geonames_data.
+         The db only contains important fields and only for supported countries.
+         If the db doesn't exist, read the geonames.org files and build it if repair flag is True.
+        # Args:
+            repair_database: If True, rebuild database if error or missing
+        Returns:
             True if error
         """
 
-        # Use db if it exists and is newer than the geonames directory
+        # Use db if it exists and has data and is correct version
         cache_dir = GeoUtil.get_cache_directory(self.directory)
         db_path = os.path.join(cache_dir, 'geodata.db')
 
@@ -142,7 +139,7 @@ class GeodataFiles:
         if os.path.exists(db_path):
             # DB Found
             self.logger.debug(f'DB found at {db_path}')
-            self.geodb = GeoDB.GeoDB(db_path=db_path, version=self.required_db_version, spellcheck=self.spellcheck,
+            self.geodb = GeoDB.GeoDB(db_path=db_path, spellcheck=self.spellcheck,
                                      show_message=self.show_message, exit_on_error=self.exit_on_error,
                                      set_speed_pragmas=True,db_limit=105)
 
@@ -166,15 +163,8 @@ class GeodataFiles:
         if err_msg == '':
             # No DB errors detected
             pass
-            #self.geodb.create_indices()
-            #self.geodb.create_geoid_index()
-            #if self.enable_spell_checker:
-            #    if self.spellcheck:
-            #        self.logger.debug(f'Reading spelling dictionary')
-            #        self.spellcheck.add_country_names_to_db()
         else:
-            # DB error detected - rebuild database
-            self.logger.debug('message box')
+            # DB error detected - rebuild database if flag set
             messagebox.showinfo('Database Error', err_msg)
             self.logger.debug(err_msg)
 
@@ -184,11 +174,10 @@ class GeodataFiles:
                     os.remove(db_path)
                     self.logger.debug('Database deleted')
 
-                self.geodb = GeoDB.GeoDB(db_path=db_path, version=self.required_db_version, spellcheck=self.spellcheck,
+                self.geodb = GeoDB.GeoDB(db_path=db_path, spellcheck=self.spellcheck,
                                          show_message=self.show_message, exit_on_error=self.exit_on_error,
                                          set_speed_pragmas=True, db_limit=105)
-
-                self.create_database()
+                err = self.create_geonames_database()
 
                 # Create spell check file
                 if self.enable_spell_checker:
@@ -198,7 +187,21 @@ class GeodataFiles:
 
         return False
 
-    def create_database(self):
+    def create_geonames_database(self):
+        """
+        Create geonames database from geonames.org files.
+        You must call self.geodb = GeoDB.GeoDB(...) before this
+        # Returns:
+            True if error
+        """
+        # DB didnt exist.  Create tables.
+        if self.geodb is None:
+            self.logger.error('Cannot create DB: geodb is None')
+            return True
+        
+        self.geodb.create_tables()
+        self.geodb.insert_version(self.required_db_version)
+            
         self.country = Country.Country(progress=self.progress_bar, geo_files=self, lang_list=self.lang_list)
 
         file_count = 0
@@ -210,14 +213,14 @@ class GeodataFiles:
         self.country.add_country_names_to_db(geodb=self.geodb)
 
         # Put in historic data
-        self.add_historic_names_to_db(self.geodb, historic_names=historic_names)
+        self.country.add_historic_names_to_db(self.geodb)
 
         start_time = time.time()
 
         # Put in  data from geonames.org files
         for fname in ['allCountries.txt', 'ca.txt', 'gb.txt', 'de.txt', 'fr.txt', 'nl.txt']:
             # Read  geoname files
-            error = self.add_geoname_file_to_db(fname)  # Read in info (lat/long) for all places from
+            error = self._add_geoname_file_to_db(fname)  # Read in info (lat/long) for all places from
 
             if error:
                 self.logger.error(f'Error reading geoname file {fname}')
@@ -249,15 +252,19 @@ class GeodataFiles:
         # Set Database Version
         self.geodb.insert_version(self.required_db_version)
 
-    def add_geoname_file_to_db(self, file) -> bool:  # , g_dict
-        """Read in geonames files and build lookup structure
+    def _add_geoname_file_to_db(self, file) -> bool:
+        """
+            Read in geonames files and build lookup structure
 
-        Read a geoname.org places file and create a db of all the places.
-        1. The db contains: Name, Lat, Long, district1ID (State or Province ID),
-        district2_id, feat_code
+            Read a geoname.org places file and create a db of all the places.
+            1. The db contains: Name, Lat, Long, district1ID (State or Province ID),
+            district2_id, feat_code
 
-        2. Since Geonames supports over 25M entries, the db is filtered to only the countries and feature types we want
-        Return:
+            2. Since Geonames supports over 25M entries, the db is filtered to only the countries and feature types we want
+        # Args:
+            file: filename (not path) for DB file.  Will be placed in directory from init call
+
+        Returns:
             True if error
         """
         Geofile_row = namedtuple('Geofile_row',
@@ -310,21 +317,28 @@ class GeodataFiles:
             return True
 
     @staticmethod
-    def update_geo_row_name(geo_row, name):
+    def _update_geo_row_name(geo_row, name):
         """
-        Update the name entry and soundex entry with a name
-        Args:
-        geo_row:
-        name:
+            Update the name entry and soundex entry with a name
+        #Args:
+            geo_row:
+            name:
         """
         geo_row[GeoDB.Entry.NAME] = Normalize.normalize(name, remove_commas=True)
         geo_row[GeoDB.Entry.SDX] = GeoUtil.get_soundex(geo_row[GeoDB.Entry.NAME])
 
     def insert_georow(self, geoname_row):
-        # Create Geo_row and insert into DB
-        # ('paris', 'fr', '07', '012', 12.345, 45.123, 'PPL', '34124')
+        """
+            Create a Geo_row and insert it into DB
+            This also creates new Feature codes PP1M, P1HK, and P10K using population data
+        Args:
+            geoname_row: ('paris', 'fr', '07', '012', 12.345, 45.123, 'PPL', '34124')
+
+        Returns:
+            None
+        """
         geo_row = [None] * GeoDB.Entry.MAX
-        self.update_geo_row_name(geo_row=geo_row, name=geoname_row.name)
+        self._update_geo_row_name(geo_row=geo_row, name=geoname_row.name)
 
         geo_row[GeoDB.Entry.ISO] = geoname_row.iso.lower()
         geo_row[GeoDB.Entry.ADM1] = geoname_row.admin1_id
@@ -334,6 +348,7 @@ class GeodataFiles:
         geo_row[GeoDB.Entry.FEAT] = geoname_row.feat_code
         geo_row[GeoDB.Entry.ID] = geoname_row.id
 
+        # Create new Feature codes based on city population
         if int(geoname_row.pop) > 1000000 and 'PP' in geoname_row.feat_code:
             geo_row[GeoDB.Entry.FEAT] = 'PP1M'
         elif int(geoname_row.pop) > 100000 and 'PP' in geoname_row.feat_code:
@@ -346,12 +361,11 @@ class GeodataFiles:
         # Also add abbreviations for USA states
         if geo_row[GeoDB.Entry.ISO] == 'us' and geoname_row.feat_code == 'ADM1':
             # geo_row[GeoDB.Entry.NAME] = geo_row[GeoDB.Entry.ADM1].lower()
-            self.update_geo_row_name(geo_row=geo_row, name=geo_row[GeoDB.Entry.ADM1])
+            self._update_geo_row_name(geo_row=geo_row, name=geo_row[GeoDB.Entry.ADM1])
             self.geodb.insert(geo_row=geo_row, feat_code=geoname_row.feat_code)
 
     def get_supported_countries(self) -> [str, int]:
         """ Convert list of supported countries into sorted string """
-        # todo implement list of names of supported countries
         nm_msg = ""
         for ky in self.supported_countries_dct:
             nm_msg += ky.upper() + ', '
@@ -371,29 +385,3 @@ class GeodataFiles:
     def close(self):
         if self.geodb:
             self.geodb.close()
-
-    def add_historic_names_to_db(self, geodb, historic_names):
-        #  Add historic names to DB
-        for ky in historic_names:
-            # Create Geo_row
-            # ('paris', 'fr', '07', '012', '12.345', '45.123', 'PPL')
-            row = historic_names[ky]
-            geo_row = [None] * GeoDB.Entry.MAX
-            self.update_geo_row_name(geo_row=geo_row, name=ky)
-            geo_row[GeoDB.Entry.ISO] = row[0].lower()
-            geo_row[GeoDB.Entry.ADM1] = ''
-            geo_row[GeoDB.Entry.ADM2] = ''
-            geo_row[GeoDB.Entry.LAT] = row[3]
-            geo_row[GeoDB.Entry.LON] = row[4]
-            geo_row[GeoDB.Entry.FEAT] = row[1]
-            geo_row[GeoDB.Entry.ID] = 'HIST'
-
-            geodb.insert(geo_row=geo_row, feat_code=row[1])
-
-
-historic_names = {
-    # Name : 0ISO Country, 1Feat, 2num, 3lat, 4lon
-    'Arabia': ('XA', 'PPLL', '4', '25', '45'),
-    'Mecca': ('SA', 'PPL', '4', '25', '45'),
-    'Zion': ('IL', 'PPL', '4', '31.5', '34.75'),
-}

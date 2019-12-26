@@ -63,17 +63,30 @@ Query = collections.namedtuple('Query', 'where args result')
 
 
 def get_directory_name() -> str:
+    """
+    Returns: Name of geodata data directory where geonames.org files are
+    """
     return "geoname_data"
 
 def get_cache_directory( dirname):
-    """ Return the directory for cache files """
+    """ 
+    Returns:  directory for geodata cache files including DB
+    """
     return os.path.join(dirname, "cache")
 
 def get_soundex(txt):
+    """
+    Returns: Phonetics Double Metaphone Soundex code for text.  
+    """
     res = phonetics.dmetaphone(txt)
     return res[0]
 
 def set_debug_logging(msg):
+    """
+         Set up logging configuration for debug level 
+    # Args:
+        msg: Initial message to log
+    """
     logger = logging.getLogger(__name__)
     fmt = "%(levelname)s %(name)s.%(funcName)s %(lineno)d: %(message)s"
     logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, format=fmt)
@@ -81,6 +94,11 @@ def set_debug_logging(msg):
     return logger
 
 def set_info_logging(msg):
+    """
+         Set up logging configuration for info level 
+    # Args:
+        msg: Initial message to log
+    """
     logger = logging.getLogger(__name__)
     fmt = "%(levelname)s %(name)s.%(funcName)s %(lineno)d: %(message)s"
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format=fmt)
@@ -112,33 +130,35 @@ def _remove_matching_seq(text1: str, text2: str, attempts: int, min_len:int) -> 
 def remove_matching_sequences(text1: str, text2: str, min_len:int) -> (str, str):
     """
     Find largest sequences that match between text1 and 2.  Remove them from text1 and text2.
-    :param text1:
-    :param text2:
-    :return:
+    Matches will NOT include commas
+    # Args:
+        text1:
+        text2:
+        min_len: minimum length of match that will be removed
+    Returns: text 1 and 2 with the largest text sequences in both removed
     """
     # Prepare strings for input to remove_matching_seq
-    # Swap all commas in text1 string to '@'.  This way they will never match comma in text2 string
+    # Swap all commas in text2 string to '@'.  This way they will never match comma in text1 string
     # Ensures we don;t remove commas and don't match across tokens
     text2 = re.sub(',', '@', text2)
     text1, text2 = _remove_matching_seq(text1=text1, text2=text2, attempts=15, min_len=min_len)
-    # Restore commas in inp
+    # Restore commas in text2
     text2 = re.sub('@', ',', text2)
     return text1.strip(' '), text2.strip(' ')
 
-def lowercase_match_group(matchobj):
+def _lowercase_match_group(matchobj):
     return matchobj.group().lower()
 
-def capwords(nm):
-    # Change from lowercase to Title Case but fix the title() apostrophe bug
-    if nm is not None:
-        # Use title(), then fix the title() apostrophe defect
-        nm = nm.title()
-
+def capwords(text):
+    """
+    Change text to Title Case. Fixes title() apostrophe handling
+    """
+    if text is not None:
         # Fix handling for contractions not handled correctly by title()
         poss_regex = r"(?<=[a-z])[\']([A-Z])"
-        nm = re.sub(poss_regex, lowercase_match_group, nm)
+        text = re.sub(poss_regex, _lowercase_match_group, text.title())
 
-    return nm
+    return text
 
 type_names = {
     "CH": 'Church',
