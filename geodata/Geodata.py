@@ -26,16 +26,15 @@ from geodata import GeoUtil, GeodataFiles, Loc, MatchScore
 
 class Geodata:
     """
-Place lookup gazeteer based on datafiles from geonames.org  
+Provides a place lookup gazeteer based on files from geonames.org  
           
-Builds rich place name local database using files from geonames.org  
-
-+ The Database only includes specified countries and languages to reduce size  
-+ Returns multiple matches scored by closeness to lookup term  
++ Creates a local place database using files from geonames.org  
++ Parses lookup text and returns multiple matches ranked by closeness to lookup term  
 + Provides latitude/longitude  
 + Wildcard search of place database  
 + Phonetic/Soundex search of place database  
-+ Feature search of place database with location type (e.g. cemeteries, churches)  
++ Feature search of place database by feature type (e.g. mountain, cemetery, palace)  
++ Ability to filter database to only include specified countries, languages, and feature types
     """
 
     def __init__(self, directory_name: str, progress_bar, enable_spell_checker,
@@ -54,7 +53,6 @@ Builds rich place name local database using files from geonames.org
             supported_countries_dct: Dictionary of ISO-2 Country codes to import into DB
         """
         self.logger = logging.getLogger(__name__)
-        #self.status = "geoname file error"
         self.directory: str = directory_name
         self.progress_bar = progress_bar  # progress_bar
         self.geo_files = GeodataFiles.GeodataFiles(self.directory, progress_bar=self.progress_bar,
@@ -66,7 +64,7 @@ Builds rich place name local database using files from geonames.org
         self.save_place: Loc = Loc.Loc()
         self.match_scoring = MatchScore.MatchScore()
         self.miss_diag_file = None
-        self.distance_cutoff = 0.6  # Value to determine if two lat/longs are similar
+        self.distance_cutoff = 0.6  # Value to determine if two lat/longs are similar based on Rectilinear Distance
 
     def find_location(self, location: str, place: Loc, plain_search) -> GeoUtil.Result:
         """
@@ -362,7 +360,7 @@ Builds rich place name local database using files from geonames.org
         See MatchScore.match_score() for details on score calculation    
         Discard names that didnt exist at time of event (update result flag if this occurs)  
         Duplicates are defined as two items with:  
-        1) same GEOID or 2) same name and similar lat/lon (within Box Distance of 0.6 degrees)  
+        1) same GEOID or 2) same name and similar lat/lon (within Rectilinear Distance of distance_cutoff degrees)  
         
         Add flag if we hit the lookup limit  
         # Args:

@@ -1143,15 +1143,15 @@ table {
       <p id="geodata.Geodata.Geodata" class="name">class <span class="ident">Geodata</span></p>
       
   
-    <div class="desc"><p>Place lookup gazeteer based on datafiles from geonames.org  </p>
-<p>Builds rich place name local database using files from geonames.org  </p>
+    <div class="desc"><p>Provides a place lookup gazeteer based on files from geonames.org  </p>
 <ul>
-<li>The Database only includes specified countries and languages to reduce size  </li>
-<li>Returns multiple matches scored by closeness to lookup term  </li>
+<li>Creates a local place database using files from geonames.org  </li>
+<li>Parses lookup text and returns multiple matches ranked by closeness to lookup term  </li>
 <li>Provides latitude/longitude  </li>
 <li>Wildcard search of place database  </li>
 <li>Phonetic/Soundex search of place database  </li>
-<li>Feature search of place database with location type (e.g. cemeteries, churches)</li>
+<li>Feature search of place database by feature type (e.g. mountain, cemetery, palace)  </li>
+<li>Ability to filter database to only include specified countries, languages, and feature types</li>
 </ul></div>
   <div class="source_cont">
 </div>
@@ -1451,7 +1451,7 @@ Args:
 See MatchScore.match_score() for details on score calculation  <br />
 Discard names that didnt exist at time of event (update result flag if this occurs)<br />
 Duplicates are defined as two items with:<br />
-1) same GEOID or 2) same name and similar lat/lon (within Box Distance of 0.6 degrees)  </p>
+1) same GEOID or 2) same name and similar lat/lon (within Rectilinear Distance of distance_cutoff degrees)  </p>
 <p>Add flag if we hit the lookup limit  </p>
 <h1>Args:</h1>
 <div class="codehilite"><pre><span></span><span class="n">place</span><span class="p">:</span>
