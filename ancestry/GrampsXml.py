@@ -25,7 +25,7 @@ from typing import Union
 from tk_helper import TKHelper
 
 #todo pull out dependency on grampsCsv
-import GrampsCsv
+from geofinder import GrampsCsv
 from ancestry.AncestryFile import AncestryFile
 
 # 0Place (ID), 1Title, 2Name, 3Type, 4latitude, 5longitude, enclosed_by

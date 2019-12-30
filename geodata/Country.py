@@ -35,11 +35,11 @@ class CnRow:
 class Country:
     def __init__(self, progress, geo_files, lang_list):
         """
-
-        # Args:
-            progress: TkHelper Progress or None
-            geo_files: GeodataFiles instance
-            lang_list: ISO codes for additional languages.  Only Dutch and German currently supported
+        Dictionary with country names and ISO-2  codes  
+        # Args:  
+            progress: TkHelper Progress or None  
+            geo_files: GeodataFiles instance  
+            lang_list: ISO codes for additional languages.  Only Dutch and German currently supported  
         """
         self.logger = logging.getLogger(__name__)
         self.geo_files = geo_files
@@ -50,6 +50,7 @@ class Country:
 
     @staticmethod
     def get_lang(country_iso: str) -> str:
+        """ Return primary lang for country """
         res = country_lang.get(country_iso)
         if res:
             return res

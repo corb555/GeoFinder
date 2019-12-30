@@ -34,16 +34,31 @@ class CachedDictionary:
         self.dict: Dict[str, str] = {}
         self.error = False
 
-    def get(self, val):
-        # Get value from dictionary
-        return self.dict.get(val)
+    def get(self, key):
+        """
+        Get value from dictionary
+        # Args:
+            key: 
+
+        # Returns: value of key item
+
+        """
+
+        return self.dict.get(key)
 
     def set(self, key, val):
-        # Set value in dictionary
+        """
+        Set value from dictionary
+        # Args:
+            key: 
+            val:
+        # Returns: None
+
+        """
         self.dict[key] = val
 
     def read(self):
-        # Load Pickle file into dictionary
+        """ Load Pickle file into dictionary """
 
         if self.cache_directory is None:
             self.logger.debug(f'No directory specified for {self.fname}')
@@ -67,7 +82,7 @@ class CachedDictionary:
             return True
 
     def write(self):
-        # Write dictionary to Pickle file
+        """ Save dictionary to Pickle file  """
         if self.cache_directory is None:
             return True
         path = os.path.join(self.cache_directory, self.fname)

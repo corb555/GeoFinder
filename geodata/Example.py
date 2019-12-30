@@ -20,16 +20,15 @@ import os
 import sys
 from pathlib import Path
 
-import Loc
-from geodata import Geodata
+from geodata import Geodata, Loc
 
 
 class Example():
     """
-    Example program for Geodata gazeteer.
-    1. Create folder in home directory:  example/cache
-    2. Download gb.txt from geonames.org and place in example/cache.  (Just Great Britain data so fast to test)
-    3. Run example.py
+    Example program for Geodata gazeteer.  
+    1. Create folder in home directory:  example/cache  
+    2. Download gb.txt from geonames.org and place in example/cache.  (This just has Great Britain data so its fast to test)  
+    3. Run example.py  
     """
     def __init__(self):
         # Set up standard logging.  Change this to DEBUG for more detail

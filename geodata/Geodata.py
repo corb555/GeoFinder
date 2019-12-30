@@ -181,7 +181,7 @@ Builds rich place name local database using files from geonames.org
         # self.logger.debug(f'Status={place.status}')
         return place.result_type
 
-    def find_by_type(self, place: Loc, typ:Loc.PlaceType):
+    def find_by_type(self, place: Loc, typ):
         """
             Use field from specified type as the target
         # Args:
@@ -606,7 +606,12 @@ Builds rich place name local database using files from geonames.org
         place.standard_parse = save_place.standard_parse
 
     def close(self):
-        """ Close files and database """
+        """
+        Close files and database
+
+        Returns:
+
+        """
         if self.geo_files:
             self.geo_files.close()
 

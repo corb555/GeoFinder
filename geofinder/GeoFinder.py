@@ -30,12 +30,11 @@ from tkinter import messagebox
 from typing import Dict
 
 from tk_helper import TKHelper
-
-import UtilFeatureFrame
+ 
 from geofinder import AppLayout
 from util import Config
 from ancestry import Gedcom, GrampsXml
-from util_menu import UtilLayout
+from util_menu import UtilLayout, UtilFeatureFrame
 from geodata import Geodata, GeoUtil, Loc, Normalize
 from geofinder import __version__
 from util.CachedDictionary import CachedDictionary
