@@ -24,7 +24,8 @@ from pathlib import Path
 
 from ancestry import GrampsXml
 import GrampsCsv
-from geodata import Loc, Geodata
+import Loc
+import Geodata
 
 
 #             ('12 Privet Drive,Dover, ,England,United Kingdom', "PPL", 'P0006', 'gb'),

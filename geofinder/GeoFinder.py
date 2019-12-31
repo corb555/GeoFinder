@@ -35,10 +35,13 @@ from geofinder import AppLayout
 from util import Config
 from ancestry import Gedcom, GrampsXml
 from util_menu import UtilLayout, UtilFeatureFrame
-from geodata import Geodata, GeoUtil, Loc, Normalize
+import Normalize
+import Loc
+import GeoUtil
+import Geodata
 from geofinder import __version__
 from util.CachedDictionary import CachedDictionary
-from geodata.Geodata import ResultFlags
+from Geodata import ResultFlags
 from util.IniHandler import IniHandler
 
 MISSING_FILES = 'Missing Files.  Please select Config and correct errors in Errors Tab'
@@ -346,7 +349,7 @@ class GeoFinder:
                     self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
                     self.w.original_entry.text = f'** DATABASE ERROR FOR GEOID=[{replacement_geoid}] for [{town_entry}]'
                     self.w.user_entry.text = f'{town_entry}'
-                    self.geodata.find_location(town_entry, self.place, self.w.prog.shutdown_requested)
+                    self.geodata.find_matches(town_entry, self.place, self.w.prog.shutdown_requested)
                     break
                 continue
             elif self.skiplist.get(town_entry) is not None:
@@ -359,7 +362,7 @@ class GeoFinder:
                 # FOUND a PLACE entry that we don't already have a global replace or skip for
                 # See if it is in the place database
                 self.place.event_year = int(self.ancestry_file_handler.event_year)  # Set place date to event date (geo names change over time)
-                self.geodata.find_location(town_entry, self.place, self.w.prog.shutdown_requested)
+                self.geodata.find_matches(town_entry, self.place, self.w.prog.shutdown_requested)
 
                 if self.place.result_type in GeoUtil.successful_match:
                     # STRONG MATCH
@@ -474,7 +477,7 @@ class GeoFinder:
             # User typed in text entry window - get edit field value and look it up
             town_entry: str = self.w.user_entry.text
             if len(town_entry) > 0:
-                self.geodata.find_location(town_entry, self.place, self.w.prog.shutdown_requested)
+                self.geodata.find_matches(town_entry, self.place, self.w.prog.shutdown_requested)
             else:
                 # User entry is blank - prompt to delete this entry
                 self.place.clear()
@@ -487,7 +490,7 @@ class GeoFinder:
     def display_result(self, place: Loc.Loc):
         """ Display result details for a town entry  """
         # Enable buttons so user can either click Skip, or edit the item and Click Verify.
-        place.set_string_type()
+        place.set_types_as_string()
         place.status = f'{place.result_type_text}  {self.result_text_list.get(place.result_type)} '
 
         TKHelper.enable_buttons(self.w.review_buttons)
@@ -553,16 +556,16 @@ class GeoFinder:
 
             self.geodata.geo_files.geodb.set_display_names(temp_place)
             nm = temp_place.get_long_name(self.geodata.geo_files.output_replace_dct)
-            valid = self.geodata.valid_year_for_location(event_year=place.event_year, country_iso=temp_place.country_iso,
-                                                         admin1=temp_place.admin1_id, pad_years=0)
+            valid = self.geodata._valid_year_for_location(event_year=place.event_year, country_iso=temp_place.country_iso,
+                                                          admin1=temp_place.admin1_id, pad_years=0)
             if valid:
                 # Get prefix
                 self.w.tree.list_insert(nm, GeoUtil.capwords(geo_row[GeoUtil.Entry.PREFIX]), geo_row[GeoUtil.Entry.ID],
-                                 f'{int(geo_row[GeoUtil.Entry.SCORE]):d}',
-                                 geo_row[GeoUtil.Entry.FEAT])
+                                        f'{int(geo_row[GeoUtil.Entry.SCORE]):d}',
+                                        geo_row[GeoUtil.Entry.FEAT])
             else:
                 self.w.tree.list_insert(nm, "VERIFY DATE", geo_row[GeoUtil.Entry.ID], f'{int(geo_row[GeoUtil.Entry.SCORE]):d}',
-                                 geo_row[GeoUtil.Entry.FEAT])
+                                        geo_row[GeoUtil.Entry.FEAT])
 
         self.w.root.update_idletasks()
 

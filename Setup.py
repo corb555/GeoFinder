@@ -24,7 +24,7 @@ VERSION = None
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    'unidecode', 'phonetics', 'tk_helper'
+    'tk_helper', 'geodata'
 ]
 
 # What packages are optional?

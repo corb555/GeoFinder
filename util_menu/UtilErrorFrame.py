@@ -28,7 +28,7 @@ from typing import Dict
 
 from geofinder import AppStyle
 from util import CachedDictionary
-from geodata import GeoUtil
+import GeoUtil
 from tk_helper import TKHelper as Widge
 
 

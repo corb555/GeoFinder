@@ -1,7 +1,7 @@
 #!/bin/bash
 export PYTHONPATH=$PWD
 
-packages="geodata ancestry geofinder util"
+packages="ancestry geofinder util"
 index_file="docs/index.html"
 
 rm $index_file
@@ -13,4 +13,4 @@ for pkg in $packages; do
 	pdoc --all-submodules --html --overwrite --html-no-source --html-dir docs $pkg
 done
 
-echo "</ul></div></nav><iframe class="container" name="container" src="geodata/index.html"></iframe></body></html>" >> $index_file
+echo "</ul></div></nav><iframe class="container" name="container" src="geofinder/index.html"></iframe></body></html>" >> $index_file

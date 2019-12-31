@@ -25,7 +25,7 @@ from tkinter import *
 
 from util import CachedDictionary
 from util_menu import UtilLayout
-from geodata import GeoUtil
+import GeoUtil
 
 try:
     import unidecode

@@ -26,7 +26,8 @@ from tkinter.ttk import *
 from util import GridPosition
 from geofinder import AppStyle
 from util_menu import UtilListboxFrame
-from geodata import GeodataFiles, Country
+import Country
+import GeodataFiles
 
 
 class SetupCountriesFrame(UtilListboxFrame.ListboxFrame):

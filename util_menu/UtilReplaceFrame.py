@@ -20,7 +20,8 @@ import tkinter as tk
 from typing import Dict
 
 from util_menu import UtilListboxFrame
-from geodata import Loc, GeoDB
+import GeoDB
+import Loc
 from util.CachedDictionary import CachedDictionary
 
 GEOID_TOKEN = 1
