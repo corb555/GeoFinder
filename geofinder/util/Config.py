@@ -25,7 +25,7 @@ from tkinter import messagebox
 
 import tk_helper
 
-import GeoUtil
+from geodata import GeoUtil
 from util import CachedDictionary
 
 

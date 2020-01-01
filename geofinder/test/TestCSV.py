@@ -22,7 +22,7 @@ import os
 import unittest
 from pathlib import Path
 
-from ancestry import GrampsXml
+import GrampsXml
 import GrampsCsv
 import Loc
 import Geodata

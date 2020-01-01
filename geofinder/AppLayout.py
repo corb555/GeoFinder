@@ -24,9 +24,9 @@ from typing import List
 
 import pkg_resources
 
-import geofinder.AppStyle as GFStyle
+from  geofinder import AppStyle as GFStyle
 from tk_helper import TKHelper
-from util import Tooltip
+import Tooltip
 
 # Columns for widgets:
 # [0 PADDING]  [1 TEXT    with span 2]  [3 Buttons]

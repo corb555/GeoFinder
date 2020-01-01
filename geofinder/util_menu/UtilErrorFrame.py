@@ -26,8 +26,8 @@ from tkinter import *
 from tkinter.ttk import *
 from typing import Dict
 
-from geofinder import AppStyle
-from util import CachedDictionary
+import AppStyle
+import CachedDictionary
 import GeoUtil
 from tk_helper import TKHelper as Widge
 

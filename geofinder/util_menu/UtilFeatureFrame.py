@@ -20,14 +20,16 @@
 import logging
 from tkinter import ttk
 
-from util import GridPosition
+import GridPosition
 from tk_helper import TKHelper as Widge
 from util_menu import UtilListboxFrame
 
-default = ["en"]
+default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ", "HSP","FT",
+           "HSTS", "ISL", "MSQE", "MSTY", "MT", "MUS", "PAL", "PPL", "PPLA", "PPLA2", "PPLA3", "PPLA4",
+           "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "PRSH", "RUIN", "RLG", "STG", "SQR", "SYG", "VAL"]
 
 
-class UtilLanguagesFrame(UtilListboxFrame.ListboxFrame):
+class SetupFeatureFrame(UtilListboxFrame.ListboxFrame):
     """
     SetupFeatureList allows users to add or delete items in the Feature List
     The Feature list is the Feature types that we will load from a Geonames.org file.  For example, we will load
@@ -44,13 +46,13 @@ class UtilLanguagesFrame(UtilListboxFrame.ListboxFrame):
 
         # Add these in addition to the standard widgets we inherit from ListBoxFrame
         self.add_button = ttk.Button(frame, text="add", command=self.add_handler, width=UtilListboxFrame.BUTTON_WIDTH)
-        self.add_label = Widge.CLabel(frame, text="Enter 2 letter ISO language code below and click on Add button to add", style='Info.TLabel')
+        self.add_label = Widge.CLabel(frame, text="Enter Geoname Feature below and click on Add button to add", style='Info.TLabel')
         self.add_entry: Widge.CEntry = Widge.CEntry(frame, text="   ", width=15)  # , style='Info.TLabel')
         super().__init__(frame, title, dir_name, cache_filename)
 
         # If dictionary is empty, load in defaults
         if len(self.dict) == 0:
-            self.logger.error('Language list is empty. loading defaults')
+            self.logger.error('Feature list is empty. loading defaults')
             self.set_default(default)
             self.load_defaults()
             super().add_handler()
@@ -68,9 +70,5 @@ class UtilLanguagesFrame(UtilListboxFrame.ListboxFrame):
     def add_handler(self):
         # Allow user to add an item to list.
         val: str = self.add_entry.text
-        if len(val) == 2:
-            self.add_label.configure(style='Info.TLabel')
-            self.dict[val.lower()] = ""  # Add item to dict
-            super().add_handler()
-        else:
-            self.add_label.configure(style='Error.TLabel')
+        self.dict[val.upper()] = ""  # Add item to dict
+        super().add_handler()

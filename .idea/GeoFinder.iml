@@ -4,10 +4,10 @@
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/geofinder" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../Geodata/geodata" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/util" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/util_menu" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/geofinder/util" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/geofinder/util_menu" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/build/geofinder" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/ancestry" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/geofinder/ancestry" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.idea" />
       <excludeFolder url="file://$MODULE_DIR$/_build" />
       <excludeFolder url="file://$MODULE_DIR$/_static" />

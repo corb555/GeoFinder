@@ -22,7 +22,7 @@ from typing import Dict
 from util_menu import UtilListboxFrame
 import GeoDB
 import Loc
-from util.CachedDictionary import CachedDictionary
+from util import CachedDictionary
 
 GEOID_TOKEN = 1
 PREFIX_TOKEN = 2

@@ -29,20 +29,17 @@ from tkinter import filedialog
 from tkinter import messagebox
 from typing import Dict
 
+from geodata import GeoUtil, Loc, Normalize, Geodata, CachedDictionary
+from geodata.Geodata import ResultFlags
 from tk_helper import TKHelper
- 
+
+import Config
+import IniHandler
+import UtilFeatureFrame
+import UtilLayout
 from geofinder import AppLayout
-from util import Config
-from ancestry import Gedcom, GrampsXml
-from util_menu import UtilLayout, UtilFeatureFrame
-import Normalize
-import Loc
-import GeoUtil
-import Geodata
+import Gedcom, GrampsXml
 from geofinder import __version__
-from util.CachedDictionary import CachedDictionary
-from Geodata import ResultFlags
-from util.IniHandler import IniHandler
 
 MISSING_FILES = 'Missing Files.  Please select Config and correct errors in Errors Tab'
 file_types = 'GEDCOM / Gramps XML'
@@ -114,7 +111,7 @@ class GeoFinder:
         # Get our base directory path from INI file.  Create INI if it doesnt exist
         home_path = str(Path.home())
         self.directory = Path(os.path.join(home_path, str(GeoUtil.get_directory_name())))
-        self.ini_handler = IniHandler(base_path=home_path, ini_name='geofinder.ini')
+        self.ini_handler = IniHandler.IniHandler(base_path=home_path, ini_name='geofinder.ini')
         self.directory = self.ini_handler.get_directory_from_ini("GeoFinder", GeoUtil.get_directory_name())
 
         self.cache_dir = GeoUtil.get_cache_directory(self.directory)
@@ -189,9 +186,9 @@ class GeoFinder:
             Error - True if error occurred
         """
         # Read in Skiplist, Replace list
-        self.skiplist = CachedDictionary(self.cache_dir, "skiplist.pkl")
+        self.skiplist = CachedDictionary.CachedDictionary(self.cache_dir, "skiplist.pkl")
         self.skiplist.read()
-        self.global_replace = CachedDictionary(self.cache_dir, "global_replace.pkl")
+        self.global_replace = CachedDictionary.CachedDictionary(self.cache_dir, "global_replace.pkl")
         self.global_replace.read()
         dict_copy = copy.copy(self.global_replace.dict)
 
@@ -202,7 +199,7 @@ class GeoFinder:
             self.global_replace.dict[new_key] = val
 
         # Read in dictionary listing Geoname features we should include
-        self.feature_code_list_cd = CachedDictionary(self.cache_dir, "feature_list.pkl")
+        self.feature_code_list_cd = CachedDictionary.CachedDictionary(self.cache_dir, "feature_list.pkl")
         self.feature_code_list_cd.read()
         feature_code_list_dct: Dict[str, str] = self.feature_code_list_cd.dict
         if len(feature_code_list_dct) < 3:
@@ -214,12 +211,12 @@ class GeoFinder:
             self.feature_code_list_cd.write()
 
         # Read in dictionary listing countries (ISO2) we should include
-        self.supported_countries_cd = CachedDictionary(self.cache_dir, "country_list.pkl")
+        self.supported_countries_cd = CachedDictionary.CachedDictionary(self.cache_dir, "country_list.pkl")
         self.supported_countries_cd.read()
         supported_countries_dct: Dict[str, str] = self.supported_countries_cd.dict
 
         # Read in dictionary listing languages (ISO2) we should include
-        self.languages_list_cd = CachedDictionary(self.cache_dir, "languages_list.pkl")
+        self.languages_list_cd = CachedDictionary.CachedDictionary(self.cache_dir, "languages_list.pkl")
         self.languages_list_cd.read()
         languages_list_dct: Dict[str, str] = self.languages_list_cd.dict
 
@@ -444,7 +441,7 @@ class GeoFinder:
         return prefix, name, dbid
 
     def get_user_selection(self):
-        flags = ResultFlags(limited=False, filtered=False)
+        flags =   ResultFlags(limited=False, filtered=False)
 
         # User selected item from listbox - get listbox selection
         pref, town_entry, dbid = self.get_list_selection()
@@ -867,7 +864,7 @@ class GeoFinder:
         file_list = ['allCountries.txt', 'cities500.txt']
 
         # Get country list and validate
-        countries = CachedDictionary(self.cache_dir, 'country_list.pkl')
+        countries = CachedDictionary.CachedDictionary(self.cache_dir, 'country_list.pkl')
         self.logger.debug('load country selections list')
 
         err = countries.read()

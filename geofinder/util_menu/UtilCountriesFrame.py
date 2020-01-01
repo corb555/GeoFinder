@@ -23,8 +23,8 @@ from tkinter import *
 from tkinter import ttk
 from tkinter.ttk import *
 
-from util import GridPosition
-from geofinder import AppStyle
+import GridPosition
+import AppStyle
 from util_menu import UtilListboxFrame
 import Country
 import GeodataFiles

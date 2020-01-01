@@ -22,7 +22,7 @@ from typing import Match, Union
 
 from tk_helper import TKHelper
 from ancestry.AncestryFile import AncestryFile
-from util.CachedDictionary import CachedDictionary
+from util import CachedDictionary
 
 PLACE_TOTAL_KEY = 'PLACE_TOTAL'
 
@@ -51,7 +51,7 @@ class Gedcom(AncestryFile):
         # Build dictionary of name/id pairs and write to pickle cache file.  If pickle file already there, just read it.
         parts = os.path.split(in_path)
         filename = parts[1] + '.pkl'
-        self.person_cd = CachedDictionary(cache_d, filename)
+        self.person_cd = CachedDictionary.CachedDictionary(cache_d, filename)
 
         # Try to read pickle file of IDs for this GEDCOM file
         err = self.person_cd.read()

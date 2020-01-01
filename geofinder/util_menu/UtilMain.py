@@ -23,7 +23,7 @@ import pickle
 from pathlib import Path
 from tkinter import *
 
-from util import CachedDictionary
+import CachedDictionary
 from util_menu import UtilLayout
 import GeoUtil
 
