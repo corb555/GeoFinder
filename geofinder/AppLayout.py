@@ -26,7 +26,7 @@ import pkg_resources
 
 from  geofinder import AppStyle as GFStyle
 from tk_helper import TKHelper
-import Tooltip
+from geofinder.util import Tooltip
 
 # Columns for widgets:
 # [0 PADDING]  [1 TEXT    with span 2]  [3 Buttons]
