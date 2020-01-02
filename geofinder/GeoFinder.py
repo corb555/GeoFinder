@@ -29,17 +29,15 @@ from tkinter import filedialog
 from tkinter import messagebox
 from typing import Dict
 
-from geodata import GeoUtil, Loc, Normalize, Geodata, CachedDictionary
-from geodata.Geodata import ResultFlags
+from geodata import Normalize, GeoUtil, Loc
+from geodata.Geodata import ResultFlags, Geodata
 from tk_helper import TKHelper
 
-import Config
-import IniHandler
-import UtilFeatureFrame
-import UtilLayout
 from geofinder import AppLayout
-import Gedcom, GrampsXml
 from geofinder import __version__
+from geofinder.util import CachedDictionary, Config, IniHandler
+from geofinder.ancestry import Gedcom, GrampsXml
+from geofinder.util_menu import UtilFeatureFrame, UtilLayout
 
 MISSING_FILES = 'Missing Files.  Please select Config and correct errors in Errors Tab'
 file_types = 'GEDCOM / Gramps XML'
@@ -221,7 +219,7 @@ class GeoFinder:
         languages_list_dct: Dict[str, str] = self.languages_list_cd.dict
 
         # Initialize geo data
-        self.geodata = Geodata.Geodata(directory_name=self.directory, progress_bar=self.w.prog,
+        self.geodata = Geodata(directory_name=self.directory, progress_bar=self.w.prog,
                                        enable_spell_checker=self.enable_spell_checker,
                                        show_message=True, exit_on_error=True,
                                        languages_list_dct=languages_list_dct,
