@@ -24,9 +24,9 @@ from tkinter import ttk, messagebox
 from tkinter.ttk import *
 from typing import List
 
-import AppStyle
-from util_menu import UtilOutputFilterFrame, UtilListboxFrame, UtilReplaceFrame, UtilFeatureFrame, UtilCountriesFrame, UtilLanguagesFrame, \
-    UtilErrorFrame
+from geofinder import AppStyle
+from geofinder.util_menu import (UtilOutputFilterFrame, UtilListboxFrame, UtilReplaceFrame, UtilFeatureFrame, UtilCountriesFrame, UtilLanguagesFrame,
+                                 UtilErrorFrame)
 
 
 class UtilLayout:

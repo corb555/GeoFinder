@@ -23,9 +23,8 @@ import pickle
 from pathlib import Path
 from tkinter import *
 
-import CachedDictionary
+from geodata import CachedDictionary, GeoUtil
 from util_menu import UtilLayout
-import GeoUtil
 
 try:
     import unidecode

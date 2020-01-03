@@ -22,10 +22,11 @@ from tkinter import *
 from tkinter import ttk
 from tkinter.ttk import *
 
+from geodata import CachedDictionary
 from tk_helper import TKHelper
-import AppStyle
-import GridPosition
-import CachedDictionary
+
+from geofinder import AppStyle
+from geofinder.util import GridPosition
 
 BUTTON_WIDTH = 6
 # tags to aletrnate colors in list box

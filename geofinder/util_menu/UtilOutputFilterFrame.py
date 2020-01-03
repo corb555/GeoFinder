@@ -18,12 +18,13 @@
 #   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 
 import logging
-from tkinter import ttk
 import tkinter as tk
+from tkinter import ttk
 
-import GridPosition
-from util_menu import UtilListboxFrame
 from tk_helper import TKHelper as Widge
+
+from geofinder.util import GridPosition
+from util_menu import UtilListboxFrame
 
 default = []
 

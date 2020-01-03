@@ -30,6 +30,8 @@ from tkinter import messagebox
 from typing import Dict
 
 from geodata import Normalize, GeoUtil, Loc
+from geodata import  __version__ as geodata_version
+
 from geodata.Geodata import ResultFlags, Geodata
 from tk_helper import TKHelper
 
@@ -82,6 +84,8 @@ class GeoFinder:
             raise Exception("GeoFinder Requires Python 3.6 or higher.")
         val = ''
         print(f'GeoFinder Requires Python 3.6 or higher {val}')
+        
+        print(f'Geodata v{geodata_version.__version__}')
 
         self.save_enabled = False  # Only allow SAVE when we have an item that was matched in geonames
         self.user_selected_list = False  # Indicates whether user selected a list entry or text edit entry

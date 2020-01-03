@@ -23,11 +23,10 @@ from tkinter import *
 from tkinter import ttk
 from tkinter.ttk import *
 
-import GridPosition
-import AppStyle
+from geofinder.util import GridPosition
+from geofinder import AppStyle
 from util_menu import UtilListboxFrame
-import Country
-import GeodataFiles
+from geodata import GeodataFiles, Country
 
 
 class SetupCountriesFrame(UtilListboxFrame.ListboxFrame):

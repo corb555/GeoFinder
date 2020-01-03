@@ -19,10 +19,10 @@ import os
 import tkinter as tk
 from typing import Dict
 
+from geodata import CachedDictionary, Loc, GeoDB
+
+from geofinder.util import CachedDictionary
 from util_menu import UtilListboxFrame
-import GeoDB
-import Loc
-from util import CachedDictionary
 
 GEOID_TOKEN = 1
 PREFIX_TOKEN = 2

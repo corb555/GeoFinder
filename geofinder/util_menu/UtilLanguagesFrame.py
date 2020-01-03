@@ -20,7 +20,10 @@
 import logging
 from tkinter import ttk
 
-import GridPosition
+from geofinder.util import GridPosition
+
+
+
 from tk_helper import TKHelper as Widge
 from util_menu import UtilListboxFrame
 

@@ -26,10 +26,10 @@ from tkinter import *
 from tkinter.ttk import *
 from typing import Dict
 
-import AppStyle
-import CachedDictionary
-import GeoUtil
+from geodata import CachedDictionary, GeoUtil
 from tk_helper import TKHelper as Widge
+
+from geofinder import AppStyle
 
 
 class SetupErrorFrame:
