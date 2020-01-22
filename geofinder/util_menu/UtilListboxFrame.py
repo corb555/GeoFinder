@@ -52,11 +52,15 @@ class ListboxFrame:
                     "add_label": [0, 4, 5, 5, "EW"], "add_button": [2, 4, 5, 5, "W"],
                     "add_entry": [0, 5, 5, 5, "EW"], "listbox_all_countries": [0, 5, 5, 5, "EW"], "scrollbar2": [1, 5, 0, 5, "WNS"],
                     "country_label": [0, 5, 5, 5, "EW"],
-                    "country_entry": [0, 7, 5, 5, "W"], "country_button": [2, 6, 5, 5, "W"],
+                    "country_entry": [0, 7, 5, 5, "W"], 
+                    "country_button": [2, 6, 5, 5, "W"],
                     "country_label2": [0, 6, 5, 5, "EW"],
                     "country_entry2": [0, 9, 5, 5, "W"],
                     "country_label3": [0, 8, 5, 5, "EW"],
-                    }
+                    "entry_label": [0, 6, 5, 5, "EW"],
+                    "entry_button": [2, 7, 5, 5, "W"],
+
+            }
 
         self.title = title
         self.frame = frame
@@ -97,14 +101,17 @@ class ListboxFrame:
         # Display data
         self.load_handler()
 
-    def list_insert(self, tree, col1, col2):
+    def list_append(self, tree:ttk.Treeview, col1, col2):
         self.odd = not self.odd
         if self.odd:
             tag = odd_tag
         else:
             tag = even_tag
         tree.insert(parent='', index="end", iid=None, text=col1, values=(col2,), tags=tag)
-
+        
+    def list_update(self, tree:ttk.Treeview, col1, col2, item):
+        tree.item(item, text=col1, values=(col2,))
+              
     def clear_display_list(self, tree):
         self.odd = False
         for row in tree.get_children():
@@ -116,9 +123,9 @@ class ListboxFrame:
 
         for item in sorted(self.dict):
             if len(self.dict[item]) > 1:
-                self.list_insert(self.tree, f"{item}", f"{self.dict[item]}")
+                self.list_append(self.tree, f"{item}", f"{self.dict[item]}")
             else:
-                self.list_insert(self.tree, f"{item}", '')
+                self.list_append(self.tree, f"{item}", '')
 
     def set_default(self, lst):
         self.default = lst

@@ -22,19 +22,20 @@ from tkinter import ttk
 
 from geofinder.util import GridPosition
 
-from tk_helper import TKHelper as Widge
+from tk_helper import TKHelper as TkHelp
 from util_menu import UtilListboxFrame
 
-default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "CH", "CSTL", "CMTY", "EST ", "HSP","FT",
+default = ["ADM1", "ADM2", "ADM3", "ADM4", "ADMF", "AREA", "CH", "CSTL", "CMTY", "EST ", "HSP","FT",
            "HSTS", "ISL", "MSQE", "MSTY", "MT", "MUS", "PAL", "PPL", "PPLA", "PPLA2", "PPLA3", "PPLA4",
-           "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "PRSH", "RUIN", "RLG", "STG", "SQR", "SYG", "VAL"]
+           "PPLC", "PPLG", "PPLH", "PPLL", "PPLQ", "PPLX", "PRK", "PRN", "PRSH", "RUIN", "RGN","RLG", "STG", 
+           "SQR", "SYG", "VAL", "MNMT"]
 
 
 class SetupFeatureFrame(UtilListboxFrame.ListboxFrame):
     """
     SetupFeatureList allows users to add or delete items in the Feature List
     The Feature list is the Feature types that we will load from a Geonames.org file.  For example, we will load
-    Villages, Squares, Parks, Cemetaries, etc but not load Refineries, Glaciers, and Coral Reefs.
+    Villages, Squares, Parks, Cemeteries, etc but not load Refineries, Glaciers, and Coral Reefs.
     For details on Feature Types see http://www.geonames.org/export/codes.html
     SetupFeatureList is derived from ListboxFrame:
 
@@ -45,10 +46,10 @@ class SetupFeatureFrame(UtilListboxFrame.ListboxFrame):
     def __init__(self, frame, title, dir_name, cache_filename):
         self.logger = logging.getLogger(__name__)
 
-        # Add these in addition to the standard widgets we inherit from ListBoxFrame
+        # Add these widgets in addition to the standard widgets we inherit from ListBoxFrame
         self.add_button = ttk.Button(frame, text="add", command=self.add_handler, width=UtilListboxFrame.BUTTON_WIDTH)
-        self.add_label = Widge.CLabel(frame, text="Enter Geoname Feature below and click on Add button to add", style='Info.TLabel')
-        self.add_entry: Widge.CEntry = Widge.CEntry(frame, text="   ", width=15)  # , style='Info.TLabel')
+        self.add_label = TkHelp.CLabel(frame, text="Enter Geoname Feature below and click on Add button to add", style='Info.TLabel')
+        self.add_entry: TkHelp.CEntry = TkHelp.CEntry(frame, text="   ", width=15)  # , style='Info.TLabel')
         super().__init__(frame, title, dir_name, cache_filename)
 
         # If dictionary is empty, load in defaults

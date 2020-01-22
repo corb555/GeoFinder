@@ -39,6 +39,7 @@ class CachedDictionary:
 
     def set(self, key, val):
         self.dict[key] = val
+        self.logger.debug(f'Set Dict Key=[{key}] Val=[{val}]')
 
     def read(self):
         # Load Pickle file into dictionary

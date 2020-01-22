@@ -68,7 +68,11 @@ class SetupCountriesFrame(UtilListboxFrame.ListboxFrame):
         self.tree.heading("pre", text="Code", anchor=tk.W)
 
         self.logger.info('geodatafiles loading')
-        self.geoFiles = GeodataFiles.GeodataFiles(dir_name, None, enable_spell_checker=False)
+        self.geoFiles = GeodataFiles.GeodataFiles(directory=dir_name, progress_bar=None,
+                                                  enable_spell_checker=False,show_message=True,
+                                                  exit_on_error=True,languages_list_dct={},feature_code_list_dct={},
+                                                  supported_countries_dct={}
+                                                  )
         self.logger.info('  geodatafiles initialized')
 
         self.load_handler_all()
@@ -104,9 +108,9 @@ class SetupCountriesFrame(UtilListboxFrame.ListboxFrame):
 
         for key in sorted(self.dict):
             if len(self.dict[key]) > 1:
-                self.list_insert(self.tree, f"{self.dict[key]}", f"{key}")
+                self.list_append(self.tree, f"{self.dict[key]}", f"{key}")
             else:
-                self.list_insert(self.tree, f"{key}", '')
+                self.list_append(self.tree, f"{key}", '')
 
     def delete_items(self, tree, dct):
         # Delete any items in the list that the user selected
@@ -125,7 +129,7 @@ class SetupCountriesFrame(UtilListboxFrame.ListboxFrame):
         self.logger.info('Building country list: {} countries'.format(len(Country.country_dict)))
         for name in sorted(Country.country_dict):
             row = Country.country_dict[name]
-            self.list_insert(self.listbox_all_countries, name.lower(), row[0].lower())
+            self.list_append(self.listbox_all_countries, name.lower(), row[0].lower())
 
     def add_handler(self):
         # Add items user selected to supported list

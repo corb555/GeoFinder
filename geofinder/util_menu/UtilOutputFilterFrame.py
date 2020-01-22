@@ -91,4 +91,4 @@ class UtilOutputFilterFrame(UtilListboxFrame.ListboxFrame):
         self.clear_display_list(self.tree)
 
         for item in sorted(self.dict):
-            self.list_insert(self.tree, item, self.dict[item])
+            self.list_append(self.tree, item, self.dict[item])

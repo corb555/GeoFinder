@@ -31,10 +31,9 @@ from typing import Dict
 
 from geodata import Normalize, GeoUtil, Loc
 from geodata import  __version__ as geodata_version
-
 from geodata.Geodata import ResultFlags, Geodata
 from tk_helper import TKHelper
-
+from geofinder import ReplacementDictionary
 from geofinder import AppLayout
 from geofinder import __version__
 from geofinder.util import CachedDictionary, Config, IniHandler
@@ -52,12 +51,13 @@ temp_suffix = 'tmp'
 class GeoFinder:
     """
     Read in a GEDCOM or Gramps genealogy file and verify that the spelling of each place is correct.
-    If place is found, add the latitude and longitude to the output  file.
+    If place is found, add the latitude and longitude to the output file.
     If place can't be found, allow the user to correct it.  If match is found, apply the change to
-    all matching entries.
-    Also allow the user to mark an item to skip if a resolution cant be found.
-    Skiplist is a list of locations the user has flagged to skip.  These items will be ignored
+    all subsequent matching entries.
     Global replace list is list of fixes that have been found.  These are applied to any new similar matches.
+
+    Also allow the user to mark an item to skip if a resolution cant be found.
+    Skiplist is a list of locations the user has flagged to skip.  These items will be ignored.
 
     Main classes for Application:
 
@@ -65,14 +65,14 @@ class GeoFinder:
 
     #Packages:
     #Geodata
-        GeoData - The geonames data model routines
-        GeodataFile - routines to read/write geoname data sources
-        Loc - holds all info for a single location
+        GeoData - The geonames data model search routines
+        GeodataBuild - routines to read geoname data files and build database
+        Loc - holds all info for a location
         GeoDB - Database insert/lookup routines.
     #Ancestry:
         GEDCOM - routines to read and write GEDCOM files
         GrampsXML - routines to read and write GrampsXML files
-    #Util: -  the frames for the Config button
+    #Util_menu: -  the routines for the Config button
 
     """
 
@@ -106,157 +106,35 @@ class GeoFinder:
         # get command line arguments
         self.get_command_line_arguments()
 
-        # Create App window and configure  window buttons and widgets
+        # Create App window and configure window buttons and widgets
         self.w: AppLayout.AppLayout = AppLayout.AppLayout(self)
         self.w.create_initialization_widgets()
 
-        # Get our base directory path from INI file.  Create INI if it doesnt exist
-        home_path = str(Path.home())
-        self.directory = Path(os.path.join(home_path, str(GeoUtil.get_directory_name())))
-        self.ini_handler = IniHandler.IniHandler(base_path=home_path, ini_name='geofinder.ini')
-        self.directory = self.ini_handler.get_directory_from_ini("GeoFinder", GeoUtil.get_directory_name())
+        # Get our base directory and cache directory path 
+        self.get_directory_locations()
 
-        self.cache_dir = GeoUtil.get_cache_directory(self.directory)
-        self.logger.info(f'Cache directory {self.cache_dir}')
-
-        # Set up configuration  class
+        # Set up configuration class
         self.cfg = Config.Config(self.directory)
         self.util = UtilLayout.UtilLayout(root=self.w.root, directory=self.directory, cache_dir=self.cache_dir)
 
-        if not os.path.exists(self.cache_dir):
-            # Create directories for GeoFinder
-            if messagebox.askyesno('Geoname Data Cache Folder not found',
-                                   f'Create Geoname Cache folder?\n\n{self.cache_dir} '):
-                err = self.cfg.create_directories()
-                if not os.path.exists(self.cache_dir):
-                    messagebox.showwarning('Geoname Data Cache Folder not found',
-                                           f'Unable to create folder\n\n{self.cache_dir} ')
-                    self.shutdown()
-                else:
-                    self.logger.debug(f'Created {self.cache_dir}')
-                    messagebox.showinfo('Geoname Data Cache Folder created',
-                                        f'Created folder\n\n{self.cache_dir} ')
-            else:
-                self.shutdown()
-
-        # Ensure GeoFinder directory structure is valid
-        if self.cfg.valid_directories():
-            # Directories are valid.  See if  required Geonames files are present
-            err = self.check_configuration()
-            if err:
-                # Missing files
-                self.logger.warning('Missing files')
-                self.w.status.text = "Click Config to set up Geo Finder"
-                TKHelper.set_preferred_button(self.w.config_button, self.w.initialization_buttons, "Preferred.TButton")
-                self.w.load_button.config(state="disabled")
-            else:
-                # No config errors
-                # Read config settings (Ancestry file path)
-                err = self.cfg.read()
-                if err:
-                    self.logger.warning('error reading {} config.pkl'.format(self.cache_dir))
-
-                self.w.original_entry.text = self.cfg.get("gedcom_path")
-                TKHelper.enable_buttons(self.w.initialization_buttons)
-                if os.path.exists(self.cfg.get("gedcom_path")):
-                    #  file is valid.  Prompt user to click Open for  file
-                    self.w.status.text = f"Click Open to load {file_types} file"
-                    TKHelper.set_preferred_button(self.w.load_button, self.w.initialization_buttons, "Preferred.TButton")
-                else:
-                    # No file.  prompt user to select a  file - GEDCOM file name isn't valid
-                    self.w.status.text = f"Choose a {file_types} file"
-                    self.w.load_button.config(state="disabled")
-                    TKHelper.set_preferred_button(self.w.choose_button, self.w.initialization_buttons, "Preferred.TButton")
-        else:
-            # Missing directories
-            self.logger.warning('Directories not found: {} '.format(self.cache_dir))
-            self.w.status.text = "Click Config to set up Geo Finder"
-            self.w.load_button.config(state="disabled")
-            TKHelper.set_preferred_button(self.w.config_button, self.w.initialization_buttons, "Preferred.TButton")
-
-        # Flag to indicate whether we are in startup or in Window loop.  Determines how window idle is called
-        self.starting = False
-
+        # Ensure directories are set up correctly
+        self.validate_directories()
+        
         self.w.title.text = f'GEO FINDER v{__version__.__version__}'
-        self.w.root.mainloop()  # ENTER MAIN LOOP and Wait for user to click on load button
-
-    def load_data_files(self) -> bool:
-        """
-        Load in data files required for GeoFinder:
-        Load global_replace dictionary, Geodata files and geonames
-        #Returns:
-            Error - True if error occurred
-        """
-        # Read in Skiplist, Replace list
-        self.skiplist = CachedDictionary.CachedDictionary(self.cache_dir, "skiplist.pkl")
-        self.skiplist.read()
-        self.global_replace = CachedDictionary.CachedDictionary(self.cache_dir, "global_replace.pkl")
-        self.global_replace.read()
-        dict_copy = copy.copy(self.global_replace.dict)
-
-        # Convert all global_replace items to lowercase
-        for ky in dict_copy:
-            val = self.global_replace.dict.pop(ky)
-            new_key = Normalize.normalize(text=ky, remove_commas=False)
-            self.global_replace.dict[new_key] = val
-
-        # Read in dictionary listing Geoname features we should include
-        self.feature_code_list_cd = CachedDictionary.CachedDictionary(self.cache_dir, "feature_list.pkl")
-        self.feature_code_list_cd.read()
-        feature_code_list_dct: Dict[str, str] = self.feature_code_list_cd.dict
-        if len(feature_code_list_dct) < 3:
-            self.logger.warning('Feature list is empty.')
-            feature_code_list_dct.clear()
-            feature_list = UtilFeatureFrame.default
-            for feat in feature_list:
-                feature_code_list_dct[feat] = ''
-            self.feature_code_list_cd.write()
-
-        # Read in dictionary listing countries (ISO2) we should include
-        self.supported_countries_cd = CachedDictionary.CachedDictionary(self.cache_dir, "country_list.pkl")
-        self.supported_countries_cd.read()
-        supported_countries_dct: Dict[str, str] = self.supported_countries_cd.dict
-
-        # Read in dictionary listing languages (ISO2) we should include
-        self.languages_list_cd = CachedDictionary.CachedDictionary(self.cache_dir, "languages_list.pkl")
-        self.languages_list_cd.read()
-        languages_list_dct: Dict[str, str] = self.languages_list_cd.dict
-
-        # Initialize geo data
-        self.geodata = Geodata(directory_name=self.directory, progress_bar=self.w.prog,
-                                       enable_spell_checker=self.enable_spell_checker,
-                                       show_message=True, exit_on_error=True,
-                                       languages_list_dct=languages_list_dct,
-                                       feature_code_list_dct=feature_code_list_dct,
-                                       supported_countries_dct=supported_countries_dct)
-
-        # If the list of supported countries is unusually short, display note to user
-        num = self.display_country_note()
-        self.logger.info('{} countries will be loaded'.format(num))
-
-        # open Geoname Gazeteer DB - city names, lat/long, etc.
-        error = self.geodata.open()
-        if error:
-            TKHelper.fatal_error(MISSING_FILES)
-
-        self.w.root.update()
-        self.w.prog.update_progress(100, " ")
-        return error
+        self.w.root.mainloop()  # ENTER MAIN LOOP and Wait for user to click on load button which calls load_handler
 
     def load_handler(self):
         """
-        The User pressed the LOAD button to load an Ancestry file. Switch app display to the Review Widgets layout
+        The User pressed the LOAD button to load and review an Ancestry file. Switch app display to the Review layout
         Load in file name and call handle_place_entry()
         """
         self.w.original_entry.text = ""
         self.w.remove_initialization_widgets()  # Remove old widgets
-        self.w.create_review_widgets()  # Switch display from Initial widgets to main review widgets
-
+        self.w.create_review_widgets()  # Switch display from Initial widgets to review widgets
         self.load_data_files()
-
         ged_path = self.cfg.get("gedcom_path")  # Get saved config setting for  file
 
-        # Load appropriate handler based on file type (Gramps XML or GEDCOM)
+        # Load appropriate ancestry file handler based on file type (Gramps XML or GEDCOM)
         if ged_path is not None:
             if '.ged' in ged_path:
                 # GEDCOM
@@ -282,7 +160,6 @@ class GeoFinder:
             TKHelper.fatal_error(f"File {ged_path} not found.")
 
         self.w.root.update()
-
         self.place: Loc.Loc = Loc.Loc()  # Create an object to store info for the current Place
 
         # Add  filename to Title
@@ -375,16 +252,10 @@ class GeoFinder:
                         else:
                             self.periodic_update("Scanning")
 
-                        # Add to global replace list - Use '@' for tokenizing.  Save GEOID_TOKEN and PREFIX_TOKEN
-                        res = '@' + self.place.geoid + '@' + self.place.prefix
-
-                        self.global_replace.set(Normalize.normalize(text=town_entry, remove_commas=False), res)
-                        self.logger.debug(f'Found Strong Match for {town_entry} res= [{res}] Setting DICT')
-                        # Periodically flush dictionary to disk.  (We flush on exit as well)
-                        if self.update_counter % 200 == 1:
-                            self.global_replace.write()
-
+                        # Add to global replace list 
+                        self.update_global_replacement_list(key=town_entry, geoid=self.place.geoid, prefix=self.place.prefix)
                         self.write_updated_place(self.place, town_entry)
+                        self.logger.debug(f'Found Strong Match for {town_entry} Setting DICT')
                         continue
                     else:
                         # WEAK MATCH OR MULTIPLE MATCHES
@@ -453,7 +324,7 @@ class GeoFinder:
         # Update the user edit widget with the List selection item
         self.w.user_entry.text = town_entry
 
-        # Since we are verifying users choice, Get exact match by geoid
+        # Since we are verifying users choice, get match by geoid
         self.geodata.find_geoid(self.place.geoid, self.place)
         self.place.prefix = pref
         # self.logger.debug(f'id={self.place.geoid} res={self.place.result_type} {self.place.georow_list}')
@@ -487,8 +358,13 @@ class GeoFinder:
         self.display_result(self.place)
 
     def display_result(self, place: Loc.Loc):
-        """ Display result details for a town entry  """
-        # Enable buttons so user can either click Skip, or edit the item and Click Verify.
+        """
+        Display result details for a town entry  
+        Enable buttons so user can either click Skip, or edit the item and Click Verify.   
+        Args:
+            place: 
+        Returns: None
+        """
         place.set_types_as_string()
         place.status = f'{place.result_type_text}  {self.result_text_list.get(place.result_type)} '
 
@@ -555,9 +431,10 @@ class GeoFinder:
 
             self.geodata.geo_files.geodb.set_display_names(temp_place)
             nm = temp_place.get_long_name(self.geodata.geo_files.output_replace_dct)
-            valid = self.geodata._valid_year_for_location(event_year=place.event_year, country_iso=temp_place.country_iso,
+            # See if name existed at time of event
+            valid_year = self.geodata._valid_year_for_location(event_year=place.event_year, country_iso=temp_place.country_iso,
                                                           admin1=temp_place.admin1_id, pad_years=0)
-            if valid:
+            if valid_year:
                 # Get prefix
                 self.w.tree.list_insert(nm, GeoUtil.capwords(geo_row[GeoUtil.Entry.PREFIX]), geo_row[GeoUtil.Entry.ID],
                                         f'{int(geo_row[GeoUtil.Entry.SCORE]):d}',
@@ -569,10 +446,8 @@ class GeoFinder:
         self.w.root.update_idletasks()
 
     def skip_handler(self):
-        """ User clicked SKIP.  Write out original entry as-is and skip any matches in future  """
+        """ User clicked SKIP.  Write out original entry as-is and skip in future. Go to next place  """
         self.skip_count += 1
-
-        # self.logger.debug(f'Skip for {self.w.original_entry.get_text()}  Updating SKIP dict')
 
         self.skiplist.set(self.w.original_entry.text, " ")
         self.ancestry_file_handler.write_asis(self.w.original_entry.text)
@@ -584,32 +459,39 @@ class GeoFinder:
         self.process_place_entries()
 
     def save_handler(self):
-        """ Save the Place.  Add Place to global replace list and replace if we see it again. """
+        """
+        Save the selected Place.  Add Place to global replace list and replace if we see it again.
+        Go to next place
+        Returns: None
+        """
         self.matched_count += 1
-        # self.geodata.set_last_iso(self.place.country_iso)
 
         ky = self.w.original_entry.text
+        self.logger.debug(f'key [{ky}]')
         if self.place.result_type == GeoUtil.Result.DELETE:
             # Put in a blank as replacement
             self.place.geoid = ''
             self.place.prefix = ''
+            
+        # Save this in global replacement list
+        self.update_global_replacement_list(key=ky, geoid=self.place.geoid, prefix=self.place.prefix)
 
-        res = '@' + self.place.geoid + '@' + self.place.prefix
-        # self.logger.debug(f'Save [{ky}] :: [{res}]')
-        self.global_replace.set(Normalize.normalize(text=ky, remove_commas=False), res)
-
-        # Periodically flush dict to disk
-        if self.update_counter % 10 == 1:
-            self.global_replace.write()
-        # self.logger.debug(f'SAVE SetGblRep for [{ky}] res=[{res}] Updating DICT')
-
-        # Write out corrected item to  output file
+        # Write out corrected item to output file.  If Delete, ignore item
         if self.place.result_type != GeoUtil.Result.DELETE:
             self.write_updated_place(self.place, ky)
 
         # Get next error
         self.w.user_entry.text = ''
         self.process_place_entries()
+        
+    def update_global_replacement_list(self, key, geoid, prefix):
+        res = ReplacementDictionary.build_replacement_entry(geoid, prefix)
+        ky = Normalize.normalize(text=key, remove_commas=False)
+        self.global_replace.set(ky, res)
+
+        # Periodically flush dictionary to disk
+        if self.update_counter % 10 == 1:
+            self.global_replace.write()
 
     def help_handler(self):
         """ Launch browser showing help text from Github GeoFinder project wiki """
@@ -819,7 +701,7 @@ class GeoFinder:
          Close DB
         :return: Does not return
         """
-        # self.w.root.update_idletasks()
+        self.w.root.update_idletasks()
         if self.geodata:
             self.logger.info(self.get_stats_text)
             self.geodata.geo_files.geodb.close()
@@ -853,7 +735,7 @@ class GeoFinder:
             if not self.w.prog.shutdown_requested:
                 self.w.status.text = msg
                 self.w.status.configure(style="Good.TLabel")
-                self.w.original_entry.text = self.place.original_entry  # Display place
+                #self.w.original_entry.text = self.place.original_entry  # Display place
             self.w.root.update_idletasks()  # Let GUI update
 
     def check_configuration(self) -> bool:
@@ -948,28 +830,147 @@ class GeoFinder:
             Return geoid of location if found, else None
             place will be filled out with replacement location
         """
-        geoid = None
-        replacement = dct.get(town_entry)
+        entry = dct.get(town_entry)
+        if entry:
+            place.prefix, geoid = ReplacementDictionary.parse_replacement_entry(entry)
+        else:
+            return None
 
-        if replacement is not None:
-            if len(replacement) > 0:
-                # parse replacement entry
-                rep_tokens = replacement.split('@')
-                geoid = rep_tokens[GEOID_TOKEN]
-                if len(geoid) > 0:
-                    self.geodata.find_geoid(geoid, place)
-                    place.set_place_type()
-                else:
-                    place.result_type = GeoUtil.Result.DELETE
+        if len(geoid) > 0:
+            self.geodata.find_geoid(geoid, place)
+            place.set_place_type()
+        else:
+            self.logger.debug(f'Replacement GEOID NOT found [{town_entry}] entry=[{entry}]')
+            place.result_type = GeoUtil.Result.DELETE
 
-                # Get prefix if there was one
-                if len(rep_tokens) > 2:
-                    place.prefix = rep_tokens[PREFIX_TOKEN]
-                    place.prefix_commas = ','
-                    # place.name = place.prefix + ',' + place.name
-                # self.logger.debug(f'Found Replace.  Pref=[{place.prefix}] place={place.name} Res={place.result_type}')
-
+        # If prefix then add commas
+        if len(place.prefix) > 0:
+            place.prefix_commas = ','
+            
         return geoid
+
+    def get_directory_locations(self):
+        home_path = str(Path.home())
+        self.directory = Path(os.path.join(home_path, str(GeoUtil.get_directory_name())))
+        self.ini_handler = IniHandler.IniHandler(base_path=home_path, ini_name='geofinder.ini')
+        self.directory = self.ini_handler.get_directory_from_ini("GeoFinder", GeoUtil.get_directory_name())
+        self.cache_dir = GeoUtil.get_cache_directory(self.directory)
+        self.logger.info(f'Cache directory {self.cache_dir}')
+        
+    def validate_directories(self):
+        if not os.path.exists(self.cache_dir):
+            # Create directories for GeoFinder
+            if messagebox.askyesno('Geoname Data Cache Folder not found',
+                                   f'Create Geoname Cache folder?\n\n{self.cache_dir} '):
+                err = self.cfg.create_directories()
+                if not os.path.exists(self.cache_dir):
+                    messagebox.showwarning('Geoname Data Cache Folder not found',
+                                           f'Unable to create folder\n\n{self.cache_dir} ')
+                    self.shutdown()
+                else:
+                    self.logger.debug(f'Created {self.cache_dir}')
+                    messagebox.showinfo('Geoname Data Cache Folder created',
+                                        f'Created folder\n\n{self.cache_dir} ')
+            else:
+                self.shutdown()
+
+        # Ensure GeoFinder directory structure is valid
+        if self.cfg.valid_directories():
+            # Directories are valid.  See if  required Geonames files are present
+            err = self.check_configuration()
+            if err:
+                # Missing files
+                self.logger.warning('Missing files')
+                self.w.status.text = "Click Config to set up Geo Finder"
+                TKHelper.set_preferred_button(self.w.config_button, self.w.initialization_buttons, "Preferred.TButton")
+                self.w.load_button.config(state="disabled")
+            else:
+                # No config errors
+                # Read config settings (Ancestry file path)
+                err = self.cfg.read()
+                if err:
+                    self.logger.warning('error reading {} config.pkl'.format(self.cache_dir))
+
+                self.w.original_entry.text = self.cfg.get("gedcom_path")
+                TKHelper.enable_buttons(self.w.initialization_buttons)
+                if os.path.exists(self.cfg.get("gedcom_path")):
+                    #  file is valid.  Prompt user to click Open for  file
+                    self.w.status.text = f"Click Open to load {file_types} file"
+                    TKHelper.set_preferred_button(self.w.load_button, self.w.initialization_buttons, "Preferred.TButton")
+                else:
+                    # No file.  prompt user to select a  file - GEDCOM file name isn't valid
+                    self.w.status.text = f"Choose a {file_types} file"
+                    self.w.load_button.config(state="disabled")
+                    TKHelper.set_preferred_button(self.w.choose_button, self.w.initialization_buttons, "Preferred.TButton")
+        else:
+            # Missing directories
+            self.logger.warning('Directories not found: {} '.format(self.cache_dir))
+            self.w.status.text = "Click Config to set up Geo Finder"
+            self.w.load_button.config(state="disabled")
+            TKHelper.set_preferred_button(self.w.config_button, self.w.initialization_buttons, "Preferred.TButton")
+
+    def load_data_files(self) -> bool:
+        """
+        Load in data files required for GeoFinder:
+        Load global_replace dictionary, Geodata files and geonames
+        #Returns:
+            Error - True if error occurred
+        """
+        # Read in Skiplist, Replace list
+        self.skiplist = CachedDictionary.CachedDictionary(self.cache_dir, "skiplist.pkl")
+        self.skiplist.read()
+        self.global_replace = CachedDictionary.CachedDictionary(self.cache_dir, "global_replace.pkl")
+        self.global_replace.read()
+        dict_copy = copy.copy(self.global_replace.dict)
+
+        # Convert all global_replace items to lowercase
+        for ky in dict_copy:
+            val = self.global_replace.dict.pop(ky)
+            new_key = Normalize.normalize(text=ky, remove_commas=False)
+            self.global_replace.dict[new_key] = val
+
+        # Read in dictionary listing Geoname features we should include
+        self.feature_code_list_cd = CachedDictionary.CachedDictionary(self.cache_dir, "feature_list.pkl")
+        self.feature_code_list_cd.read()
+        feature_code_list_dct: Dict[str, str] = self.feature_code_list_cd.dict
+        if len(feature_code_list_dct) < 3:
+            self.logger.warning('Feature list is empty.')
+            feature_code_list_dct.clear()
+            feature_list = UtilFeatureFrame.default
+            for feat in feature_list:
+                feature_code_list_dct[feat] = ''
+            self.feature_code_list_cd.write()
+
+        # Read in dictionary containing countries (ISO2) we should include
+        self.supported_countries_cd = CachedDictionary.CachedDictionary(self.cache_dir, "country_list.pkl")
+        self.supported_countries_cd.read()
+        supported_countries_dct: Dict[str, str] = self.supported_countries_cd.dict
+
+        # Read in dictionary containing languages (ISO2) we should include
+        self.languages_list_cd = CachedDictionary.CachedDictionary(self.cache_dir, "languages_list.pkl")
+        self.languages_list_cd.read()
+        languages_list_dct: Dict[str, str] = self.languages_list_cd.dict
+
+        # Initialize geo data
+        self.geodata = Geodata(directory_name=self.directory, progress_bar=self.w.prog,
+                                       enable_spell_checker=self.enable_spell_checker,
+                                       show_message=True, exit_on_error=True,
+                                       languages_list_dct=languages_list_dct,
+                                       feature_code_list_dct=feature_code_list_dct,
+                                       supported_countries_dct=supported_countries_dct)
+
+        # If the list of supported countries is unusually short, display note to user
+        num = self.display_country_note()
+        self.logger.info('{} countries will be loaded'.format(num))
+
+        # open Geoname Gazeteer DB - city names, lat/long, etc.
+        error = self.geodata.open()
+        if error:
+            TKHelper.fatal_error(MISSING_FILES)
+
+        self.w.root.update()
+        self.w.prog.update_progress(100, " ")
+        return error
 
     def get_command_line_arguments(self):
         parser = argparse.ArgumentParser()
