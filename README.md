@@ -1,5 +1,5 @@
 # GeoFinder 
-GeoFinder is a python app that reads the place names in a GEDCOM genealogy file, validates and corrects them, and adds their latitude and longitude using geo data from the  geoname.org database.  For unrecognized places, it supports wildcard searches and phonetic searches.    
+GeoFinder is a python app that reads the place names in a GEDCOM genealogy file, validates them and corrects spelling and format, and adds their latitude and longitude using geo data from the  geoname.org database.  For unrecognized places, it supports wildcard searches and phonetic searches.    
 
 <a name="features"></a>
 ## Features  
